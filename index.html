@@ -104,6 +104,9 @@
 
   .green{color:#22c55e}.red{color:#ef4444}.orange{color:#f97316}.indigo{color:#818cf8}.blue{color:#38bdf8}.yellow{color:#facc15}
   .empty-msg{color:rgba(255,255,255,0.25);font-size:13px;text-align:center;padding:24px 0;font-style:italic}
+  .period-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);border-radius:7px;padding:6px 12px;cursor:pointer;font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;transition:all .2s}
+  .period-btn:hover{color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.2)}
+  .period-btn.active{background:rgba(249,115,22,0.15);border-color:rgba(249,115,22,0.4);color:#f97316}
 </style>
 </head>
 <body>
@@ -147,7 +150,14 @@
   <div id="dashboard" class="panel active">
     <div class="kpi-grid" id="kpiGrid"></div>
     <div class="chart-card">
-      <div class="chart-title">Calories consommées vs objectif (30 jours)</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+        <div class="chart-title" style="margin-bottom:0" id="mainChartTitle">Calories consommées vs objectif</div>
+        <div style="display:flex;gap:6px">
+          <button class="period-btn" onclick="setPeriod('mois_en_cours',this)">Mois en cours</button>
+          <button class="period-btn" onclick="setPeriod('mois_precedent',this)">Mois précédent</button>
+          <button class="period-btn" onclick="setPeriod('tout',this)">Tout</button>
+        </div>
+      </div>
       <div style="position:relative" id="chartMainWrap">
         <canvas id="chartMain"></canvas>
         <div id="crosshair" style="position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.25);pointer-events:none;display:none"></div>
@@ -397,6 +407,26 @@ let refs = [
 ];
 let refNextId = 20;
 let calcItems = [];
+let activePeriod = 'mois_en_cours'; // 'tout', 'mois_en_cours', 'mois_precedent'
+
+function getFilteredDays(){
+  if(activePeriod === 'tout') return days;
+  const now = new Date();
+  if(activePeriod === 'mois_en_cours'){
+    return days.filter(d => {
+      const dd = new Date(d.date);
+      return dd.getMonth()===now.getMonth() && dd.getFullYear()===now.getFullYear();
+    });
+  }
+  if(activePeriod === 'mois_precedent'){
+    const prev = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    return days.filter(d => {
+      const dd = new Date(d.date);
+      return dd.getMonth()===prev.getMonth() && dd.getFullYear()===prev.getFullYear();
+    });
+  }
+  return days;
+}
 
 function getPoids(){ return parseFloat(document.getElementById('poidsInput').value)||75; }
 function getObjectif(){ return parseInt(document.getElementById('objectifInput').value)||2200; }
@@ -413,18 +443,20 @@ function genDemo(){
 function computeStats(){
   const obj=getObjectif(), poidsInit=getPoids();
   days.forEach(d=>d.objectif=obj);
-  const deficits=days.map(d=>({...d,deficit:d.objectif-d.calories}));
+  const filtered=getFilteredDays();
+  const deficits=filtered.map(d=>({...d,deficit:d.objectif-d.calories}));
   const totalDeficit=deficits.reduce((s,d)=>s+d.deficit,0);
   const pertePoids=totalDeficit/KCAL_PER_KG;
   const poidsActuel=poidsInit-pertePoids;
-  const moyenneCalories=days.reduce((s,d)=>s+d.calories,0)/(days.length||1);
+  const moyenneCalories=filtered.reduce((s,d)=>s+d.calories,0)/(filtered.length||1);
   const joursDeficit=deficits.filter(d=>d.deficit>0).length;
-  const avgDailyDeficit=totalDeficit/(days.length||1);
+  const avgDailyDeficit=totalDeficit/(filtered.length||1);
   let running=poidsInit;
   const poidsHistory=deficits.map(d=>{ running-=d.deficit/KCAL_PER_KG; return parseFloat(running.toFixed(2)); });
+  const nbProj=activePeriod==='tout'?90:30;
   const projections=[];
-  for(let i=1;i<=30;i++) projections.push(parseFloat((poidsActuel-avgDailyDeficit*i/KCAL_PER_KG).toFixed(2)));
-  return {deficits,totalDeficit,pertePoids,poidsActuel,moyenneCalories,joursDeficit,avgDailyDeficit,poidsHistory,projections};
+  for(let i=1;i<=nbProj;i++) projections.push(parseFloat((poidsActuel-avgDailyDeficit*i/KCAL_PER_KG).toFixed(2)));
+  return {deficits,totalDeficit,pertePoids,poidsActuel,moyenneCalories,joursDeficit,avgDailyDeficit,poidsHistory,projections,filtered};
 }
 
 /* ── STORAGE ── */
@@ -433,7 +465,7 @@ const STORAGE_KEY = 'calorietrack_v1';
 function saveData(){
   const calcDateEl = document.getElementById('calcDate');
   const calcDateVal = (calcDateEl && calcDateEl.value) ? calcDateEl.value : (window._savedCalcDate || '');
-  const data = { days, pesees, refs, refNextId, calcItems, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif() };
+  const data = { days, pesees, refs, refNextId, calcItems, activePeriod, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif() };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     localStorage.setItem(STORAGE_KEY+'_calc', JSON.stringify({calcItems, calcDate: calcDateVal}));
@@ -452,6 +484,7 @@ function loadData(){
     if(data.pesees) pesees = data.pesees;
     if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
     if(data.calcItems && data.calcItems.length > 0) calcItems = data.calcItems;
+    if(data.activePeriod) activePeriod = data.activePeriod;
     if(data.calcDate) window._savedCalcDate = data.calcDate;
     // Backup: try dedicated calc storage
     try {
@@ -505,6 +538,11 @@ function refresh(){
   renderKPI(s); renderChartMain(s); renderChartDeficit(s); renderChartPoids(s);
   renderDeficitList(s); renderSaisieList(s); renderPoidsCards(s);
   renderRefs(); renderCalcSelect(); renderCalcItems(); renderPeseeList();
+  // Sync period buttons
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  const periodMap={'mois_en_cours':0,'mois_precedent':1,'tout':2};
+  const btns=document.querySelectorAll('.period-btn');
+  if(btns[periodMap[activePeriod]]) btns[periodMap[activePeriod]].classList.add('active');
 }
 
 function renderKPI(s){
@@ -588,7 +626,7 @@ function renderChartPoids(s){
   const tooltip=document.getElementById('crosshairPoidsTooltip');
 
   const histL=days.map(d=>d.label);
-  const projL=Array.from({length:30},(_,i)=>'J+'+(i+1));
+  const projL=Array.from({length:s.projections.length},(_,i)=>'J+'+(i+1));
   const allL=[...histL,...projL];
   const totalPoints=allL.length;
 
@@ -785,7 +823,7 @@ function validerJournee(){
   } else {
     days.push({date:dateVal,label,calories:total,objectif:getObjectif()});
     days.sort((a,b)=>a.date.localeCompare(b.date));
-    if(days.length>30)days=days.slice(-30);
+    
   }
   calcItems=[];
   refresh(); saveData();
@@ -808,6 +846,14 @@ function resetJour(){
   if(!confirm('Remettre à zéro les calories du '+label+' ?'))return;
   days.splice(existing,1);
   refresh(); saveData();
+}
+
+function setPeriod(period, btn){
+  activePeriod = period;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  refresh();
+  saveData();
 }
 
 function showTab(id,btn){
@@ -848,7 +894,7 @@ function addEntry(){
   else{
     days.push({date:dateVal,label,calories:calVal,objectif:getObjectif()});
     days.sort((a,b)=>a.date.localeCompare(b.date));
-    if(days.length>30)days=days.slice(-30);
+    
   }
   document.getElementById('newCal').value='';
   refresh(); autoFillDate(); saveData();
