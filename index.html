@@ -203,8 +203,8 @@
       <div class="legend" style="margin-top:14px">
         <div class="legend-item"><div class="legend-line" style="background:#f97316"></div>Poids théorique</div>
         <div class="legend-item"><div class="legend-line" style="background:#818cf8"></div>Réaliste (modèle Hall)</div>
-        <div class="legend-item"><div class="legend-line" style="background:rgba(34,197,94,0.6)"></div>Fourchette optimiste</div>
-        <div class="legend-item"><div class="legend-line" style="background:rgba(249,115,22,0.5)"></div>Fourchette pessimiste</div>
+        <div class="legend-item"><div class="legend-line" style="background:#38bdf8"></div>Fourchette optimiste</div>
+        <div class="legend-item"><div class="legend-line" style="background:#f43f5e"></div>Fourchette pessimiste</div>
         <div class="legend-item"><div class="legend-dot" style="background:#22c55e;border-radius:50%"></div>Pesées réelles</div>
       </div>
     </div>
@@ -695,9 +695,9 @@ function renderChartPoids(s){
   const nullHist=Array(histL.length).fill(null);
   charts['poids']=new Chart(ctx,{type:'line',data:{labels:allL,datasets:[
     {label:'Poids théorique',data:[...s.poidsHistory,...Array(s.projections.length).fill(null)],borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.1)',fill:true,tension:0.4,pointRadius:0,borderWidth:2,spanGaps:false},
-    {label:'Optimiste',data:[...nullHist,...s.projOptimiste],borderColor:'rgba(34,197,94,0.5)',backgroundColor:'rgba(34,197,94,0.07)',fill:'+1',tension:0.4,pointRadius:0,borderWidth:1,borderDash:[3,3],spanGaps:false},
-    {label:'Réaliste (Hall)',data:[...nullHist,...s.projections],borderColor:'#818cf8',backgroundColor:'rgba(129,140,248,0.10)',fill:true,tension:0.4,pointRadius:0,borderWidth:2,borderDash:[6,3],spanGaps:false},
-    {label:'Pessimiste',data:[...nullHist,...s.projPessimiste],borderColor:'rgba(249,115,22,0.45)',backgroundColor:'rgba(249,115,22,0.05)',fill:'-1',tension:0.4,pointRadius:0,borderWidth:1,borderDash:[3,3],spanGaps:false},
+    {label:'Optimiste',data:[...nullHist,...s.projOptimiste],borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,0.07)',fill:'+1',tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3],spanGaps:false},
+    {label:'Réaliste (Hall)',data:[...nullHist,...s.projections],borderColor:'#818cf8',backgroundColor:'rgba(129,140,248,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2,borderDash:[6,3],spanGaps:false},
+    {label:'Pessimiste',data:[...nullHist,...s.projPessimiste],borderColor:'#f43f5e',backgroundColor:'rgba(244,63,94,0.05)',fill:'-1',tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3],spanGaps:false},
     {label:'Pesée réelle',data:peseeData,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.15)',fill:false,tension:0.3,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#22c55e',pointBorderColor:'#050508',pointBorderWidth:2,borderWidth:2,spanGaps:false,showLine:true}
   ]},options:opts});
 
@@ -728,8 +728,8 @@ function renderChartPoids(s){
         const opt=s.projOptimiste[idxProj];
         const pess=s.projPessimiste[idxProj];
         html+='<div style="color:#818cf8">Realiste : <strong>'+theorique.toFixed(2)+' kg</strong></div>';
-        if(opt!=null) html+='<div style="color:rgba(34,197,94,0.9);font-size:12px">Optimiste : '+opt.toFixed(2)+' kg</div>';
-        if(pess!=null) html+='<div style="color:rgba(249,115,22,0.8);font-size:12px">Pessimiste : '+pess.toFixed(2)+' kg</div>';
+        if(opt!=null) html+='<div style="color:#38bdf8;font-size:12px">Optimiste : '+opt.toFixed(2)+' kg</div>';
+        if(pess!=null) html+='<div style="color:#f43f5e;font-size:12px">Pessimiste : '+pess.toFixed(2)+' kg</div>';
       } else {
         html+='<div style="color:#f97316">Theorique : <strong>'+theorique.toFixed(2)+' kg</strong></div>';
       }
