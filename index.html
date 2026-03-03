@@ -311,6 +311,12 @@
         <button class="btn btn-secondary" onclick="resetJour()" style="margin-top:22px;font-size:11px;padding:6px 12px">↺ Remettre à zéro le jour</button>
         <button class="btn btn-secondary" onclick="clearCalc()" style="margin-top:22px">🗑 Vider</button>
       </div>
+      <div class="form-row" style="margin-top:10px">
+        <div class="form-group" style="max-width:420px">
+          <label>Note du jour <span style="color:rgba(255,255,255,0.3);font-size:11px">(optionnel)</span></label>
+          <input type="text" id="calcNote" placeholder="ex: repas de famille, stress, sport…" maxlength="120" style="width:100%">
+        </div>
+      </div>
       <p style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:12px">Le total sera automatiquement envoyé dans l'onglet Saisie.</p>
     </div>
   </div>
@@ -466,83 +472,46 @@ function computeStats(){
   const poidsHistory=deficits.map(d=>{ running-=d.deficit/KCAL_PER_KG; return parseFloat(running.toFixed(2)); });
   const nbProj=activePeriod==='tout'?180:90;
 
-  // ── Modele Hall avec facteur correctif calibre sur pesees reelles ──
-  const KCAL_FAT  = 9441;
-  const KCAL_LEAN = 1816;
-  const ADAPT_HALL = 20;
+  // Modele Hall (NIH) avec adaptation metabolique
+  const ADAPT_KCAL_PER_KG = 20;  // -20 kcal/j par kg perdu
+  const KCAL_FAT  = 9441;        // kcal/kg graisse
+  const KCAL_LEAN = 1816;        // kcal/kg masse maigre
+
+  // Deficit de reference sur les 14 derniers jours (plus representatif)
   const recentDays = filtered.slice(-14);
   const recentDeficit = recentDays.length >= 3
     ? recentDays.reduce((s,d)=>s+(d.objectif-d.calories),0)/recentDays.length
     : avgDailyDeficit;
-  let facteurCorrectif = 1.0;
-  let adaptCalibrated = false;
-  let calibrationInfo = null;
-  if(pesees.length >= 2){
-    const peseesSorted = pesees.slice().sort((a,b)=>a.date.localeCompare(b.date));
-    const p0 = peseesSorted[0];
-    const corrections = [];
-    function projHall(nj, pStart, def){
-      let p = pStart;
-      for(let i=0; i<nj; i++){
-        const pp=pStart-p, dj=Math.max(0,def-pp*ADAPT_HALL);
-        const fat=1/(1+0.12*Math.exp(-0.015*dj)), kpk=fat*KCAL_FAT+(1-fat)*KCAL_LEAN;
-        p -= kpk>0 ? dj/kpk : 0;
-      }
-      return p;
-    }
-    for(let pi=1; pi<peseesSorted.length; pi++){
-      const p1=peseesSorted[pi];
-      const nj=Math.round((new Date(p1.date)-new Date(p0.date))/(1000*86400));
-      if(nj<7) continue;
-      const daysRange=days.filter(d=>d.date>=p0.date&&d.date<p1.date);
-      const defRange=daysRange.length>=3
-        ? daysRange.reduce((s,d)=>s+(d.objectif-d.calories),0)/daysRange.length
-        : recentDeficit;
-      const perteReelle=p0.val-p1.val;
-      const perteHall=p0.val-projHall(nj,p0.val,defRange);
-      if(perteHall>0.05){
-        const f=Math.max(0.4,Math.min(2.0,perteReelle/perteHall));
-        corrections.push({f,nj});
-      }
-    }
-    if(corrections.length>=1){
-      const tw=corrections.reduce((s,c)=>s+c.nj,0);
-      facteurCorrectif=corrections.reduce((s,c)=>s+c.f*c.nj,0)/tw;
-      facteurCorrectif=Math.max(0.6,Math.min(1.4,facteurCorrectif));
-      adaptCalibrated=true;
-      const adaptEquiv=ADAPT_HALL/facteurCorrectif;
-      calibrationInfo={
-        facteur:parseFloat(facteurCorrectif.toFixed(3)),
-        adapt:parseFloat(adaptEquiv.toFixed(1)),
-        nbPesees:peseesSorted.length,
-        vs_hall:facteurCorrectif<0.9?'forte':facteurCorrectif>1.1?'faible':'normale',
-        pct:Math.round((facteurCorrectif-1)*100)
-      };
-    }
-  }
+
+  // Projection jour par jour
   const projections=[], projOptimiste=[], projPessimiste=[];
   let pCurrent = poidsActuel;
+
   for(let i=1;i<=nbProj;i++){
-    const poidsPerdu=poidsActuel-pCurrent;
-    const adaptMetab=poidsPerdu*ADAPT_HALL;
-    const defJour=Math.max(0,recentDeficit-adaptMetab);
-    const fatRatio=1/(1+0.12*Math.exp(-0.015*defJour));
-    const kcalPerKgLost=fatRatio*KCAL_FAT+(1-fatRatio)*KCAL_LEAN;
-    const dailyLoss=kcalPerKgLost>0?(defJour/kcalPerKgLost)*facteurCorrectif:0;
-    pCurrent=parseFloat((pCurrent-dailyLoss).toFixed(3));
+    const poidsPerdu = poidsActuel - pCurrent;
+    const adaptMetab = poidsPerdu * ADAPT_KCAL_PER_KG;
+    const defJour = Math.max(0, recentDeficit - adaptMetab);
+    // Ratio Forbes simplifie : proportion de graisse perdue
+    const fatRatio = 1 / (1 + 0.12 * Math.exp(-0.015 * defJour));
+    const leanRatio = 1 - fatRatio;
+    const kcalPerKgLost = fatRatio * KCAL_FAT + leanRatio * KCAL_LEAN;
+    const dailyLoss = kcalPerKgLost > 0 ? defJour / kcalPerKgLost : 0;
+    pCurrent = parseFloat((pCurrent - dailyLoss).toFixed(3));
     projections.push(parseFloat(pCurrent.toFixed(2)));
-    const spread=Math.abs(poidsActuel-pCurrent);
-    const optF=adaptCalibrated?0.04:0.06;
-    const pessF=adaptCalibrated?0.07:0.10;
-    projOptimiste.push(parseFloat((pCurrent-spread*optF).toFixed(2)));
-    projPessimiste.push(parseFloat((pCurrent+spread*pessF).toFixed(2)));
+    // Fourchette +/-: variation de 5-8% selon adherence
+    const spread = Math.abs(poidsActuel - pCurrent);
+    projOptimiste.push(parseFloat((pCurrent - spread*0.06).toFixed(2)));
+    projPessimiste.push(parseFloat((pCurrent + spread*0.10).toFixed(2)));
   }
-  const poidsEquilibre=recentDeficit>0&&facteurCorrectif>0
-    ? parseFloat((poidsActuel-recentDeficit/(ADAPT_HALL/facteurCorrectif)).toFixed(1))
+
+  // Poids d'equilibre : quand l'adaptation annule completement le deficit
+  const poidsEquilibre = recentDeficit > 0
+    ? parseFloat((poidsActuel - recentDeficit / ADAPT_KCAL_PER_KG).toFixed(1))
     : poidsActuel;
+
   return {deficits,totalDeficit,pertePoids,poidsActuel,moyenneCalories,joursDeficit,
     avgDailyDeficit,recentDeficit,poidsHistory,projections,projOptimiste,projPessimiste,
-    poidsEquilibre,adaptCalibrated,calibrationInfo,filtered};
+    poidsEquilibre,filtered};
 }
 
 /* ── STORAGE ── */
@@ -698,10 +667,26 @@ function renderChartMain(s){
 function renderChartDeficit(s){
   destroyChart('deficit'); if(!s.deficits.length)return;
   const ctx=document.getElementById('chartDeficit').getContext('2d');
+  const noteIconPlugin={id:'noteIcons',afterDatasetsDraw(chart){
+    const {ctx:c2,scales:{x,y}}=chart;
+    s.deficits.forEach((d,i)=>{
+      if(!d.note)return;
+      const xPos=x.getPixelForValue(i);
+      const yPos=y.getPixelForValue(d.deficit>=0?d.deficit:0);
+      c2.save();c2.font='11px serif';c2.textAlign='center';
+      c2.fillText('📝',xPos,yPos-6);c2.restore();
+    });
+  }};
+  const opts=chartOptions('kcal');
+  opts.plugins=Object.assign({},opts.plugins||{},{tooltip:{callbacks:{label(ctx2){
+    const d=s.deficits[ctx2.dataIndex];
+    const base=(d.deficit>=0?'Déficit : +':'Surplus : ')+Math.abs(Math.round(d.deficit))+' kcal';
+    return d.note?[base,'📝 '+d.note]:base;
+  }}}});
   charts['deficit']=new Chart(ctx,{type:'bar',data:{labels:s.deficits.map(d=>d.label),datasets:[{
     label:'Déficit',data:s.deficits.map(d=>d.deficit),
     backgroundColor:s.deficits.map(d=>d.deficit>=0?'rgba(34,197,94,0.75)':'rgba(239,68,68,0.75)'),borderRadius:3
-  }]},options:chartOptions('kcal')});
+  }]},options:opts,plugins:[noteIconPlugin]});
 }
 
 function renderChartPoids(s){
@@ -822,20 +807,10 @@ function renderSaisieList(s){
 function renderPoidsCards(s){
   if(!s.projections.length)return;
   const p30=s.projections[Math.min(29,s.projections.length-1)];
-  const modelLabel = s.adaptCalibrated ? 'Hall calibré' : 'Hall standard';
   document.getElementById('kpiPoids30').textContent=p30.toFixed(1)+' kg';
-  document.getElementById('kpiPoids30Sub').textContent=modelLabel+' — soit '+(p30-getPoids()).toFixed(2)+' kg vs départ';
+  document.getElementById('kpiPoids30Sub').textContent='Modèle Hall — soit '+(p30-getPoids()).toFixed(2)+' kg vs départ';
   document.getElementById('kpiDefMoy').textContent=Math.round(s.recentDeficit).toLocaleString('fr-FR')+' kcal/j';
-  let adaptTxt;
-  if(s.calibrationInfo){
-    const ci=s.calibrationInfo;
-    const signe=ci.pct>=0?'+':'';
-    const label=ci.vs_hall==='forte'?'adapt. forte':ci.vs_hall==='faible'?'adapt. faible':'adapt. normale';
-    adaptTxt='Calibré sur '+ci.nbPesees+' pesées — '+label+' ('+signe+ci.pct+'% vs Hall) — éq. '+s.poidsEquilibre.toFixed(1)+' kg';
-  } else {
-    adaptTxt='Hall standard — ajout. des pesées pour calibrer — éq. '+s.poidsEquilibre.toFixed(1)+' kg';
-  }
-  document.getElementById('kpiDefMoySub').textContent=adaptTxt;
+  document.getElementById('kpiDefMoySub').textContent='Déficit récent (14j) — équilibre estimé : '+s.poidsEquilibre.toFixed(1)+' kg';
 }
 
 /* ── RÉFÉRENCES ── */
@@ -923,16 +898,20 @@ function validerJournee(){
   const dateVal=document.getElementById('calcDate').value;
   if(!dateVal){alert('Merci de choisir une date.');return;}
   const label=new Date(dateVal).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+  const noteEl=document.getElementById('calcNote');
+  const noteVal=noteEl?noteEl.value.trim():'';
   const existing=days.findIndex(d=>d.date===dateVal);
   if(existing>=0){
-    // Additionne au lieu de remplacer
     days[existing].calories += total;
+    if(noteVal) days[existing].note=noteVal;
   } else {
-    days.push({date:dateVal,label,calories:total,objectif:getObjectif()});
+    const entry={date:dateVal,label,calories:total,objectif:getObjectif()};
+    if(noteVal) entry.note=noteVal;
+    days.push(entry);
     days.sort((a,b)=>a.date.localeCompare(b.date));
-    
   }
   calcItems=[];
+  if(noteEl) noteEl.value='';
   refresh(); saveData();
   // Avancer la date au lendemain
   const next=new Date(dateVal); next.setDate(next.getDate()+1);
