@@ -427,12 +427,15 @@ function computeStats(){
 }
 
 /* ── STORAGE ── */
-const STORAGE_KEY = 'calorietrack_' + window.location.pathname.split('/').pop();
+const STORAGE_KEY = 'calorietrack_v1';
 
 function saveData(){
-  const data = { days, pesees, refs, refNextId, calcItems, calcDate: (document.getElementById('calcDate')?.value || window._savedCalcDate || ''), poids: getPoids(), objectif: getObjectif() };
+  const calcDateEl = document.getElementById('calcDate');
+  const calcDateVal = (calcDateEl && calcDateEl.value) ? calcDateEl.value : (window._savedCalcDate || '');
+  const data = { days, pesees, refs, refNextId, calcItems, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif() };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(STORAGE_KEY+'_calc', JSON.stringify({calcItems, calcDate: calcDateVal}));
     const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
     const el = document.getElementById('saveIndicator');
     if(el) el.textContent = 'Sauvegardé à ' + now;
@@ -447,8 +450,17 @@ function loadData(){
     if(data.days) days = data.days;
     if(data.pesees) pesees = data.pesees;
     if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
-    if(data.calcItems) calcItems = data.calcItems;
+    if(data.calcItems && data.calcItems.length > 0) calcItems = data.calcItems;
     if(data.calcDate) window._savedCalcDate = data.calcDate;
+    // Backup: try dedicated calc storage
+    try {
+      const calcRaw = localStorage.getItem(STORAGE_KEY+'_calc');
+      if(calcRaw) {
+        const calcData = JSON.parse(calcRaw);
+        if(calcData.calcItems && calcData.calcItems.length > 0) calcItems = calcData.calcItems;
+        if(calcData.calcDate) window._savedCalcDate = calcData.calcDate;
+      }
+    } catch(e){}
     if(data.poids) document.getElementById('poidsInput').value = data.poids;
     if(data.objectif) document.getElementById('objectifInput').value = data.objectif;
     return true;
@@ -492,7 +504,6 @@ function refresh(){
   renderKPI(s); renderChartMain(s); renderChartDeficit(s); renderChartPoids(s);
   renderDeficitList(s); renderSaisieList(s); renderPoidsCards(s);
   renderRefs(); renderCalcSelect(); renderCalcItems(); renderPeseeList();
-  saveData();
 }
 
 function renderKPI(s){
@@ -758,7 +769,7 @@ function renderCalcItems(){
 
 function removeCalcItem(i){ calcItems.splice(i,1); renderCalcItems(); saveData(); }
 
-function clearCalc(){ calcItems=[]; renderCalcItems(); }
+function clearCalc(){ calcItems=[]; renderCalcItems(); saveData(); }
 
 function validerJournee(){
   const total=calcItems.reduce((s,i)=>s+i.kcal,0);
@@ -776,7 +787,7 @@ function validerJournee(){
     if(days.length>30)days=days.slice(-30);
   }
   calcItems=[];
-  refresh();
+  refresh(); saveData();
   // Avancer la date au lendemain
   const next=new Date(dateVal); next.setDate(next.getDate()+1);
   document.getElementById('calcDate').value=next.toISOString().split('T')[0];
@@ -828,12 +839,12 @@ function addEntry(){
     if(days.length>30)days=days.slice(-30);
   }
   document.getElementById('newCal').value='';
-  refresh(); autoFillDate();
+  refresh(); autoFillDate(); saveData();
 }
 
-function deleteDay(i){ days.splice(i,1); refresh(); }
-function resetDemo(){ days=genDemo(); refresh(); }
-function clearAll(){ if(confirm('Effacer toutes les données ?')){ days=[]; refresh(); } }
+function deleteDay(i){ days.splice(i,1); refresh(); saveData(); }
+function resetDemo(){ days=genDemo(); refresh(); saveData(); }
+function clearAll(){ if(confirm('Effacer toutes les données ?')){ days=[]; refresh(); saveData(); } }
 
 /* ── PESÉES ── */
 let pesees=[];
@@ -847,10 +858,10 @@ function addPesee(){
   if(existing>=0){pesees[existing].val=val;}
   else{pesees.push({date:dateVal,label,val});pesees.sort((a,b)=>a.date.localeCompare(b.date));}
   document.getElementById('peseeVal').value='';
-  refresh();
+  refresh(); saveData();
 }
 
-function deletePesee(i){pesees.splice(i,1);refresh();}
+function deletePesee(i){pesees.splice(i,1);refresh();saveData();}
 
 function renderPeseeList(){
   const el=document.getElementById('peseeList');
