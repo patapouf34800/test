@@ -426,6 +426,67 @@ function computeStats(){
   return {deficits,totalDeficit,pertePoids,poidsActuel,moyenneCalories,joursDeficit,avgDailyDeficit,poidsHistory,projections};
 }
 
+/* ── STORAGE ── */
+const STORAGE_KEY = 'calorietrack_' + window.location.pathname.split('/').pop();
+
+function saveData(){
+  const data = { days, pesees, refs, refNextId, calcItems, calcDate: (document.getElementById('calcDate')?.value || window._savedCalcDate || ''), poids: getPoids(), objectif: getObjectif() };
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+    const el = document.getElementById('saveIndicator');
+    if(el) el.textContent = 'Sauvegardé à ' + now;
+  } catch(e) { console.warn('localStorage unavailable'); }
+}
+
+function loadData(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(data.days) days = data.days;
+    if(data.pesees) pesees = data.pesees;
+    if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
+    if(data.calcItems) calcItems = data.calcItems;
+    if(data.calcDate) window._savedCalcDate = data.calcDate;
+    if(data.poids) document.getElementById('poidsInput').value = data.poids;
+    if(data.objectif) document.getElementById('objectifInput').value = data.objectif;
+    return true;
+  } catch(e) { return false; }
+}
+
+function exportData(){
+  const data = { days, pesees, refs, refNextId, calcItems, poids: getPoids(), objectif: getObjectif(), exportDate: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const filename = 'calorietrack_' + new Date().toLocaleDateString('fr-FR').replace(/\//g,'-') + '.json';
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = JSON.parse(e.target.result);
+      if(!data.days) { alert('Fichier invalide.'); return; }
+      if(!confirm('Remplacer toutes les données actuelles par celles du fichier ?')) return;
+      days = data.days;
+      pesees = data.pesees || [];
+      if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
+      if(data.poids) document.getElementById('poidsInput').value = data.poids;
+      if(data.objectif) document.getElementById('objectifInput').value = data.objectif;
+      saveData();
+      refresh();
+    } catch(err) { alert('Erreur de lecture du fichier JSON.'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
 function refresh(){
   const s=computeStats();
   renderKPI(s); renderChartMain(s); renderChartDeficit(s); renderChartPoids(s);
@@ -900,67 +961,6 @@ function applyObjectif(kcal){
   btn.style.color = '#22c55e';
   btn.style.borderColor = 'rgba(34,197,94,0.4)';
   setTimeout(()=>{ btn.textContent=orig; btn.style.color=''; btn.style.borderColor=''; }, 2000);
-}
-
-/* ── STORAGE ── */
-const STORAGE_KEY = 'calorietrack_' + window.location.pathname.split('/').pop();
-
-function saveData(){
-  const data = { days, pesees, refs, refNextId, calcItems, calcDate: (document.getElementById('calcDate')?.value || window._savedCalcDate || ''), poids: getPoids(), objectif: getObjectif() };
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
-    const el = document.getElementById('saveIndicator');
-    if(el) el.textContent = 'Sauvegardé à ' + now;
-  } catch(e) { console.warn('localStorage unavailable'); }
-}
-
-function loadData(){
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(!raw) return false;
-    const data = JSON.parse(raw);
-    if(data.days) days = data.days;
-    if(data.pesees) pesees = data.pesees;
-    if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
-    if(data.calcItems) calcItems = data.calcItems;
-    if(data.calcDate) window._savedCalcDate = data.calcDate;
-    if(data.poids) document.getElementById('poidsInput').value = data.poids;
-    if(data.objectif) document.getElementById('objectifInput').value = data.objectif;
-    return true;
-  } catch(e) { return false; }
-}
-
-function exportData(){
-  const data = { days, pesees, refs, refNextId, calcItems, poids: getPoids(), objectif: getObjectif(), exportDate: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const filename = 'calorietrack_' + new Date().toLocaleDateString('fr-FR').replace(/\//g,'-') + '.json';
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
-
-function importData(event){
-  const file = event.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e){
-    try {
-      const data = JSON.parse(e.target.result);
-      if(!data.days) { alert('Fichier invalide.'); return; }
-      if(!confirm('Remplacer toutes les données actuelles par celles du fichier ?')) return;
-      days = data.days;
-      pesees = data.pesees || [];
-      if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
-      if(data.poids) document.getElementById('poidsInput').value = data.poids;
-      if(data.objectif) document.getElementById('objectifInput').value = data.objectif;
-      saveData();
-      refresh();
-    } catch(err) { alert('Erreur de lecture du fichier JSON.'); }
-  };
-  reader.readAsText(file);
-  event.target.value = '';
 }
 
 /* ── INIT ── */
