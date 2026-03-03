@@ -12,6 +12,8 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>CalorieTrack</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
   *{box-sizing:border-box;margin:0;padding:0}
@@ -185,7 +187,14 @@
   <!-- POIDS -->
   <div id="poids" class="panel">
     <div class="chart-card">
-      <div class="chart-title">Évolution du poids — historique + prévision 30j</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+        <div class="chart-title" style="margin-bottom:0">Évolution du poids</div>
+        <div style="display:flex;gap:6px">
+          <button class="period-btn" onclick="zoomPoids(1.4)" title="Zoom +">+ zoom</button>
+          <button class="period-btn" onclick="zoomPoids(0.7)" title="Zoom −">− zoom</button>
+          <button class="period-btn" onclick="resetZoomPoids()">↺ reset</button>
+        </div>
+      </div>
       <div style="position:relative" id="chartPoidsWrap">
         <canvas id="chartPoids"></canvas>
         <div id="crosshairPoids" style="position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.25);pointer-events:none;display:none"></div>
@@ -680,7 +689,7 @@ function renderChartPoids(s){
   const minVal=Math.min(...allVals)-0.5;
   const maxVal=Math.max(...allVals,getPoids())+0.5;
 
-  const opts={...chartOptions('kg'),plugins:{...chartOptions('kg').plugins,tooltip:{enabled:false}}};
+  const opts={...chartOptions('kg'),plugins:{...chartOptions('kg').plugins,tooltip:{enabled:false},zoom:{zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'},pan:{enabled:true,mode:'x'},limits:{x:{min:'original',max:'original'}}}}};
   opts.scales={...chartOptions('kg').scales,y:{...chartOptions('kg').scales.y,min:Math.floor(minVal),max:Math.ceil(maxVal)}};
 
   const nullHist=Array(histL.length).fill(null);
@@ -897,6 +906,13 @@ function resetJour(){
   if(!confirm('Remettre à zéro les calories du '+label+' ?'))return;
   days.splice(existing,1);
   refresh(); saveData();
+}
+
+function zoomPoids(factor){
+  if(charts['poids']) charts['poids'].zoom(factor);
+}
+function resetZoomPoids(){
+  if(charts['poids']) charts['poids'].resetZoom();
 }
 
 function setPeriod(period, btn){
