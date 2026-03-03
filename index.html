@@ -284,7 +284,7 @@
       <div class="form-row" style="align-items:center">
         <div class="form-group" style="max-width:200px">
           <label>Date</label>
-          <input type="date" id="calcDate">
+          <input type="date" id="calcDate" onchange="saveData()">
         </div>
         <button class="btn btn-green" onclick="validerJournee()" id="btnValider" style="margin-top:22px">✓ Valider la journée</button>
         <button class="btn btn-secondary" onclick="clearCalc()" style="margin-top:22px">🗑 Vider</button>
@@ -669,6 +669,7 @@ function addCalcItem(){
   document.getElementById('calcGrams').value='';
   document.getElementById('calcSelect').value='';
   renderCalcItems();
+  saveData();
 }
 
 function renderCalcItems(){
@@ -694,7 +695,7 @@ function renderCalcItems(){
     :`<span class="red">+${Math.abs(diff).toLocaleString('fr-FR')} kcal au-dessus de l'objectif de ${obj.toLocaleString('fr-FR')} kcal</span>`;
 }
 
-function removeCalcItem(i){ calcItems.splice(i,1); renderCalcItems(); }
+function removeCalcItem(i){ calcItems.splice(i,1); renderCalcItems(); saveData(); }
 
 function clearCalc(){ calcItems=[]; renderCalcItems(); }
 
@@ -903,7 +904,7 @@ function applyObjectif(kcal){
 const STORAGE_KEY = 'calorietrack_' + window.location.pathname.split('/').pop();
 
 function saveData(){
-  const data = { days, pesees, refs, refNextId, poids: getPoids(), objectif: getObjectif() };
+  const data = { days, pesees, refs, refNextId, calcItems, calcDate: document.getElementById('calcDate')?.value || '', poids: getPoids(), objectif: getObjectif() };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
@@ -920,6 +921,8 @@ function loadData(){
     if(data.days) days = data.days;
     if(data.pesees) pesees = data.pesees;
     if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
+    if(data.calcItems) calcItems = data.calcItems;
+    if(data.calcDate) { const cd = document.getElementById('calcDate'); if(cd) cd.value = data.calcDate; }
     if(data.poids) document.getElementById('poidsInput').value = data.poids;
     if(data.objectif) document.getElementById('objectifInput').value = data.objectif;
     return true;
@@ -927,7 +930,7 @@ function loadData(){
 }
 
 function exportData(){
-  const data = { days, pesees, poids: getPoids(), objectif: getObjectif(), exportDate: new Date().toISOString() };
+  const data = { days, pesees, refs, refNextId, calcItems, poids: getPoids(), objectif: getObjectif(), exportDate: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
