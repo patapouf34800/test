@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f97316">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CalorieTrack">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>CalorieTrack</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#050508;color:#e8e8f0;font-family:sans-serif;min-height:100vh}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-thumb{background:#f97316;border-radius:2px}
+  ::-webkit-scrollbar-track{background:#111}
+
+  header{padding:20px 28px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
+  h1{font-family:'Space Mono',monospace;font-size:22px;letter-spacing:-0.5px}
+  h1 span{color:#f97316}
+  .subtitle{font-family:monospace;font-size:11px;color:rgba(255,255,255,0.3);letter-spacing:1px;margin-top:3px}
+
+  .header-controls{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:14px}
+  .control-group{display:flex;flex-direction:column;gap:4px}
+  .control-group label{font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px}
+  input[type=number],input[type=date],input[type=text]{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
+  input[type=number]{width:110px}
+  input[type=date]{width:150px}
+  input[type=text]{width:100%}
+  input:focus{border-color:#f97316}
+  select{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;font-family:inherit;outline:none;cursor:pointer;width:100%}
+  select:focus{border-color:#f97316}
+  select option{background:#1a1a2e;color:#fff}
+
+  .tabs{display:flex;gap:4px;margin-top:14px;flex-wrap:wrap}
+  .tab{background:transparent;border:none;cursor:pointer;padding:9px 16px;border-radius:8px 8px 0 0;font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;transition:all .2s;color:rgba(255,255,255,0.4)}
+  .tab.active{background:rgba(249,115,22,0.15);color:#f97316}
+  .tab:hover:not(.active){color:rgba(255,255,255,0.7)}
+
+  .content{padding:24px 28px;max-width:1100px;margin:0 auto}
+  .panel{display:none}.panel.active{display:flex;flex-direction:column;gap:20px}
+
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+  .card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:20px 24px;transition:border-color .2s}
+  .card:hover{border-color:rgba(249,115,22,0.3)}
+  .card-label{font-size:11px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+  .card-value{font-family:'Space Mono',monospace;font-size:26px;font-weight:700;line-height:1}
+  .card-unit{font-size:12px;color:rgba(255,255,255,0.3);margin-top:4px}
+
+  .chart-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:24px}
+  .chart-title{font-size:13px;color:rgba(255,255,255,0.5);letter-spacing:1px;text-transform:uppercase;margin-bottom:20px}
+  canvas{max-height:280px}
+
+  .legend{display:flex;gap:20px;margin-top:14px;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,0.4)}
+  .legend-dot{width:12px;height:12px;border-radius:2px}
+  .legend-line{width:20px;height:3px;border-radius:2px}
+
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+  .day-list{display:flex;flex-direction:column;gap:6px;max-height:380px;overflow-y:auto;margin-top:14px}
+  .day-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);transition:background .15s}
+  .day-row:hover{background:rgba(255,255,255,0.04)}
+  .day-date{font-family:'Space Mono',monospace;font-size:12px;color:rgba(255,255,255,0.4);min-width:45px}
+  .day-bar-wrap{flex:1;height:4px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden}
+  .day-bar{height:100%;border-radius:2px;opacity:.8}
+  .day-cal{font-family:monospace;font-size:13px;min-width:80px;text-align:right}
+  .day-def{font-family:'Space Mono',monospace;font-size:12px;min-width:75px;text-align:right}
+  .day-del{background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;font-size:18px;padding:0 4px;transition:color .2s;line-height:1}
+  .day-del:hover{color:#ef4444}
+
+  .form-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  .form-group{display:flex;flex-direction:column;gap:6px;flex:1;min-width:140px}
+  .form-group label{font-size:11px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px}
+  .btn{background:linear-gradient(135deg,#f97316,#ea580c);border:none;color:#fff;border-radius:10px;padding:12px 24px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;transition:transform .15s,opacity .15s,background .3s;white-space:nowrap}
+  .btn:hover{transform:translateY(-1px);opacity:.9}
+  .btn-secondary{background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);color:#f97316;padding:8px 16px;font-size:12px}
+  .btn-green{background:linear-gradient(135deg,#22c55e,#16a34a)}
+
+  .ref-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-top:14px;max-height:400px;overflow-y:auto}
+  .ref-item{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;transition:border-color .2s}
+  .ref-item:hover{border-color:rgba(249,115,22,0.3)}
+  .ref-name{font-size:13px;font-weight:500;flex:1}
+  .ref-kcal{font-family:'Space Mono',monospace;font-size:12px;color:#f97316;white-space:nowrap}
+  .ref-del{background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;font-size:16px;padding:0 2px;transition:color .2s;line-height:1}
+  .ref-del:hover{color:#ef4444}
+
+  .calc-items{display:flex;flex-direction:column;gap:8px;margin-top:14px;max-height:350px;overflow-y:auto}
+  .calc-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)}
+  .calc-food{flex:1;font-size:14px}
+  .calc-grammage{font-family:'Space Mono',monospace;font-size:12px;color:rgba(255,255,255,0.5);min-width:60px;text-align:right}
+  .calc-kcal{font-family:monospace;font-size:13px;color:#f97316;min-width:70px;text-align:right}
+  .calc-del{background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;font-size:16px;padding:0 2px;transition:color .2s;line-height:1}
+  .calc-del:hover{color:#ef4444}
+
+  .total-bar{background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.25);border-radius:12px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+  .total-label{font-size:13px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px}
+  .total-value{font-family:'Space Mono',monospace;font-size:28px;font-weight:700;color:#f97316}
+
+  .green{color:#22c55e}.red{color:#ef4444}.orange{color:#f97316}.indigo{color:#818cf8}.blue{color:#38bdf8}.yellow{color:#facc15}
+  .empty-msg{color:rgba(255,255,255,0.25);font-size:13px;text-align:center;padding:24px 0;font-style:italic}
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px">
+    <div>
+      <h1>CALORIE<span>TRACK</span></h1>
+      <p class="subtitle">GESTION CALORIQUE 30 JOURS</p>
+    </div>
+    <div class="header-controls">
+      <div class="control-group">
+        <label>Poids initial (kg)</label>
+        <input type="number" id="poidsInput" value="75" step="0.1" oninput="refresh()">
+      </div>
+      <div class="control-group">
+        <label>Objectif kcal/j</label>
+        <input type="number" id="objectifInput" value="2200" step="50" oninput="refresh()">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px">
+      <span id="saveIndicator" style="font-size:11px;color:rgba(255,255,255,0.25);font-family:'Space Mono',monospace;letter-spacing:1px"></span>
+      <button class="btn btn-secondary" onclick="exportData()" style="padding:6px 14px;font-size:11px">⬇ Exporter JSON</button>
+      <label class="btn btn-secondary" style="padding:6px 14px;font-size:11px;cursor:pointer">⬆ Importer JSON<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('dashboard',this)">Dashboard</button>
+    <button class="tab" onclick="showTab('deficit',this)">Déficit</button>
+    <button class="tab" onclick="showTab('poids',this)">Poids</button>
+    <button class="tab" onclick="showTab('saisie',this)">Saisie</button>
+    <button class="tab" onclick="showTab('calculateur',this)">Calculateur journée</button>
+    <button class="tab" onclick="showTab('references',this)">Références</button>
+    <button class="tab" onclick="showTab('tdee',this)">Besoin journalier</button>
+  </div>
+</header>
+
+<div class="content">
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="panel active">
+    <div class="kpi-grid" id="kpiGrid"></div>
+    <div class="chart-card">
+      <div class="chart-title">Calories consommées vs objectif (30 jours)</div>
+      <div style="position:relative" id="chartMainWrap">
+        <canvas id="chartMain"></canvas>
+        <div id="crosshair" style="position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.25);pointer-events:none;display:none"></div>
+        <div id="crosshairTooltip" style="position:absolute;top:10px;background:rgba(10,10,20,0.95);border:1px solid rgba(249,115,22,0.4);border-radius:8px;padding:8px 12px;pointer-events:none;display:none;white-space:nowrap;font-size:13px;z-index:10;font-family:sans-serif"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEFICIT -->
+  <div id="deficit" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">Déficit journalier (kcal)</div>
+      <canvas id="chartDeficit"></canvas>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Déficit (sous l'objectif)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Surplus (au-dessus de l'objectif)</div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Détail par jour</div>
+      <div class="day-list" id="deficitList"></div>
+    </div>
+  </div>
+
+  <!-- POIDS -->
+  <div id="poids" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">Évolution du poids — historique + prévision 30j</div>
+      <div style="position:relative" id="chartPoidsWrap">
+        <canvas id="chartPoids"></canvas>
+        <div id="crosshairPoids" style="position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.25);pointer-events:none;display:none"></div>
+        <div id="crosshairPoidsTooltip" style="position:absolute;top:10px;background:rgba(10,10,20,0.95);border:1px solid rgba(129,140,248,0.4);border-radius:8px;padding:8px 12px;pointer-events:none;display:none;white-space:nowrap;font-size:13px;z-index:10;font-family:sans-serif"></div>
+      </div>
+      <div class="legend" style="margin-top:14px">
+        <div class="legend-item"><div class="legend-line" style="background:#f97316"></div>Poids théorique (calculé)</div>
+        <div class="legend-item"><div class="legend-line" style="background:#818cf8"></div>Prévision 30 jours</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#22c55e;border-radius:50%"></div>Pesées réelles</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Enregistrer une pesée réelle</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date de la pesée</label>
+          <input type="date" id="peseeDate">
+        </div>
+        <div class="form-group" style="max-width:160px">
+          <label>Poids mesuré (kg)</label>
+          <input type="number" id="peseeVal" placeholder="ex: 74.2" step="0.1" style="width:100%">
+        </div>
+        <button class="btn" onclick="addPesee()">Enregistrer</button>
+      </div>
+      <div class="day-list" id="peseeList" style="margin-top:14px"></div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="card-label">Poids dans 30j (même rythme)</div>
+        <div class="card-value indigo" id="kpiPoids30">—</div>
+        <div class="card-unit" id="kpiPoids30Sub"></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Déficit moyen projeté</div>
+        <div class="card-value blue" id="kpiDefMoy">—</div>
+        <div class="card-unit" id="kpiDefMoySub"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAISIE -->
+  <div id="saisie" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">Ajouter / modifier une entrée manuellement</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="newDate">
+        </div>
+        <div class="form-group">
+          <label>Calories (kcal)</label>
+          <input type="number" id="newCal" placeholder="ex: 1850" style="width:100%">
+        </div>
+        <button class="btn" onclick="addEntry()">Enregistrer</button>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title" id="saisieTitle">Données enregistrées</div>
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn btn-secondary" onclick="resetDemo()">↺ Données démo</button>
+        <button class="btn btn-secondary" onclick="clearAll()" style="border-color:rgba(239,68,68,0.3);color:#ef4444;background:rgba(239,68,68,0.08)">🗑 Effacer tout</button>
+      </div>
+      <div class="day-list" id="saisieList"></div>
+    </div>
+  </div>
+
+  <!-- CALCULATEUR JOURNÉE -->
+  <div id="calculateur" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">Composer ma journée</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Aliment</label>
+          <select id="calcSelect">
+            <option value="">— Choisir un aliment —</option>
+          </select>
+        </div>
+        <div class="form-group" style="max-width:150px">
+          <label>Quantité (grammes)</label>
+          <input type="number" id="calcGrams" placeholder="ex: 200" style="width:100%">
+        </div>
+        <button class="btn" onclick="addCalcItem()">+ Ajouter</button>
+      </div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.25);margin-top:10px">
+        💡 Ajoutez vos aliments habituels dans l'onglet <strong style="color:rgba(255,255,255,0.4)">Références</strong> pour les retrouver ici.
+      </p>
+
+      <div class="calc-items" id="calcItems"></div>
+
+      <div class="total-bar" style="margin-top:18px">
+        <div>
+          <div class="total-label">Total de la journée</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.3);margin-top:4px" id="calcVsObjectif"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <div class="total-value" id="calcTotalVal">0 kcal</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Valider et enregistrer la journée</div>
+      <div class="form-row" style="align-items:center">
+        <div class="form-group" style="max-width:200px">
+          <label>Date</label>
+          <input type="date" id="calcDate">
+        </div>
+        <button class="btn btn-green" onclick="validerJournee()" id="btnValider" style="margin-top:22px">✓ Valider la journée</button>
+        <button class="btn btn-secondary" onclick="clearCalc()" style="margin-top:22px">🗑 Vider</button>
+      </div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:12px">Le total sera automatiquement envoyé dans l'onglet Saisie.</p>
+    </div>
+  </div>
+
+  <!-- RÉFÉRENCES -->
+  <div id="references" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">Ajouter un aliment de référence</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nom de l'aliment</label>
+          <input type="text" id="refNom" placeholder="ex: Riz jasmin cuit" onkeydown="if(event.key==='Enter')addRef()">
+        </div>
+        <div class="form-group" style="max-width:200px">
+          <label>Calories pour 100g</label>
+          <input type="number" id="refKcal" placeholder="ex: 130" style="width:100%" onkeydown="if(event.key==='Enter')addRef()">
+        </div>
+        <button class="btn" onclick="addRef()">Ajouter</button>
+      </div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:12px">
+        Quelques exemples : riz cuit ~130 kcal/100g, poulet grillé ~165, brocoli ~35, avocat ~160, œuf entier ~155, pain complet ~247.
+      </p>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title" id="refTitle">Ma liste d'aliments</div>
+      <div class="ref-grid" id="refGrid"></div>
+    </div>
+  </div>
+
+  <!-- TDEE -->
+  <div id="tdee" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">Vos paramètres</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px">
+
+        <div class="form-group">
+          <label>Sexe</label>
+          <select id="tdeeSexe" onchange="calcTDEE()">
+            <option value="homme">Homme</option>
+            <option value="femme">Femme</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Âge (ans)</label>
+          <input type="number" id="tdeeAge" value="30" min="10" max="100" oninput="calcTDEE()" style="width:100%">
+        </div>
+        <div class="form-group">
+          <label>Taille (cm)</label>
+          <input type="number" id="tdeeTaille" value="175" min="100" max="250" oninput="calcTDEE()" style="width:100%">
+        </div>
+        <div class="form-group">
+          <label>Poids actuel (kg)</label>
+          <input type="number" id="tdeePoids" value="75" min="30" max="300" step="0.1" oninput="calcTDEE()" style="width:100%">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:20px">
+        <label>Niveau d'activité physique</label>
+        <select id="tdeeActivite" onchange="calcTDEE()" style="margin-top:6px">
+          <option value="1.2">Sédentaire — bureau, peu ou pas de sport</option>
+          <option value="1.375">Légèrement actif — sport 1-3x/semaine</option>
+          <option value="1.55" selected>Modérément actif — sport 3-5x/semaine</option>
+          <option value="1.725">Très actif — sport intense 6-7x/semaine</option>
+          <option value="1.9">Extrêmement actif — travail physique + sport quotidien</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Résultats -->
+    <div class="kpi-grid" id="tdeeResults"></div>
+
+    <!-- Objectifs par scénario -->
+    <div class="chart-card">
+      <div class="chart-title">Scénarios caloriques</div>
+      <div id="tdeeScenarios" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
+    <!-- Détail du calcul -->
+    <div class="chart-card">
+      <div class="chart-title">Détail du calcul (Mifflin-St Jeor)</div>
+      <div id="tdeeDetail" style="font-size:13px;color:rgba(255,255,255,0.5);line-height:2"></div>
+      <p style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:16px">
+        La formule de Mifflin-St Jeor est considérée comme la plus précise pour estimer le métabolisme de base (MB). Le TDEE = MB × coefficient d'activité. Ces valeurs sont des estimations — la réalité peut varier selon la génétique, la masse musculaire et d'autres facteurs.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const KCAL_PER_KG = 7700;
+let days = [];
+let charts = {};
+let refs = [
+  { id:1, nom:'Riz jasmin cuit', kcal100:130 },
+  { id:2, nom:'Poulet grillé', kcal100:165 },
+  { id:3, nom:'Brocoli cuit', kcal100:35 },
+  { id:4, nom:'Oeuf entier', kcal100:155 },
+  { id:5, nom:'Avocat', kcal100:160 },
+  { id:6, nom:'Pain complet', kcal100:247 },
+  { id:7, nom:'Saumon grillé', kcal100:208 },
+  { id:8, nom:'Pâtes cuites', kcal100:131 },
+  { id:9, nom:'Lentilles cuites', kcal100:116 },
+];
+let refNextId = 20;
+let calcItems = [];
+
+function getPoids(){ return parseFloat(document.getElementById('poidsInput').value)||75; }
+function getObjectif(){ return parseInt(document.getElementById('objectifInput').value)||2200; }
+
+function genDemo(){
+  const obj=getObjectif(), result=[], today=new Date();
+  for(let i=29;i>=0;i--){
+    const d=new Date(today); d.setDate(today.getDate()-i);
+    result.push({ date:d.toISOString().split('T')[0], label:d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}), calories:Math.round(1600+Math.random()*900), objectif:obj });
+  }
+  return result;
+}
+
+function computeStats(){
+  const obj=getObjectif(), poidsInit=getPoids();
+  days.forEach(d=>d.objectif=obj);
+  const deficits=days.map(d=>({...d,deficit:d.objectif-d.calories}));
+  const totalDeficit=deficits.reduce((s,d)=>s+d.deficit,0);
+  const pertePoids=totalDeficit/KCAL_PER_KG;
+  const poidsActuel=poidsInit-pertePoids;
+  const moyenneCalories=days.reduce((s,d)=>s+d.calories,0)/(days.length||1);
+  const joursDeficit=deficits.filter(d=>d.deficit>0).length;
+  const avgDailyDeficit=totalDeficit/(days.length||1);
+  let running=poidsInit;
+  const poidsHistory=deficits.map(d=>{ running-=d.deficit/KCAL_PER_KG; return parseFloat(running.toFixed(2)); });
+  const projections=[];
+  for(let i=1;i<=30;i++) projections.push(parseFloat((poidsActuel-avgDailyDeficit*i/KCAL_PER_KG).toFixed(2)));
+  return {deficits,totalDeficit,pertePoids,poidsActuel,moyenneCalories,joursDeficit,avgDailyDeficit,poidsHistory,projections};
+}
+
+function refresh(){
+  const s=computeStats();
+  renderKPI(s); renderChartMain(s); renderChartDeficit(s); renderChartPoids(s);
+  renderDeficitList(s); renderSaisieList(s); renderPoidsCards(s);
+  renderRefs(); renderCalcSelect(); renderCalcItems(); renderPeseeList();
+  saveData();
+}
+
+function renderKPI(s){
+  const kpis=[
+    {label:'Déficit total',value:Math.round(s.totalDeficit).toLocaleString('fr-FR'),unit:'kcal',color:s.totalDeficit>0?'green':'red'},
+    {label:'Perte estimée',value:(s.pertePoids>0?'−':'+')+Math.abs(s.pertePoids).toFixed(2),unit:'kg',color:s.pertePoids>0?'green':'red'},
+    {label:'Poids actuel',value:s.poidsActuel.toFixed(1),unit:'kg',color:'orange'},
+    {label:'Moy. calories',value:Math.round(s.moyenneCalories).toLocaleString('fr-FR'),unit:'kcal/j',color:'indigo'},
+    {label:'Jours en déficit',value:s.joursDeficit,unit:'/ '+days.length,color:'yellow'},
+    {label:'Déficit moyen',value:Math.round(s.avgDailyDeficit).toLocaleString('fr-FR'),unit:'kcal/j',color:'blue'},
+  ];
+  document.getElementById('kpiGrid').innerHTML=kpis.map(k=>`<div class="card"><div class="card-label">${k.label}</div><div class="card-value ${k.color}">${k.value}</div><div class="card-unit">${k.unit}</div></div>`).join('');
+}
+
+function destroyChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+function chartOptions(unit){
+  return {
+    responsive:true,maintainAspectRatio:true,
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(10,10,20,0.95)',titleColor:'#f97316',bodyColor:'#fff',borderColor:'rgba(249,115,22,0.3)',borderWidth:1,callbacks:{label:ctx=>` ${ctx.dataset.label}: ${Math.round(ctx.parsed.y).toLocaleString('fr-FR')} ${unit}`}}},
+    scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:10},maxTicksLimit:10}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.3)',font:{size:10}}}}
+  };
+}
+
+function renderChartMain(s){
+  destroyChart('main'); if(!days.length)return;
+  const canvas=document.getElementById('chartMain');
+  const ctx=canvas.getContext('2d');
+  const crosshair=document.getElementById('crosshair');
+  const tooltip=document.getElementById('crosshairTooltip');
+  const wrap=document.getElementById('chartMainWrap');
+
+  const opts={...chartOptions('kcal')};
+  opts.plugins={...opts.plugins,tooltip:{enabled:false}};
+  charts['main']=new Chart(ctx,{type:'line',data:{labels:days.map(d=>d.label),datasets:[
+    {label:'Calories',data:days.map(d=>d.calories),borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.1)',fill:true,tension:0.4,pointRadius:0,borderWidth:2,pointHoverRadius:5,pointHoverBackgroundColor:'#f97316'},
+    {label:'Objectif',data:days.map(d=>d.objectif),borderColor:'#f43f5e',borderDash:[5,4],fill:false,tension:0,pointRadius:0,borderWidth:1.5,pointHoverRadius:0}
+  ]},options:opts});
+
+  canvas.addEventListener('mousemove',function(e){
+    const chart=charts['main']; if(!chart)return;
+    const rect=canvas.getBoundingClientRect();
+    const mouseX=e.clientX-rect.left;
+    const area=chart.chartArea;
+    if(mouseX<area.left||mouseX>area.right){crosshair.style.display='none';tooltip.style.display='none';return;}
+    const step=(area.right-area.left)/(days.length-1);
+    const idx=Math.max(0,Math.min(days.length-1,Math.round((mouseX-area.left)/step)));
+    const snapX=area.left+idx*step;
+    crosshair.style.display='block';
+    crosshair.style.left=snapX+'px';
+    crosshair.style.top=area.top+'px';
+    crosshair.style.height=(area.bottom-area.top)+'px';
+    const d=days[idx];
+    const def=d.objectif-d.calories;
+    const defStr=def>=0?'<span style="color:#22c55e">−'+def.toLocaleString('fr-FR')+' kcal</span>':'<span style="color:#ef4444">+'+Math.abs(def).toLocaleString('fr-FR')+' kcal</span>';
+    tooltip.innerHTML='<div style="color:#f97316;font-weight:700;margin-bottom:5px">'+d.label+'</div><div style="color:#fff">Calories&nbsp;: <strong>'+d.calories.toLocaleString('fr-FR')+' kcal</strong></div><div style="color:rgba(255,255,255,0.5)">Objectif&nbsp;: '+d.objectif.toLocaleString('fr-FR')+' kcal</div><div style="margin-top:4px">Bilan&nbsp;: '+defStr+'</div>';
+    tooltip.style.display='block';
+    const ttW=tooltip.offsetWidth||170;
+    let ttLeft=snapX+14;
+    if(ttLeft+ttW>area.right+20) ttLeft=snapX-ttW-14;
+    tooltip.style.left=ttLeft+'px';
+    tooltip.style.top=(area.top+4)+'px';
+  });
+  canvas.addEventListener('mouseleave',function(){crosshair.style.display='none';tooltip.style.display='none';});
+}
+
+function renderChartDeficit(s){
+  destroyChart('deficit'); if(!s.deficits.length)return;
+  const ctx=document.getElementById('chartDeficit').getContext('2d');
+  charts['deficit']=new Chart(ctx,{type:'bar',data:{labels:s.deficits.map(d=>d.label),datasets:[{
+    label:'Déficit',data:s.deficits.map(d=>d.deficit),
+    backgroundColor:s.deficits.map(d=>d.deficit>=0?'rgba(34,197,94,0.75)':'rgba(239,68,68,0.75)'),borderRadius:3
+  }]},options:chartOptions('kcal')});
+}
+
+function renderChartPoids(s){
+  destroyChart('poids'); if(!s.poidsHistory.length)return;
+  const canvas=document.getElementById('chartPoids');
+  const ctx=canvas.getContext('2d');
+  const crosshair=document.getElementById('crosshairPoids');
+  const tooltip=document.getElementById('crosshairPoidsTooltip');
+
+  const histL=days.map(d=>d.label);
+  const projL=Array.from({length:30},(_,i)=>'J+'+(i+1));
+  const allL=[...histL,...projL];
+  const totalPoints=allL.length;
+
+  // Pesées réelles alignées sur les labels
+  const peseeData=allL.map(label=>{
+    const p=pesees.find(p=>p.label===label);
+    return p?p.val:null;
+  });
+
+  const allVals=[...s.poidsHistory,...s.projections,...pesees.map(p=>p.val)];
+  const minVal=Math.min(...allVals)-0.5;
+  const maxVal=Math.max(...allVals,getPoids())+0.5;
+
+  const opts={...chartOptions('kg'),plugins:{...chartOptions('kg').plugins,tooltip:{enabled:false}}};
+  opts.scales={...chartOptions('kg').scales,y:{...chartOptions('kg').scales.y,min:Math.floor(minVal),max:Math.ceil(maxVal)}};
+
+  charts['poids']=new Chart(ctx,{type:'line',data:{labels:allL,datasets:[
+    {label:'Poids théorique',data:[...s.poidsHistory,...Array(30).fill(null)],borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.1)',fill:true,tension:0.4,pointRadius:0,borderWidth:2,spanGaps:false},
+    {label:'Prévision poids',data:[...Array(histL.length).fill(null),...s.projections],borderColor:'#818cf8',backgroundColor:'rgba(129,140,248,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2,borderDash:[6,3],spanGaps:false},
+    {label:'Pesée réelle',data:peseeData,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.15)',fill:false,tension:0.3,pointRadius:6,pointHoverRadius:8,pointBackgroundColor:'#22c55e',pointBorderColor:'#050508',pointBorderWidth:2,borderWidth:2,spanGaps:false,showLine:true}
+  ]},options:opts});
+
+  // Curseur vertical
+  canvas.addEventListener('mousemove',function(e){
+    const chart=charts['poids']; if(!chart)return;
+    const rect=canvas.getBoundingClientRect();
+    const mouseX=e.clientX-rect.left;
+    const area=chart.chartArea;
+    if(mouseX<area.left||mouseX>area.right){crosshair.style.display='none';tooltip.style.display='none';return;}
+    const step=(area.right-area.left)/(totalPoints-1);
+    const idx=Math.max(0,Math.min(totalPoints-1,Math.round((mouseX-area.left)/step)));
+    const snapX=area.left+idx*step;
+    crosshair.style.display='block';
+    crosshair.style.left=snapX+'px';
+    crosshair.style.top=area.top+'px';
+    crosshair.style.height=(area.bottom-area.top)+'px';
+    const label=allL[idx];
+    const theorique=idx<s.poidsHistory.length?s.poidsHistory[idx]:(idx<histL.length?null:s.projections[idx-histL.length]);
+    const pesee=pesees.find(p=>p.label===label);
+    const isProj=idx>=histL.length;
+    let label2=isProj?(label+' (prev)'):label;
+    let html='<div style="color:#818cf8;font-weight:700;margin-bottom:5px">'+label+'</div>';
+    if(isProj) html='<div style="color:#818cf8;font-weight:700;margin-bottom:5px">'+label+' <span style="font-size:10px;opacity:.6">(prevision)</span></div>';
+    if(theorique!=null){
+      let typeLabel=isProj?'Prevision':'Theorique';
+      html+='<div style="color:#f97316">'+typeLabel+' : <strong>'+theorique.toFixed(2)+' kg</strong></div>';
+    }
+    if(pesee){
+      html+='<div style="color:#22c55e;margin-top:3px">Pesee reelle : <strong>'+pesee.val.toFixed(1)+' kg</strong></div>';
+    }
+    if(pesee&&theorique!=null){
+      const diff=pesee.val-theorique;
+      const col=diff<=0?'#22c55e':'#f97316';
+      const sign=diff>0?'+':'';
+      html+='<div style="color:'+col+';margin-top:3px;font-size:12px">Ecart : '+sign+diff.toFixed(2)+' kg</div>';
+    }
+    tooltip.innerHTML=html;
+    tooltip.style.display='block';
+    const ttW=tooltip.offsetWidth||170;
+    let ttLeft=snapX+14;
+    if(ttLeft+ttW>area.right+20) ttLeft=snapX-ttW-14;
+    tooltip.style.left=ttLeft+'px';
+    tooltip.style.top=(area.top+4)+'px';
+  });
+  canvas.addEventListener('mouseleave',function(){crosshair.style.display='none';tooltip.style.display='none';});
+}
+
+function renderDeficitList(s){
+  const el=document.getElementById('deficitList');
+  if(!s.deficits.length){el.innerHTML='<p class="empty-msg">Aucune donnée enregistrée.</p>';return;}
+  el.innerHTML=s.deficits.slice().reverse().map(d=>`
+    <div class="day-row">
+      <span class="day-date">${d.label}</span>
+      <div class="day-bar-wrap"><div class="day-bar" style="width:${Math.min(100,d.calories/(getObjectif()*1.5)*100)}%;background:${d.deficit>=0?'#22c55e':'#ef4444'}"></div></div>
+      <span class="day-cal">${d.calories.toLocaleString('fr-FR')} kcal</span>
+      <span class="day-def ${d.deficit>=0?'green':'red'}">${d.deficit>=0?'−':'+'}${Math.abs(Math.round(d.deficit)).toLocaleString('fr-FR')} kcal</span>
+    </div>`).join('');
+}
+
+function renderSaisieList(s){
+  document.getElementById('saisieTitle').textContent=`Données enregistrées (${days.length} jours)`;
+  const el=document.getElementById('saisieList');
+  if(!days.length){el.innerHTML='<p class="empty-msg">Aucune donnée. Utilisez le Calculateur journée ou saisissez manuellement.</p>';return;}
+  el.innerHTML=days.slice().reverse().map((d,ri)=>{
+    const i=days.length-1-ri, def=d.objectif-d.calories;
+    return `<div class="day-row">
+      <span class="day-date">${d.label}</span>
+      <div class="day-bar-wrap"><div class="day-bar" style="width:${Math.min(100,d.calories/(getObjectif()*1.5)*100)}%;background:${def>=0?'#22c55e':'#ef4444'}"></div></div>
+      <span class="day-cal">${d.calories.toLocaleString('fr-FR')} kcal</span>
+      <span class="day-def ${def>=0?'green':'red'}">${def>=0?'−':'+'}${Math.abs(Math.round(def)).toLocaleString('fr-FR')} kcal</span>
+      <button class="day-del" onclick="deleteDay(${i})">×</button>
+    </div>`;
+  }).join('');
+}
+
+function renderPoidsCards(s){
+  if(!s.projections.length)return;
+  const p30=s.projections[29];
+  document.getElementById('kpiPoids30').textContent=p30.toFixed(1)+' kg';
+  document.getElementById('kpiPoids30Sub').textContent='soit '+(p30-getPoids()).toFixed(2)+' kg vs départ';
+  document.getElementById('kpiDefMoy').textContent=Math.round(s.avgDailyDeficit).toLocaleString('fr-FR')+' kcal/j';
+  document.getElementById('kpiDefMoySub').textContent='≈ '+(s.avgDailyDeficit*30/KCAL_PER_KG).toFixed(2)+' kg / mois';
+}
+
+/* ── RÉFÉRENCES ── */
+function renderRefs(){
+  document.getElementById('refTitle').textContent=`Ma liste d'aliments (${refs.length})`;
+  const grid=document.getElementById('refGrid');
+  if(!refs.length){grid.innerHTML='<p class="empty-msg" style="grid-column:1/-1">Aucun aliment. Ajoutez vos habituels ci-dessus.</p>';return;}
+  grid.innerHTML=refs.map(r=>`
+    <div class="ref-item">
+      <span class="ref-name">${r.nom}</span>
+      <span class="ref-kcal">${r.kcal100} kcal/100g</span>
+      <button class="ref-del" onclick="deleteRef(${r.id})">×</button>
+    </div>`).join('');
+}
+
+function addRef(){
+  const nom=document.getElementById('refNom').value.trim();
+  const kcal=parseInt(document.getElementById('refKcal').value);
+  if(!nom||!kcal||kcal<=0){alert('Merci de renseigner un nom et des calories valides.');return;}
+  refs.push({id:refNextId++,nom,kcal100:kcal});
+  document.getElementById('refNom').value='';
+  document.getElementById('refKcal').value='';
+  renderRefs(); renderCalcSelect();
+}
+
+function deleteRef(id){
+  refs=refs.filter(r=>r.id!==id);
+  calcItems=calcItems.filter(i=>i.refId!==id);
+  renderRefs(); renderCalcSelect(); renderCalcItems();
+}
+
+/* ── CALCULATEUR ── */
+function renderCalcSelect(){
+  const sel=document.getElementById('calcSelect');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— Choisir un aliment —</option>'+
+    refs.map(r=>`<option value="${r.id}">${r.nom} (${r.kcal100} kcal/100g)</option>`).join('');
+  sel.value=cur;
+}
+
+function addCalcItem(){
+  const refId=parseInt(document.getElementById('calcSelect').value);
+  const grams=parseFloat(document.getElementById('calcGrams').value);
+  if(!refId||!grams||grams<=0){alert('Choisissez un aliment et indiquez une quantité en grammes.');return;}
+  const ref=refs.find(r=>r.id===refId);
+  if(!ref)return;
+  const kcal=Math.round(ref.kcal100*grams/100);
+  calcItems.push({refId,nom:ref.nom,grams,kcal});
+  document.getElementById('calcGrams').value='';
+  document.getElementById('calcSelect').value='';
+  renderCalcItems();
+}
+
+function renderCalcItems(){
+  const el=document.getElementById('calcItems');
+  if(!calcItems.length){
+    el.innerHTML='<p class="empty-msg">Aucun aliment ajouté pour cette journée.</p>';
+  } else {
+    el.innerHTML=calcItems.map((item,i)=>`
+      <div class="calc-row">
+        <span class="calc-food">${item.nom}</span>
+        <span class="calc-grammage">${item.grams} g</span>
+        <span class="calc-kcal">${item.kcal.toLocaleString('fr-FR')} kcal</span>
+        <button class="calc-del" onclick="removeCalcItem(${i})">×</button>
+      </div>`).join('');
+  }
+  const total=calcItems.reduce((s,i)=>s+i.kcal,0);
+  document.getElementById('calcTotalVal').textContent=total.toLocaleString('fr-FR')+' kcal';
+  const obj=getObjectif(), diff=obj-total;
+  const vs=document.getElementById('calcVsObjectif');
+  if(total===0){vs.textContent='';return;}
+  vs.innerHTML=diff>=0
+    ?`<span class="green">−${diff.toLocaleString('fr-FR')} kcal sous l'objectif de ${obj.toLocaleString('fr-FR')} kcal</span>`
+    :`<span class="red">+${Math.abs(diff).toLocaleString('fr-FR')} kcal au-dessus de l'objectif de ${obj.toLocaleString('fr-FR')} kcal</span>`;
+}
+
+function removeCalcItem(i){ calcItems.splice(i,1); renderCalcItems(); }
+
+function clearCalc(){ calcItems=[]; renderCalcItems(); }
+
+function validerJournee(){
+  const total=calcItems.reduce((s,i)=>s+i.kcal,0);
+  if(total===0){alert('Aucun aliment dans la journée.');return;}
+  const dateVal=document.getElementById('calcDate').value;
+  if(!dateVal){alert('Merci de choisir une date.');return;}
+  const label=new Date(dateVal).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+  const existing=days.findIndex(d=>d.date===dateVal);
+  if(existing>=0){
+    if(!confirm(`Une entrée existe déjà pour le ${label} (${days[existing].calories} kcal).\nRemplacer par ${total} kcal ?`))return;
+    days[existing].calories=total;
+  } else {
+    days.push({date:dateVal,label,calories:total,objectif:getObjectif()});
+    days.sort((a,b)=>a.date.localeCompare(b.date));
+    if(days.length>30)days=days.slice(-30);
+  }
+  calcItems=[];
+  refresh();
+  // Avancer la date au lendemain
+  const next=new Date(dateVal); next.setDate(next.getDate()+1);
+  document.getElementById('calcDate').value=next.toISOString().split('T')[0];
+  // Feedback bouton
+  const btn=document.getElementById('btnValider');
+  btn.textContent='✓ Enregistré !';
+  setTimeout(()=>{btn.textContent='✓ Valider la journée';},2000);
+}
+
+/* ── NAVIGATION ── */
+function showTab(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='saisie') autoFillDate();
+  if(id==='calculateur') autoFillCalcDate();
+  if(id==='tdee'){ document.getElementById('tdeePoids').value=getPoids(); calcTDEE(); }
+}
+
+function autoFillDate(){
+  const di=document.getElementById('newDate');
+  if(days.length===0){di.value=new Date().toISOString().split('T')[0];return;}
+  const last=new Date(days[days.length-1].date); last.setDate(last.getDate()+1);
+  di.value=last.toISOString().split('T')[0];
+}
+
+function autoFillCalcDate(){
+  const di=document.getElementById('calcDate');
+  if(di.value)return;
+  if(days.length===0){di.value=new Date().toISOString().split('T')[0];return;}
+  const last=new Date(days[days.length-1].date); last.setDate(last.getDate()+1);
+  di.value=last.toISOString().split('T')[0];
+}
+
+/* ── SAISIE MANUELLE ── */
+function addEntry(){
+  const dateVal=document.getElementById('newDate').value;
+  const calVal=parseInt(document.getElementById('newCal').value);
+  if(!dateVal||!calVal)return;
+  const label=new Date(dateVal).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+  const existing=days.findIndex(d=>d.date===dateVal);
+  if(existing>=0){days[existing].calories=calVal;}
+  else{
+    days.push({date:dateVal,label,calories:calVal,objectif:getObjectif()});
+    days.sort((a,b)=>a.date.localeCompare(b.date));
+    if(days.length>30)days=days.slice(-30);
+  }
+  document.getElementById('newCal').value='';
+  refresh(); autoFillDate();
+}
+
+function deleteDay(i){ days.splice(i,1); refresh(); }
+function resetDemo(){ days=genDemo(); refresh(); }
+function clearAll(){ if(confirm('Effacer toutes les données ?')){ days=[]; refresh(); } }
+
+/* ── PESÉES ── */
+let pesees=[];
+
+function addPesee(){
+  const dateVal=document.getElementById('peseeDate').value;
+  const val=parseFloat(document.getElementById('peseeVal').value);
+  if(!dateVal||!val||val<=0){alert('Merci de renseigner une date et un poids valide.');return;}
+  const label=new Date(dateVal).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+  const existing=pesees.findIndex(p=>p.date===dateVal);
+  if(existing>=0){pesees[existing].val=val;}
+  else{pesees.push({date:dateVal,label,val});pesees.sort((a,b)=>a.date.localeCompare(b.date));}
+  document.getElementById('peseeVal').value='';
+  refresh();
+}
+
+function deletePesee(i){pesees.splice(i,1);refresh();}
+
+function renderPeseeList(){
+  const el=document.getElementById('peseeList');
+  if(!el)return;
+  if(!pesees.length){el.innerHTML='<p class="empty-msg">Aucune pesée enregistrée. Ajoutez vos mesures réelles ci-dessus.</p>';return;}
+  const s=computeStats();
+  el.innerHTML=pesees.slice().reverse().map((p,ri)=>{
+    const i=pesees.length-1-ri;
+    // Trouver le poids théorique au même label
+    const dayIdx=days.findIndex(d=>d.label===p.label);
+    let ecartHtml='';
+    if(dayIdx>=0&&s.poidsHistory[dayIdx]!=null){
+      const th=s.poidsHistory[dayIdx];
+      const diff=p.val-th;
+      const col=diff<=0?'#22c55e':'#f97316';
+      ecartHtml='<span style="font-family:monospace;font-size:11px;color:'+col+';min-width:80px;text-align:right">'+(diff>0?'+':'')+diff.toFixed(2)+' kg vs théo.</span>';
+    }
+    return '<div class="day-row">'+
+      '<span class="day-date">'+p.label+'</span>'+
+      '<div class="day-bar-wrap"><div class="day-bar" style="width:60%;background:#22c55e"></div></div>'+
+      '<span style="font-family:monospace;font-size:13px;min-width:70px;text-align:right;color:#22c55e">'+p.val.toFixed(1)+' kg</span>'+
+      ecartHtml+
+      '<button class="day-del" onclick="deletePesee('+i+')">×</button>'+
+    '</div>';
+  }).join('');
+}
+
+/* ── TDEE ── */
+function calcTDEE(){
+  const sexe = document.getElementById('tdeeSexe').value;
+  const age = parseInt(document.getElementById('tdeeAge').value) || 30;
+  const taille = parseInt(document.getElementById('tdeeTaille').value) || 175;
+  const poids = parseFloat(document.getElementById('tdeePoids').value) || 75;
+  const activite = parseFloat(document.getElementById('tdeeActivite').value) || 1.55;
+
+  // Mifflin-St Jeor
+  let mb;
+  if(sexe === 'homme') mb = 10*poids + 6.25*taille - 5*age + 5;
+  else mb = 10*poids + 6.25*taille - 5*age - 161;
+  const tdee = Math.round(mb * activite);
+  mb = Math.round(mb);
+
+  // KPIs
+  const results = document.getElementById('tdeeResults');
+  results.innerHTML = [
+    {label:'Métabolisme de base', value:mb.toLocaleString('fr-FR'), unit:'kcal/j', color:'blue', title:'MB — calories brûlées au repos complet'},
+    {label:'Besoin de maintien (TDEE)', value:tdee.toLocaleString('fr-FR'), unit:'kcal/j', color:'orange', title:'Manger cette quantité = poids stable'},
+    {label:'Déficit conseillé (−20%)', value:Math.round(tdee*0.8).toLocaleString('fr-FR'), unit:'kcal/j', color:'green', title:'Perte de poids modérée ~0.5kg/sem'},
+    {label:'Déficit agressif (−25%)', value:Math.round(tdee*0.75).toLocaleString('fr-FR'), unit:'kcal/j', color:'yellow', title:'Perte plus rapide, moins recommandé'},
+  ].map(k=>`
+    <div class="card" title="${k.title}">
+      <div class="card-label">${k.label}</div>
+      <div class="card-value ${k.color}">${k.value}</div>
+      <div class="card-unit">${k.unit}</div>
+    </div>`).join('');
+
+  // Scénarios
+  const scenarios = [
+    {label:'Prise de masse (+10%)', kcal:Math.round(tdee*1.1), color:'#818cf8', poids_sem:+(0.1*tdee*0.1/KCAL_PER_KG*7).toFixed(2)},
+    {label:'Maintien (0%)', kcal:tdee, color:'#38bdf8', poids_sem:0},
+    {label:'Perte légère (−10%)', kcal:Math.round(tdee*0.9), color:'#facc15', poids_sem:-(0.1*tdee/KCAL_PER_KG*7).toFixed(2)},
+    {label:'Perte modérée (−20%)', kcal:Math.round(tdee*0.8), color:'#22c55e', poids_sem:-(0.2*tdee/KCAL_PER_KG*7).toFixed(2)},
+    {label:'Perte rapide (−25%)', kcal:Math.round(tdee*0.75), color:'#f97316', poids_sem:-(0.25*tdee/KCAL_PER_KG*7).toFixed(2)},
+  ];
+
+  document.getElementById('tdeeScenarios').innerHTML = scenarios.map(sc => {
+    const perdMois = (sc.poids_sem*4).toFixed(1);
+    const poidsResultat = (poids + parseFloat(perdMois)).toFixed(1);
+    const barPct = Math.round(sc.kcal/tdee*100);
+    return `
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;transition:border-color .2s" onmouseover="this.style.borderColor='${sc.color}40'" onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
+      <div style="min-width:200px;flex:1">
+        <div style="font-size:13px;font-weight:600;color:${sc.color};margin-bottom:4px">${sc.label}</div>
+        <div style="height:4px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;margin-top:6px">
+          <div style="height:100%;width:${barPct}%;background:${sc.color};opacity:0.7;border-radius:2px;transition:width .3s"></div>
+        </div>
+      </div>
+      <div style="text-align:right;min-width:110px">
+        <div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${sc.color}">${sc.kcal.toLocaleString('fr-FR')}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.3)">kcal/jour</div>
+      </div>
+      <div style="text-align:right;min-width:140px">
+        <div style="font-size:13px;color:rgba(255,255,255,0.6)">${sc.poids_sem > 0 ? '+' : ''}${sc.poids_sem} kg/sem</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.3)">${perdMois > 0 ? '+' : ''}${perdMois} kg/mois → ${poidsResultat} kg</div>
+      </div>
+      <button class="btn btn-secondary" onclick="applyObjectif(${sc.kcal})" style="font-size:11px;padding:6px 12px;white-space:nowrap">Utiliser comme objectif</button>
+    </div>`;
+  }).join('');
+
+  // Détail calcul
+  const formule = sexe==='homme'
+    ? `(10 × ${poids}) + (6.25 × ${taille}) − (5 × ${age}) + 5`
+    : `(10 × ${poids}) + (6.25 × ${taille}) − (5 × ${age}) − 161`;
+  const actLabel = document.getElementById('tdeeActivite').options[document.getElementById('tdeeActivite').selectedIndex].text;
+  document.getElementById('tdeeDetail').innerHTML = `
+    <div>📐 <strong style="color:rgba(255,255,255,0.7)">Formule MB (${sexe})</strong> = ${formule} = <strong style="color:#f97316">${mb} kcal</strong></div>
+    <div>🏃 <strong style="color:rgba(255,255,255,0.7)">Coefficient activité</strong> = ${activite} <span style="color:rgba(255,255,255,0.3)">(${actLabel.split('—')[0].trim()})</span></div>
+    <div>⚡ <strong style="color:rgba(255,255,255,0.7)">TDEE</strong> = ${mb} × ${activite} = <strong style="color:#f97316">${tdee} kcal/j</strong></div>`;
+}
+
+function applyObjectif(kcal){
+  document.getElementById('objectifInput').value = kcal;
+  refresh();
+  // Flash confirmation
+  const btn = event.target;
+  const orig = btn.textContent;
+  btn.textContent = '✓ Appliqué !';
+  btn.style.color = '#22c55e';
+  btn.style.borderColor = 'rgba(34,197,94,0.4)';
+  setTimeout(()=>{ btn.textContent=orig; btn.style.color=''; btn.style.borderColor=''; }, 2000);
+}
+
+/* ── STORAGE ── */
+const STORAGE_KEY = 'calorietrack_' + window.location.pathname.split('/').pop();
+
+function saveData(){
+  const data = { days, pesees, refs, refNextId, poids: getPoids(), objectif: getObjectif() };
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const now = new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'});
+    const el = document.getElementById('saveIndicator');
+    if(el) el.textContent = 'Sauvegardé à ' + now;
+  } catch(e) { console.warn('localStorage unavailable'); }
+}
+
+function loadData(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+    const data = JSON.parse(raw);
+    if(data.days) days = data.days;
+    if(data.pesees) pesees = data.pesees;
+    if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
+    if(data.poids) document.getElementById('poidsInput').value = data.poids;
+    if(data.objectif) document.getElementById('objectifInput').value = data.objectif;
+    return true;
+  } catch(e) { return false; }
+}
+
+function exportData(){
+  const data = { days, pesees, poids: getPoids(), objectif: getObjectif(), exportDate: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const filename = 'calorietrack_' + new Date().toLocaleDateString('fr-FR').replace(/\//g,'-') + '.json';
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = JSON.parse(e.target.result);
+      if(!data.days) { alert('Fichier invalide.'); return; }
+      if(!confirm('Remplacer toutes les données actuelles par celles du fichier ?')) return;
+      days = data.days;
+      pesees = data.pesees || [];
+      if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
+      if(data.poids) document.getElementById('poidsInput').value = data.poids;
+      if(data.objectif) document.getElementById('objectifInput').value = data.objectif;
+      saveData();
+      refresh();
+    } catch(err) { alert('Erreur de lecture du fichier JSON.'); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+/* ── INIT ── */
+const hasData = loadData();
+if(!hasData) days = genDemo();
+refresh();
+window.addEventListener('beforeunload', saveData);
+
+// Service Worker (PWA)
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(() => console.log('SW registered'))
+      .catch(e => console.log('SW error:', e));
+  });
+}
+</script>
+</body>
+</html>
