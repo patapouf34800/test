@@ -750,11 +750,15 @@ function renderChartPoids(s){
   const allL=[...histL,...projL];
   const totalPoints=allL.length;
 
-  // Pesées réelles alignées sur les labels
-  const peseeData=allL.map(label=>{
-    const p=pesees.find(p=>p.label===label);
-    return p?p.val:null;
-  });
+  // Pesées réelles alignées par date sur les labels
+  // On construit un mapping date->val pour les pesées
+  const peseeDateMap={};
+  pesees.forEach(p=>{ peseeDateMap[p.date]=p.val; });
+  // Pour chaque label de allL, on retrouve la date correspondante
+  const allDates=[...days.map(d=>d.date),...Array.from({length:s.projections.length},(_,i)=>{
+    const dt=new Date(); dt.setDate(dt.getDate()+i+1); return dt.toISOString().split('T')[0];
+  })];
+  const peseeData=allDates.map(date=>peseeDateMap[date]!=null?peseeDateMap[date]:null);
 
   const allVals=[...s.poidsHistory,...s.projections,...pesees.map(p=>p.val)];
   const minVal=Math.min(...allVals)-0.5;
@@ -1189,7 +1193,7 @@ function renderPeseeList(){
   el.innerHTML=pesees.slice().reverse().map((p,ri)=>{
     const i=pesees.length-1-ri;
     // Trouver le poids théorique au même label
-    const dayIdx=days.findIndex(d=>d.label===p.label);
+    const dayIdx=days.findIndex(d=>d.date===p.date);
     let ecartHtml='';
     if(dayIdx>=0&&s.poidsHistory[dayIdx]!=null){
       const th=s.poidsHistory[dayIdx];
