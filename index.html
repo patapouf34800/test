@@ -538,7 +538,9 @@ function genDemo(){
 
 function computeStats(){
   const obj=getObjectif(), poidsInit=getPoids();
-  days.forEach(d=>d.objectif=obj);
+  // Ne pas écraser l'objectif des jours passés — chaque jour garde celui en vigueur au moment de la saisie
+  // On l'applique uniquement aux jours qui n'en ont pas encore (migration données anciennes)
+  days.forEach(d=>{ if(!d.objectif) d.objectif=obj; });
   const filtered=getFilteredDays();
   const deficits=filtered.map(d=>({...d,deficit:d.objectif-d.calories}));
   const totalDeficit=deficits.reduce((s,d)=>s+d.deficit,0);
