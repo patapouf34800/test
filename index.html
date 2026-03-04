@@ -176,7 +176,11 @@
           <button class="period-btn deficit-period-btn active" onclick="setDeficitPeriod('tout',this)">Tout</button>
         </div>
       </div>
-      <canvas id="chartDeficit"></canvas>
+      <div style="position:relative" id="chartDeficitWrap">
+        <canvas id="chartDeficit"></canvas>
+        <div id="crosshairDeficit" style="position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,0.25);pointer-events:none;display:none"></div>
+        <div id="crosshairDeficitTooltip" style="position:absolute;top:10px;background:rgba(10,10,20,0.95);border:1px solid rgba(249,115,22,0.4);border-radius:8px;padding:8px 12px;pointer-events:none;display:none;white-space:nowrap;font-size:13px;z-index:10;font-family:sans-serif"></div>
+      </div>
       <div class="legend">
         <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Déficit (sous l'objectif)</div>
         <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Surplus (au-dessus de l'objectif)</div>
@@ -259,6 +263,10 @@
         <div class="form-group">
           <label>Calories (kcal)</label>
           <input type="number" id="newCal" placeholder="ex: 1850" style="width:100%">
+        </div>
+        <div class="form-group" style="flex:2;min-width:200px">
+          <label>Note (optionnel)</label>
+          <input type="text" id="newNote" placeholder="ex: repas de fête, stress..." style="width:100%">
         </div>
         <button class="btn" onclick="addEntry()">Enregistrer</button>
       </div>
@@ -742,10 +750,43 @@ function renderChartDeficit(s){
   const fd=getFilteredDeficit().map(d=>({...d,deficit:d.objectif-d.calories}));
   if(!fd.length)return;
   const ctx=document.getElementById('chartDeficit').getContext('2d');
+  const deficitOpts={...chartOptions('kcal'),plugins:{...chartOptions('kcal').plugins,tooltip:{enabled:false}}};
   charts['deficit']=new Chart(ctx,{type:'bar',data:{labels:fd.map(d=>d.label),datasets:[{
     label:'Déficit',data:fd.map(d=>d.deficit),
     backgroundColor:fd.map(d=>d.deficit>=0?'rgba(34,197,94,0.75)':'rgba(239,68,68,0.75)'),borderRadius:3
-  }]},options:chartOptions('kcal')});
+  }]},options:deficitOpts});
+
+  const crosshairD=document.getElementById('crosshairDeficit');
+  const tooltipD=document.getElementById('crosshairDeficitTooltip');
+  const canvas=document.getElementById('chartDeficit');
+  const wrap=document.getElementById('chartDeficitWrap');
+  canvas.addEventListener('mousemove',function(e){
+    const chart=charts['deficit']; if(!chart)return;
+    const rect=canvas.getBoundingClientRect();
+    const mouseX=e.clientX-rect.left;
+    const area=chart.chartArea;
+    if(mouseX<area.left||mouseX>area.right){crosshairD.style.display='none';tooltipD.style.display='none';return;}
+    const n=fd.length;
+    const barW=(area.right-area.left)/n;
+    const idx=Math.max(0,Math.min(n-1,Math.floor((mouseX-area.left)/barW)));
+    const snapX=area.left+idx*barW+barW/2;
+    crosshairD.style.display='block';
+    crosshairD.style.left=snapX+'px';
+    crosshairD.style.top=area.top+'px';
+    crosshairD.style.height=(area.bottom-area.top)+'px';
+    const d=fd[idx];
+    const def=d.deficit;
+    const defStr=def>=0?'<span style="color:#22c55e">−'+Math.abs(Math.round(def)).toLocaleString('fr-FR')+' kcal</span>':'<span style="color:#ef4444">+'+Math.abs(Math.round(def)).toLocaleString('fr-FR')+' kcal</span>';
+    const noteStr=d.note?'<div style="margin-top:6px;color:#f97316;font-style:italic">📝 '+d.note+'</div>':'';
+    tooltipD.innerHTML='<div style="color:#f97316;font-weight:700;margin-bottom:5px">'+d.label+'</div><div style="color:#fff">Calories : <strong>'+d.calories.toLocaleString('fr-FR')+' kcal</strong></div><div style="color:rgba(255,255,255,0.5)">Objectif : '+d.objectif.toLocaleString('fr-FR')+' kcal</div><div style="margin-top:4px">Bilan : '+defStr+'</div>'+noteStr;
+    tooltipD.style.display='block';
+    const ttW=tooltipD.offsetWidth||170;
+    let ttLeft=snapX+14;
+    if(ttLeft+ttW>area.right+20) ttLeft=snapX-ttW-14;
+    tooltipD.style.left=ttLeft+'px';
+    tooltipD.style.top=(area.top+4)+'px';
+  });
+  canvas.addEventListener('mouseleave',function(){crosshairD.style.display='none';tooltipD.style.display='none';});
 }
 
 function renderChartPoids(s){
@@ -857,11 +898,12 @@ function renderSaisieList(s){
   if(!days.length){el.innerHTML='<p class="empty-msg">Aucune donnée. Utilisez le Calculateur journée ou saisissez manuellement.</p>';return;}
   el.innerHTML=days.slice().reverse().map((d,ri)=>{
     const i=days.length-1-ri, def=d.objectif-d.calories;
-    return `<div class="day-row">
+    return `<div class="day-row"${d.note?' title="'+d.note+'"':''}>
       <span class="day-date">${d.label}</span>
       <div class="day-bar-wrap"><div class="day-bar" style="width:${Math.min(100,d.calories/(getObjectif()*1.5)*100)}%;background:${def>=0?'#22c55e':'#ef4444'}"></div></div>
       <span class="day-cal">${d.calories.toLocaleString('fr-FR')} kcal</span>
       <span class="day-def ${def>=0?'green':'red'}">${def>=0?'−':'+'}${Math.abs(Math.round(def)).toLocaleString('fr-FR')} kcal</span>
+      ${d.note?'<span style="font-size:13px;opacity:0.5" title="'+d.note+'">📝</span>':''}
       <button class="day-del" onclick="deleteDay(${i})">×</button>
     </div>`;
   }).join('');
@@ -1177,14 +1219,15 @@ function addEntry(){
   const calVal=parseInt(document.getElementById('newCal').value);
   if(!dateVal||!calVal)return;
   const label=new Date(dateVal).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+  const noteVal=document.getElementById('newNote').value.trim();
   const existing=days.findIndex(d=>d.date===dateVal);
-  if(existing>=0){days[existing].calories=calVal;}
+  if(existing>=0){days[existing].calories=calVal;if(noteVal) days[existing].note=noteVal;}
   else{
-    days.push({date:dateVal,label,calories:calVal,objectif:getObjectif()});
+    days.push({date:dateVal,label,calories:calVal,objectif:getObjectif(),note:noteVal||undefined});
     days.sort((a,b)=>a.date.localeCompare(b.date));
-    
   }
   document.getElementById('newCal').value='';
+  document.getElementById('newNote').value='';
   refresh(); autoFillDate(); saveData();
 }
 
