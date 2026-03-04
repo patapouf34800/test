@@ -1213,7 +1213,11 @@ function showTab(id,btn){
   btn.classList.add('active');
   if(id==='saisie') autoFillDate();
   if(id==='calculateur') autoFillCalcDate();
-  if(id==='tdee'){ document.getElementById('tdeePoids').value=getPoids(); calcTDEE(); }
+  if(id==='tdee'){
+    const lastPesee = pesees.length ? pesees[pesees.length-1].val : getPoids();
+    document.getElementById('tdeePoids').value = lastPesee;
+    calcTDEE();
+  }
   if(id==='poids'){ const pd=document.getElementById('peseeDate'); if(!pd.value) pd.value=new Date().toISOString().split('T')[0]; }
 }
 
