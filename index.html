@@ -1155,13 +1155,13 @@ function renderVelo(){
     });
     charts['vitesse']=new Chart(cvs2.getContext('2d'),{type:'line',
       data:{labels:filtered.map(v=>v.label),datasets:[
-        {label:'Vitesse (km/h)',data:vitesses,borderColor:'rgba(129,140,248,0.5)',backgroundColor:'rgba(129,140,248,0.05)',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:'#818cf8',borderWidth:1.5,spanGaps:true},
-        {label:'Tendance (moy. 5)',data:tendance,borderColor:'#818cf8',backgroundColor:'transparent',fill:false,tension:0.4,pointRadius:0,borderWidth:2.5,borderDash:[],spanGaps:true}
+        {label:'Vitesse (km/h)',data:vitesses,borderColor:'rgba(56,189,248,0.25)',backgroundColor:'rgba(56,189,248,0.03)',fill:true,tension:0.3,pointRadius:2,pointBackgroundColor:'rgba(56,189,248,0.35)',borderWidth:1,spanGaps:true},
+        {label:'Tendance (moy. 5)',data:tendance,borderColor:'#f97316',backgroundColor:'transparent',fill:false,tension:0.4,pointRadius:0,borderWidth:2.5,borderDash:[],spanGaps:true}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(10,10,20,0.95)',titleColor:'#818cf8',bodyColor:'#fff',borderColor:'rgba(129,140,248,0.3)',borderWidth:1,callbacks:{label:ctx=>ctx.dataset.label+' : '+ctx.parsed.y+' km/h'}}},
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(10,10,20,0.95)',titleColor:'#f97316',bodyColor:'#fff',borderColor:'rgba(249,115,22,0.3)',borderWidth:1,callbacks:{label:ctx=>ctx.dataset.label+' : '+ctx.parsed.y+' km/h'}}},
         scales:{
-          y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:10}},title:{display:true,text:'km/h',color:'#818cf8',font:{size:10}}},
+          y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:10}},title:{display:true,text:'km/h',color:'#f97316',font:{size:10}}},
           x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:10},maxRotation:45}}
         }
       }
