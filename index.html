@@ -109,6 +109,11 @@
   .card-blur:hover .card-value,.card-blur:hover .card-unit{filter:blur(0)}
   .pesee-blur{filter:blur(6px);transition:filter .3s ease}
   .day-row:hover .pesee-blur{filter:blur(0)}
+  .day-row.editing{background:rgba(249,115,22,0.06);border-color:rgba(249,115,22,0.3)}
+  .day-row.editing input{background:rgba(255,255,255,0.07);border:1px solid rgba(249,115,22,0.4);color:#fff;border-radius:6px;padding:4px 8px;font-size:13px;font-family:inherit;outline:none}
+  .day-row.editing input:focus{border-color:#f97316}
+  .day-edit-btn{background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;font-size:13px;padding:0 4px;transition:color .2s;line-height:1}
+  .day-edit-btn:hover{color:#f97316}
   .empty-msg{color:rgba(255,255,255,0.25);font-size:13px;text-align:center;padding:24px 0;font-style:italic}
   .period-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);border-radius:7px;padding:6px 12px;cursor:pointer;font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;transition:all .2s}
   .period-btn:hover{color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.2)}
@@ -905,12 +910,13 @@ function renderSaisieList(s){
   if(!days.length){el.innerHTML='<p class="empty-msg">Aucune donnée. Utilisez le Calculateur journée ou saisissez manuellement.</p>';return;}
   el.innerHTML=days.slice().reverse().map((d,ri)=>{
     const i=days.length-1-ri, def=d.objectif-d.calories;
-    return `<div class="day-row"${d.note?' title="'+d.note+'"':''}>
+    return `<div class="day-row" id="saisie-row-${i}"${d.note?' title="'+d.note+'"':''}>
       <span class="day-date">${d.label}</span>
       <div class="day-bar-wrap"><div class="day-bar" style="width:${Math.min(100,d.calories/d.objectif*100)}%;background:${def>=0?'#22c55e':'#ef4444'}"></div></div>
       <span class="day-cal">${d.calories.toLocaleString('fr-FR')} kcal</span>
       <span class="day-def ${def>=0?'green':'red'}">${def>=0?'−':'+'}${Math.abs(Math.round(def)).toLocaleString('fr-FR')} kcal</span>
-      ${d.note?'<span style="font-size:13px;opacity:0.5" title="'+d.note+'">📝</span>':''}
+      ${d.note?'<span style="font-size:13px;opacity:0.5">📝</span>':''}
+      <button class="day-edit-btn" onclick="editDay(${i})" title="Modifier">✏️</button>
       <button class="day-del" onclick="deleteDay(${i})">×</button>
     </div>`;
   }).join('');
@@ -1213,6 +1219,37 @@ function addEntry(){
   document.getElementById('newCal').value='';
   document.getElementById('newNote').value='';
   refresh(); autoFillDate(); saveData();
+}
+
+function editDay(i){
+  const d=days[i];
+  const row=document.getElementById('saisie-row-'+i);
+  if(!row)return;
+  row.classList.add('editing');
+  row.innerHTML=`
+    <span class="day-date">${d.label}</span>
+    <div class="day-bar-wrap" style="flex:0;width:0"></div>
+    <input type="number" id="edit-cal-${i}" value="${d.calories}" style="width:90px" onclick="event.stopPropagation()">
+    <input type="text" id="edit-note-${i}" value="${d.note||''}" placeholder="note..." style="flex:2;min-width:120px" onclick="event.stopPropagation()">
+    <button class="btn" style="padding:5px 12px;font-size:12px" onclick="saveEditDay(${i})">✓</button>
+    <button class="day-del" onclick="cancelEditDay(${i})">×</button>
+  `;
+}
+
+function saveEditDay(i){
+  const calEl=document.getElementById('edit-cal-'+i);
+  const noteEl=document.getElementById('edit-note-'+i);
+  const calVal=parseInt(calEl.value);
+  if(!calVal||isNaN(calVal)){alert('Calories invalides.');return;}
+  days[i].calories=calVal;
+  const note=noteEl.value.trim();
+  if(note) days[i].note=note;
+  else delete days[i].note;
+  refresh(); saveData();
+}
+
+function cancelEditDay(i){
+  refresh();
 }
 
 function deleteDay(i){ days.splice(i,1); refresh(); saveData(); }
