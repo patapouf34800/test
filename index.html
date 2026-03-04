@@ -456,6 +456,10 @@
       <div class="chart-title">Cumul sur la période</div>
       <div class="kpi-grid" id="kpiVelo"></div>
     </div>
+    <div class="chart-card" style="margin-top:20px">
+      <div class="chart-title">📈 Progression vitesse moyenne (km/h)</div>
+      <div style="position:relative;height:200px"><canvas id="chartVitesse"></canvas></div>
+    </div>
   </div>
 
   <!-- SAISIE VELO -->
@@ -697,6 +701,7 @@ function renderKPI(s){
     {label:'Déficit total',value:Math.round(s.totalDeficit).toLocaleString('fr-FR'),unit:'kcal',color:s.totalDeficit>0?'green':'red'},
     {label:'Perte estimée',value:(s.pertePoids>0?'−':'+')+Math.abs(s.pertePoids).toFixed(2),unit:'kg',color:s.pertePoids>0?'green':'red'},
     {label:'Poids théorique',value:s.poidsActuel.toFixed(1),unit:'kg',color:'orange',blur:true},
+    {label:'Dernière pesée',value:pesees.length?pesees[pesees.length-1].val.toFixed(1):'—',unit:pesees.length?pesees[pesees.length-1].label:'',color:'green',blur:true},
     {label:'Moy. calories',value:Math.round(s.moyenneCalories).toLocaleString('fr-FR'),unit:'kcal/j',color:'indigo'},
     {label:'Jours en déficit',value:s.joursDeficit,unit:'/ '+days.length,color:'yellow'},
     {label:'Déficit moyen',value:Math.round(s.avgDailyDeficit).toLocaleString('fr-FR'),unit:'kcal/j',color:'blue'},
@@ -1138,6 +1143,31 @@ function renderVelo(){
       }
     });
   }
+  // Graph vitesse moyenne
+  if(charts['vitesse']){charts['vitesse'].destroy();delete charts['vitesse'];}
+  const cvs2=document.getElementById('chartVitesse');
+  if(cvs2&&filtered.length>1){
+    const vitesses=filtered.map(v=>v.duree>0?parseFloat((v.distance/(v.duree/60)).toFixed(2)):null);
+    // Moyenne glissante 5 sessions pour la tendance
+    const tendance=vitesses.map((_, i)=>{
+      const slice=vitesses.slice(Math.max(0,i-4),i+1).filter(x=>x!==null);
+      return slice.length?parseFloat((slice.reduce((a,b)=>a+b,0)/slice.length).toFixed(2)):null;
+    });
+    charts['vitesse']=new Chart(cvs2.getContext('2d'),{type:'line',
+      data:{labels:filtered.map(v=>v.label),datasets:[
+        {label:'Vitesse (km/h)',data:vitesses,borderColor:'rgba(129,140,248,0.5)',backgroundColor:'rgba(129,140,248,0.05)',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:'#818cf8',borderWidth:1.5,spanGaps:true},
+        {label:'Tendance (moy. 5)',data:tendance,borderColor:'#818cf8',backgroundColor:'transparent',fill:false,tension:0.4,pointRadius:0,borderWidth:2.5,borderDash:[],spanGaps:true}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(10,10,20,0.95)',titleColor:'#818cf8',bodyColor:'#fff',borderColor:'rgba(129,140,248,0.3)',borderWidth:1,callbacks:{label:ctx=>ctx.dataset.label+' : '+ctx.parsed.y+' km/h'}}},
+        scales:{
+          y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:10}},title:{display:true,text:'km/h',color:'#818cf8',font:{size:10}}},
+          x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:10},maxRotation:45}}
+        }
+      }
+    });
+  }
+
   const listEl=document.getElementById('veloList');
   const titleEl=document.getElementById('veloListTitle');
   if(titleEl) titleEl.textContent='Sessions enregistr\u00e9es ('+veloSessions.length+')';
