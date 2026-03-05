@@ -1387,6 +1387,22 @@ function addVelo(){
   renderVelo(); saveData();
 }
 
+const UNITES_FALLBACK = {
+  hematies:'T/L', hemoglobine:'g/L', hematocrite:'%', MCV:'fL', MCH:'pg', MCHC:'g/L',
+  leucocytes:'G/L', neutrophiles_pct:'%', neutrophiles_abs:'G/L', eosinophiles_pct:'%',
+  eosinophiles_abs:'G/L', basophiles_pct:'%', basophiles_abs:'G/L', lymphocytes_pct:'%',
+  lymphocytes_abs:'G/L', monocytes_pct:'%', monocytes_abs:'G/L', plaquettes:'G/L',
+  fer:'µg/dL', sedimentation:'mm/1h',
+  sodium:'mmol/L', potassium:'mmol/L', creatinine:'µmol/L',
+  eGFR_CKD_EPI:'mL/min', eGFR_MDRD:'mL/min',
+  glucose:'mg/dL', HbA1c:'%', CK_CPK:'U/L', GOT_AST:'U/L', GPT_ALT:'U/L',
+  gamma_GT:'U/L', CRP:'mg/L',
+  cholesterol_total:'mg/dL', triglycerides:'mg/dL', HDL:'mg/dL', LDL:'mg/dL',
+  VLDL:'mg/dL', ratio_CHOL_HDL:'',
+  vitamine_D:'nmol/L', ferritine:'µg/L', TSH:'mIU/L',
+};
+function getUnite(key){ return (window._bilanUnites && window._bilanUnites[key]) || UNITES_FALLBACK[key] || ''; }
+
 /* ── DOCUMENTS / PDF ── */
 function renderDocuments(){
   const el = document.getElementById('pdfBilanSelect'); if(!el) return;
@@ -1429,7 +1445,6 @@ function genPdfSante(){
   const selectedIds = [...document.querySelectorAll('.pdf-bilan-cb:checked')].map(cb=>cb.value);
   const selectedBilans = bilans.filter(b=>selectedIds.includes(b.id));
   if(!selectedBilans.length){ alert('Sélectionnez au moins un bilan.'); return; }
-  const unites = window._bilanUnites || {};
   const nom = document.getElementById('pdfPatientNom').value || 'Patient';
   const medecin = document.getElementById('pdfMedecin').value;
   const c = getPdfColors();
@@ -1467,7 +1482,7 @@ function genPdfSante(){
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...hexToRgb(c.accent));
     doc.text('⚠ Marqueurs hors norme (dernier bilan)', 18, y); y+=7;
     horsNorme.forEach(({key,m,statut})=>{
-      const u = unites[key]||''; const label = MARQUEUR_LABELS[key]||key;
+      const u = getUnite(key); const label = MARQUEUR_LABELS[key]||key;
       const col = statut==='haut'?c.danger:c.info;
       doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.text));
       doc.text(`• ${label}`, 18, y);
@@ -1497,7 +1512,7 @@ function genPdfSante(){
     // Tableau marqueurs
     Object.entries(marqueurs).forEach(([key, data])=>{
       checkY(9);
-      const label = MARQUEUR_LABELS[key]||key; const u = unites[key]||'';
+      const label = MARQUEUR_LABELS[key]||key; const u = getUnite(key);
       const lastEntry = data.vals[data.vals.length-1];
       const col = statutColor(lastEntry.val, data.refMin, data.refMax, c);
       const refStr = (data.refMin!==null?data.refMin:'') + (data.refMin!==null&&data.refMax!==null?' – ':'') + (data.refMax!==null?data.refMax:'');
@@ -1545,7 +1560,6 @@ function genPdfBilan(){
   const inclCalories = document.getElementById('pdfInclCalories').checked;
   const inclVelo = document.getElementById('pdfInclVelo').checked;
   const inclSante = document.getElementById('pdfInclSante').checked;
-  const unites = window._bilanUnites || {};
 
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -1651,7 +1665,7 @@ function genPdfBilan(){
     clés.forEach(key=>{
       let found=null; Object.values(lastB.marqueurs).forEach(cat=>{ if(cat[key]) found=cat[key]; });
       if(!found) return;
-      const u=unites[key]||''; const label=MARQUEUR_LABELS[key]||key;
+      const u=getUnite(key); const label=MARQUEUR_LABELS[key]||key;
       const col = found.refMax!==null&&found.valeur>found.refMax?'danger':found.refMin!==null&&found.valeur<found.refMin?'warn':'ok';
       kpiBox(label, found.valeur, u, col, 14+(xi%(4))*(bw2+3.3), bw2, rowY);
       xi++; if(xi%4===0){ rowY+=26; checkY(26); }
@@ -1775,7 +1789,6 @@ const MARQUEUR_INFO = {
 function renderSanteSection(panelId){
   const section = SANTE_SECTIONS[panelId]; if(!section) return;
   const el = document.getElementById(panelId+'_content'); if(!el) return;
-  const unites = window._bilanUnites || {};
 
   if(!bilans.length){
     el.innerHTML = '<p class="empty-msg">Aucun bilan importé. Importez un bilan dans "🩸 Bilans sanguins".</p>';
@@ -1806,7 +1819,7 @@ function renderSanteSection(panelId){
     if(!data.values.some(v=>v!==null)) return;
     const label = MARQUEUR_LABELS[key] || key.replace(/_/g,' ');
     const info = MARQUEUR_INFO[key];
-    const u = unites[key] || '';
+    const u = getUnite(key);
     const lastVal = [...data.values].reverse().find(v=>v!==null);
     let couleur = '#22c55e', statutLabel = 'Normal';
     if(data.refMin !== null && lastVal < data.refMin){ couleur='#38bdf8'; statutLabel='Bas'; }
@@ -1859,7 +1872,7 @@ function renderSanteSection(panelId){
     if(!data.values.some(v=>v!==null)) return;
     const canvasId = 'chart_'+panelId+'_'+key;
     const cvs = document.getElementById(canvasId); if(!cvs) return;
-    const u = unites[key] || '';
+    const u = getUnite(key);
     const lastVal = [...data.values].reverse().find(v=>v!==null);
     let couleur = '#22c55e';
     if(data.refMin !== null && lastVal < data.refMin) couleur='#38bdf8';
@@ -1914,7 +1927,13 @@ function renderSanteSection(panelId){
         },
         scales: {
           x: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}} },
-          y: { grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}}, min: isFinite(yMin)?yMin:undefined, max: isFinite(yMax)?yMax:undefined }
+          y: {
+            grid:{color:'rgba(255,255,255,0.04)'},
+            ticks:{color:'rgba(255,255,255,0.35)',font:{size:10}},
+            min: isFinite(yMin)?yMin:undefined,
+            max: isFinite(yMax)?yMax:undefined,
+            title: u ? { display:true, text:u, color:'rgba(255,255,255,0.25)', font:{size:9} } : undefined
+          }
         }
       }
     });
@@ -1928,7 +1947,6 @@ function renderAllSanteSections(){
 
 function renderSurveiller(){
   const el = document.getElementById('sante_surveiller_content'); if(!el) return;
-  const unites = window._bilanUnites || {};
 
   if(!bilans.length){
     el.innerHTML = '<p class="empty-msg">Aucun bilan importé. Importez un bilan dans "🩸 Bilans sanguins".</p>';
@@ -1949,7 +1967,7 @@ function renderSurveiller(){
       else if(m.refMin !== null && v < m.refMin){ statut='bas'; couleur='#38bdf8'; }
       if(!statut) return;
 
-      const u = unites[key] || '';
+      const u = getUnite(key);
       const label = MARQUEUR_LABELS[key] || key.replace(/_/g,' ');
       const refStr = (m.refMin!==null?m.refMin:'') + (m.refMin!==null&&m.refMax!==null?' – ':'') + (m.refMax!==null?m.refMax:'');
 
@@ -2068,7 +2086,6 @@ function closeBilanDetail(){
 
 function showBilanDetail(id){
   const b = bilans.find(x => x.id === id); if(!b) return;
-  const unites = window._bilanUnites || {};
   const date = new Date(b.date).toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'});
   document.getElementById('bilanDetailTitle').textContent = 'Bilan du ' + date + ' — ' + b.laboratoire;
 
@@ -2080,7 +2097,7 @@ function showBilanDetail(id){
     };
     html += `<div style="margin-bottom:20px"><div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,0.3);margin-bottom:10px">${labels[categorie]||categorie}</div><div style="display:flex;flex-direction:column;gap:6px">`;
     Object.entries(marqueurs).forEach(([key, m]) => {
-      const u = unites[key] || '';
+      const u = getUnite(key);
       const v = m.valeur;
       let statut = 'normal', couleur = '#22c55e';
       if(m.refMin !== null && v < m.refMin){ statut = 'bas'; couleur = '#38bdf8'; }
