@@ -172,6 +172,12 @@
     <div class="sidebar-section-label">Santé</div>
     <button class="sidebar-tab" onclick="showTab('tdee',this)">🔥 Besoin journalier</button>
     <button class="sidebar-tab" onclick="showTab('bilans',this)">🩸 Bilans sanguins</button>
+    <button class="sidebar-tab" onclick="showTab('sante_hemato',this)">🔴 Hématologie</button>
+    <button class="sidebar-tab" onclick="showTab('sante_bio',this)">🧪 Biochimie</button>
+    <button class="sidebar-tab" onclick="showTab('sante_lipides',this)">💛 Lipidique</button>
+    <button class="sidebar-tab" onclick="showTab('sante_martial',this)">⚙️ Martial</button>
+    <button class="sidebar-tab" onclick="showTab('sante_vitamines',this)">☀️ Vitamines</button>
+    <button class="sidebar-tab" onclick="showTab('sante_hormones',this)">🔬 Hormones</button>
   </div>
 </nav>
 
@@ -496,6 +502,55 @@
     </div>
   </div>
 
+
+  <!-- 🔴 HÉMATOLOGIE -->
+  <div id="sante_hemato" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">🔴 Hématologie</div>
+      <div id="sante_hemato_content"><p class="empty-msg">Aucun bilan importé. Importez un bilan dans "Bilans sanguins".</p></div>
+    </div>
+  </div>
+
+  <!-- 🧪 BIOCHIMIE -->
+  <div id="sante_bio" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">🧪 Biochimie</div>
+      <div id="sante_bio_content"><p class="empty-msg">Aucun bilan importé. Importez un bilan dans "Bilans sanguins".</p></div>
+    </div>
+  </div>
+
+  <!-- 💛 LIPIDIQUE -->
+  <div id="sante_lipides" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">💛 Lipidique</div>
+      <div id="sante_lipides_content"><p class="empty-msg">Aucun bilan importé. Importez un bilan dans "Bilans sanguins".</p></div>
+    </div>
+  </div>
+
+  <!-- ⚙️ MARTIAL -->
+  <div id="sante_martial" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">⚙️ Martial</div>
+      <div id="sante_martial_content"><p class="empty-msg">Aucun bilan importé. Importez un bilan dans "Bilans sanguins".</p></div>
+    </div>
+  </div>
+
+  <!-- ☀️ VITAMINES -->
+  <div id="sante_vitamines" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">☀️ Vitamines</div>
+      <div id="sante_vitamines_content"><p class="empty-msg">Aucun bilan importé. Importez un bilan dans "Bilans sanguins".</p></div>
+    </div>
+  </div>
+
+  <!-- 🔬 HORMONES -->
+  <div id="sante_hormones" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">🔬 Hormones</div>
+      <div id="sante_hormones_content"><p class="empty-msg">Aucun bilan importé. Importez un bilan dans "Bilans sanguins".</p></div>
+    </div>
+  </div>
+
   <!-- VELO -->
   <div id="velo" class="panel">
     <div class="chart-card">
@@ -678,7 +733,7 @@ const STORAGE_KEY = 'calorietrack_v1';
 function saveData(){
   const calcDateEl = document.getElementById('calcDate');
   const calcDateVal = (calcDateEl && calcDateEl.value) ? calcDateEl.value : (window._savedCalcDate || '');
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, activePeriod, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif(), bilans };
+  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, activePeriod, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif(), bilans, bilanUnites: window._bilanUnites||{} };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     localStorage.setItem(STORAGE_KEY+'_calc', JSON.stringify({calcItems, calcDate: calcDateVal}));
@@ -700,6 +755,7 @@ function loadData(){
     if(data.activePeriod) activePeriod = data.activePeriod;
     if(data.veloSessions) veloSessions = data.veloSessions;
     if(data.bilans) bilans = data.bilans;
+    if(data.bilanUnites) window._bilanUnites = data.bilanUnites;
     if(data.calcDate) window._savedCalcDate = data.calcDate;
     // Backup: try dedicated calc storage
     try {
@@ -756,7 +812,7 @@ function refresh(){
   const s=computeStats();
   renderKPI(s); renderChartMain(s); renderChartDeficit(s); renderChartPoids(s);
   renderDeficitList(s); renderSaisieList(s); renderPoidsCards(s);
-  renderRefs(); renderCalcSelect(); renderCalcItems(); renderPeseeList(); renderVelo(); renderBilans();
+  renderRefs(); renderCalcSelect(); renderCalcItems(); renderPeseeList(); renderVelo(); renderBilans(); renderAllSanteSections();
   // Sync dashboard period buttons
   const periodMap={'mois_en_cours':0,'mois_precedent':1,'tout':2};
   document.querySelectorAll('.dash-period-btn').forEach(b=>b.classList.remove('active'));
@@ -1223,6 +1279,133 @@ function addVelo(){
   renderVelo(); saveData();
 }
 
+/* ── SANTÉ SOUS-SECTIONS ── */
+const SANTE_SECTIONS = {
+  sante_hemato:    { title: '🔴 Hématologie',  marqueurs: ['hematies','hemoglobine','hematocrite','MCV','MCH','MCHC','leucocytes','neutrophiles_abs','eosinophiles_abs','basophiles_abs','lymphocytes_abs','monocytes_abs','plaquettes'] },
+  sante_bio:       { title: '🧪 Biochimie',    marqueurs: ['sodium','potassium','creatinine','eGFR_CKD_EPI','glucose','HbA1c','GOT_AST','GPT_ALT','gamma_GT','CK_CPK','CRP','sedimentation'] },
+  sante_lipides:   { title: '💛 Lipidique',    marqueurs: ['cholesterol_total','triglycerides','HDL','LDL','VLDL','ratio_CHOL_HDL'] },
+  sante_martial:   { title: '⚙️ Martial',      marqueurs: ['fer','ferritine'] },
+  sante_vitamines: { title: '☀️ Vitamines',    marqueurs: ['vitamine_D'] },
+  sante_hormones:  { title: '🔬 Hormones',     marqueurs: ['TSH'] },
+};
+
+const MARQUEUR_LABELS = {
+  hematies:'Hématies', hemoglobine:'Hémoglobine', hematocrite:'Hématocrite',
+  MCV:'MCV', MCH:'MCH', MCHC:'MCHC', leucocytes:'Leucocytes',
+  neutrophiles_abs:'Neutrophiles', eosinophiles_abs:'Éosinophiles',
+  basophiles_abs:'Basophiles', lymphocytes_abs:'Lymphocytes',
+  monocytes_abs:'Monocytes', plaquettes:'Plaquettes',
+  sodium:'Sodium', potassium:'Potassium', creatinine:'Créatinine',
+  eGFR_CKD_EPI:'eGFR CKD-EPI', glucose:'Glucose', HbA1c:'HbA1c',
+  GOT_AST:'GOT (AST)', GPT_ALT:'GPT (ALT)', gamma_GT:'Gamma-GT',
+  CK_CPK:'CK / CPK', CRP:'CRP', sedimentation:'Sédimentation',
+  cholesterol_total:'Cholestérol total', triglycerides:'Triglycérides',
+  HDL:'HDL', LDL:'LDL', VLDL:'VLDL', ratio_CHOL_HDL:'Ratio CHOL/HDL',
+  fer:'Fer', ferritine:'Ferritine',
+  vitamine_D:'Vitamine D',
+  TSH:'TSH',
+};
+
+function renderSanteSection(panelId){
+  const section = SANTE_SECTIONS[panelId]; if(!section) return;
+  const el = document.getElementById(panelId+'_content'); if(!el) return;
+  const unites = window._bilanUnites || {};
+
+  if(!bilans.length){
+    el.innerHTML = '<p class="empty-msg">Aucun bilan importé. Importez un bilan dans "🩸 Bilans sanguins".</p>';
+    return;
+  }
+
+  const marqueurData = {};
+  section.marqueurs.forEach(key => {
+    bilans.forEach(b => {
+      let found = null;
+      Object.values(b.marqueurs).forEach(cat => { if(cat[key]) found = cat[key]; });
+      if(found){
+        if(!marqueurData[key]) marqueurData[key] = { values:[], refMin:found.refMin, refMax:found.refMax, note:found.note||null };
+        marqueurData[key].values.push(found.valeur);
+      } else {
+        if(marqueurData[key]) marqueurData[key].values.push(null);
+      }
+    });
+  });
+
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px">';
+
+  Object.entries(marqueurData).forEach(([key, data]) => {
+    if(!data.values.some(v=>v!==null)) return;
+    const label = MARQUEUR_LABELS[key] || key.replace(/_/g,' ');
+    const u = unites[key] || '';
+    const lastVal = [...data.values].reverse().find(v=>v!==null);
+    let couleur = '#22c55e', statutLabel = 'Normal';
+    if(data.refMin !== null && lastVal < data.refMin){ couleur='#38bdf8'; statutLabel='Bas'; }
+    if(data.refMax !== null && lastVal > data.refMax){ couleur='#ef4444'; statutLabel='Élevé'; }
+
+    let barHtml = '';
+    if(data.refMin !== null && data.refMax !== null){
+      const pct = Math.max(0, Math.min(100, ((lastVal - data.refMin) / (data.refMax - data.refMin)) * 100));
+      barHtml = `<div style="position:relative;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;margin:8px 0">
+        <div style="position:absolute;left:0;width:${pct}%;height:100%;background:${couleur};border-radius:3px"></div>
+        <div style="position:absolute;left:0;top:-3px;height:12px;width:1px;background:rgba(255,255,255,0.15)"></div>
+        <div style="position:absolute;right:0;top:-3px;height:12px;width:1px;background:rgba(255,255,255,0.15)"></div>
+      </div>`;
+    }
+
+    const canvasId = 'spark_'+panelId+'_'+key;
+    const refStr = (data.refMin!==null?data.refMin:'') + (data.refMin!==null&&data.refMax!==null?' – ':'') + (data.refMax!==null?data.refMax:'');
+
+    html += `<div class="card" style="padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+        <span style="font-size:11px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:1px">${label}</span>
+        <span style="font-size:10px;padding:2px 8px;border-radius:10px;background:${couleur}22;color:${couleur}">${statutLabel}</span>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:4px">
+        <span style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:${couleur}">${lastVal}</span>
+        <span style="font-size:11px;color:rgba(255,255,255,0.3)">${u}</span>
+      </div>
+      ${barHtml}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+        <span style="font-size:10px;color:rgba(255,255,255,0.2)">Réf : ${refStr} ${u}</span>
+        ${bilans.length>1?`<canvas id="${canvasId}" width="80" height="28"></canvas>`:'<span style="font-size:10px;color:rgba(255,255,255,0.15)">1 bilan</span>'}
+      </div>
+      ${data.note?`<div style="font-size:10px;color:rgba(249,115,22,0.6);margin-top:6px;font-style:italic">${data.note}</div>`:''}
+    </div>`;
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
+
+  if(bilans.length > 1){
+    Object.entries(marqueurData).forEach(([key, data]) => {
+      const cvs = document.getElementById('spark_'+panelId+'_'+key); if(!cvs) return;
+      const vals = data.values.filter(v=>v!==null);
+      if(vals.length < 2) return;
+      const ctx = cvs.getContext('2d');
+      const W=80, H=28, pad=2;
+      const min=Math.min(...vals), max=Math.max(...vals);
+      const range = max-min || 1;
+      ctx.clearRect(0,0,W,H);
+      ctx.strokeStyle = data.refMax!==null && vals[vals.length-1]>data.refMax ? '#ef4444' :
+                        data.refMin!==null && vals[vals.length-1]<data.refMin ? '#38bdf8' : '#22c55e';
+      ctx.lineWidth=1.5; ctx.lineJoin='round';
+      ctx.beginPath();
+      vals.forEach((v,i)=>{
+        const x=pad+(i/(vals.length-1))*(W-pad*2);
+        const y=H-pad-((v-min)/range)*(H-pad*2);
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+      const lx=W-pad, ly=H-pad-((vals[vals.length-1]-min)/range)*(H-pad*2);
+      ctx.beginPath(); ctx.arc(lx,ly,2.5,0,Math.PI*2);
+      ctx.fillStyle=ctx.strokeStyle; ctx.fill();
+    });
+  }
+}
+
+function renderAllSanteSections(){
+  Object.keys(SANTE_SECTIONS).forEach(id => renderSanteSection(id));
+}
+
 /* ── BILANS SANGUINS ── */
 function importBilan(event){
   const file = event.target.files[0]; if(!file) return;
@@ -1241,7 +1424,7 @@ function importBilan(event){
       // Conserver les unités de référence si présentes
       if(data.unites_reference && !window._bilanUnites) window._bilanUnites = data.unites_reference;
       bilans.sort((a,b) => a.date.localeCompare(b.date));
-      renderBilans(); saveData();
+      renderBilans(); renderAllSanteSections(); saveData();
       alert(added + ' bilan(s) importé(s)' + (skipped ? ', ' + skipped + ' mis à jour/ignorés.' : '.'));
     } catch(err){ alert('Erreur de lecture du fichier JSON.'); }
   };
@@ -1262,7 +1445,7 @@ function exportBilans(){
 function deleteBilan(id){
   if(!confirm('Supprimer ce bilan ?')) return;
   bilans = bilans.filter(b => b.id !== id);
-  renderBilans(); closeBilanDetail(); saveData();
+  renderBilans(); renderAllSanteSections(); closeBilanDetail(); saveData();
 }
 
 function closeBilanDetail(){
@@ -1445,6 +1628,7 @@ function showTab(id,btn){
   if(btn) btn.classList.add('active');
   if(id==='saisie') autoFillDate();
   if(id==='calculateur') autoFillCalcDate();
+  if(id in SANTE_SECTIONS) renderSanteSection(id);
   if(id==='tdee'){
     const lastPesee = pesees.length ? pesees[pesees.length-1].val : getPoids();
     document.getElementById('tdeePoids').value = lastPesee;
