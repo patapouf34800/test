@@ -1453,9 +1453,22 @@ function initCorrMarqueur(){
   if(current && marqueurs[current]) sel.value = current;
 }
 
-function movingAvg(data, win){
-  return data.map(function(d,i){
-    const slice = data.slice(Math.max(0,i-win+1), i+1).filter(function(v){ return v!==null; });
+function movingAvg(data, win, dates){
+  // win = nombre de jours calendaires (pas de points)
+  return data.map(function(d, i){
+    if(!dates){ // fallback sans dates : fenêtre sur points
+      const slice = data.slice(Math.max(0,i-win+1), i+1).filter(function(v){ return v!==null; });
+      return slice.length ? slice.reduce(function(a,b){ return a+b; },0)/slice.length : null;
+    }
+    // Avec dates : inclure tous les points dans les `win` jours avant la date i
+    const refDate = new Date(dates[i]);
+    const cutoff = new Date(refDate); cutoff.setDate(cutoff.getDate() - win);
+    const slice = [];
+    for(let j = 0; j <= i; j++){
+      if(data[j] !== null && new Date(dates[j]) >= cutoff && new Date(dates[j]) <= refDate){
+        slice.push(data[j]);
+      }
+    }
     return slice.length ? slice.reduce(function(a,b){ return a+b; },0)/slice.length : null;
   });
 }
@@ -1489,10 +1502,23 @@ function renderCorrelations(){
     return { date: b.date, val: val, refMin: refMin, refMax: refMax, labo: b.laboratoire };
   }).filter(function(p){ return p.val !== null; });
 
-  // Série quotidienne — union des dates de données + dates de bilans
+  // Série quotidienne — union des dates de données + dates de bilans + dates vélo + pesées
   const allDatesSet = {};
   days.forEach(function(d){ allDatesSet[d.date] = true; });
   bilanPoints.forEach(function(p){ allDatesSet[p.date] = true; });
+  veloSessions.forEach(function(v){ allDatesSet[v.date] = true; });
+  pesees.forEach(function(p){ allDatesSet[p.date] = true; });
+
+  // Étendre la plage pour couvrir tous les jours entre min et max date (pour lissage calendaire)
+  const sortedKeys = Object.keys(allDatesSet).sort();
+  if(sortedKeys.length >= 2){
+    const dStart = new Date(sortedKeys[0]);
+    const dEnd = new Date(sortedKeys[sortedKeys.length-1]);
+    for(let d = new Date(dStart); d <= dEnd; d.setDate(d.getDate()+1)){
+      const ds = d.toISOString().split('T')[0];
+      allDatesSet[ds] = true;
+    }
+  }
   const allDates = Object.keys(allDatesSet).sort();
 
   // Construire la métrique sur ces dates
@@ -1518,7 +1544,7 @@ function renderCorrelations(){
     return null;
   });
 
-  const smoothSerie = movingAvg(rawSerie, smooth);
+  const smoothSerie = movingAvg(rawSerie, smooth, allDates);
   const metricLabel = document.getElementById('corrMetric') ? document.getElementById('corrMetric').selectedOptions[0].text : metric;
 
   // ── GRAPH ──
@@ -1622,11 +1648,13 @@ function renderCorrTable(key, label, u, metric, metricLabel, bilanPoints, allDat
 
   // Pour chaque bilan : moyenne de la métrique sur les N jours AVANT
   const rows = bilanPoints.map(function(p){
-    const idx = allDates.indexOf(p.date);
+    const refDate = new Date(p.date);
+    const cutoff = new Date(refDate); cutoff.setDate(cutoff.getDate() - smooth);
     const before = [];
-    for(let i = Math.max(0, idx-smooth); i < idx; i++){
-      if(rawSerie[i] !== null) before.push(rawSerie[i]);
-    }
+    allDates.forEach(function(d, i){
+      const dd = new Date(d);
+      if(dd >= cutoff && dd < refDate && rawSerie[i] !== null) before.push(rawSerie[i]);
+    });
     const avg = before.length ? before.reduce(function(a,b){ return a+b; },0)/before.length : null;
     const col = p.refMax!==null&&p.val>p.refMax ? '#ef4444' : p.refMin!==null&&p.val<p.refMin ? '#38bdf8' : '#22c55e';
     const statut = p.refMax!==null&&p.val>p.refMax ? 'Élevé' : p.refMin!==null&&p.val<p.refMin ? 'Bas' : 'Normal';
