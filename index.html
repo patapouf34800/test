@@ -170,6 +170,7 @@
 
   <div class="sidebar-section">
     <div class="sidebar-section-label">Santé</div>
+    <button class="sidebar-tab" onclick="showTab('sante_surveiller',this)">⚠️ À surveiller</button>
     <button class="sidebar-tab" onclick="showTab('tdee',this)">🔥 Besoin journalier</button>
     <button class="sidebar-tab" onclick="showTab('bilans',this)">🩸 Bilans sanguins</button>
     <button class="sidebar-tab" onclick="showTab('sante_hemato',this)">🔴 Hématologie</button>
@@ -472,6 +473,14 @@
       <p style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:16px">
         La formule de Mifflin-St Jeor est considérée comme la plus précise pour estimer le métabolisme de base (MB). Le TDEE = MB × coefficient d'activité. Ces valeurs sont des estimations — la réalité peut varier selon la génétique, la masse musculaire et d'autres facteurs.
       </p>
+    </div>
+  </div>
+
+  <!-- À SURVEILLER -->
+  <div id="sante_surveiller" class="panel">
+    <div class="chart-card">
+      <div class="chart-title">⚠️ À surveiller</div>
+      <div id="sante_surveiller_content"><p class="empty-msg">Aucun bilan importé.</p></div>
     </div>
   </div>
 
@@ -1344,6 +1353,25 @@ function renderSanteSection(panelId){
     let couleur = '#22c55e', statutLabel = 'Normal';
     if(data.refMin !== null && lastVal < data.refMin){ couleur='#38bdf8'; statutLabel='Bas'; }
     if(data.refMax !== null && lastVal > data.refMax){ couleur='#ef4444'; statutLabel='Élevé'; }
+
+    // Delta vs bilan précédent
+    let deltaHtml = '';
+    const nonNullVals = data.values.filter(v=>v!==null);
+    if(nonNullVals.length >= 2){
+      const prev = nonNullVals[nonNullVals.length-2];
+      const curr = nonNullVals[nonNullVals.length-1];
+      const diff = curr - prev;
+      const pct = ((diff/prev)*100).toFixed(1);
+      const sign = diff > 0 ? '+' : '';
+      const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+      // vert si amélioration (baisse si élevé, hausse si bas)
+      let dc = 'rgba(255,255,255,0.3)';
+      if(diff !== 0){
+        const improving = (statutLabel==='Élevé' && diff<0) || (statutLabel==='Bas' && diff>0) || (statutLabel==='Normal');
+        dc = improving ? '#22c55e' : '#ef4444';
+      }
+      deltaHtml = `<span style="font-size:10px;color:${dc};font-family:'Space Mono',monospace">${arrow} ${sign}${diff.toFixed(2)} (${sign}${pct}%)</span>`;
+    }
     const refStr = (data.refMin!==null?data.refMin:'') + (data.refMin!==null&&data.refMax!==null?' – ':'') + (data.refMax!==null?data.refMax:'');
     const canvasId = 'chart_'+panelId+'_'+key;
 
@@ -1355,6 +1383,7 @@ function renderSanteSection(panelId){
       <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:12px">
         <span style="font-family:'Space Mono',monospace;font-size:24px;font-weight:700;color:${couleur}">${lastVal}</span>
         <span style="font-size:11px;color:rgba(255,255,255,0.3)">${u}</span>
+        ${deltaHtml}
         <span style="font-size:10px;color:rgba(255,255,255,0.2);margin-left:auto">Réf : ${refStr} ${u}</span>
       </div>
       <div style="position:relative;height:120px"><canvas id="${canvasId}"></canvas></div>
@@ -1433,6 +1462,92 @@ function renderSanteSection(panelId){
 
 function renderAllSanteSections(){
   Object.keys(SANTE_SECTIONS).forEach(id => renderSanteSection(id));
+  renderSurveiller();
+}
+
+function renderSurveiller(){
+  const el = document.getElementById('sante_surveiller_content'); if(!el) return;
+  const unites = window._bilanUnites || {};
+
+  if(!bilans.length){
+    el.innerHTML = '<p class="empty-msg">Aucun bilan importé. Importez un bilan dans "🩸 Bilans sanguins".</p>';
+    return;
+  }
+
+  // Collecter tous les marqueurs hors norme du dernier bilan
+  const lastBilan = bilans[bilans.length-1];
+  const prevBilan = bilans.length > 1 ? bilans[bilans.length-2] : null;
+  const date = new Date(lastBilan.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'});
+
+  const horsNorme = [];
+  Object.entries(lastBilan.marqueurs).forEach(([categorie, marqueurs]) => {
+    Object.entries(marqueurs).forEach(([key, m]) => {
+      const v = m.valeur;
+      let statut = null, couleur = '';
+      if(m.refMax !== null && v > m.refMax){ statut='haut'; couleur='#ef4444'; }
+      else if(m.refMin !== null && v < m.refMin){ statut='bas'; couleur='#38bdf8'; }
+      if(!statut) return;
+
+      const u = unites[key] || '';
+      const label = MARQUEUR_LABELS[key] || key.replace(/_/g,' ');
+      const refStr = (m.refMin!==null?m.refMin:'') + (m.refMin!==null&&m.refMax!==null?' – ':'') + (m.refMax!==null?m.refMax:'');
+
+      // Delta vs bilan précédent
+      let deltaHtml = '';
+      if(prevBilan){
+        let prevVal = null;
+        Object.values(prevBilan.marqueurs).forEach(cat => { if(cat[key]) prevVal = cat[key].valeur; });
+        if(prevVal !== null){
+          const diff = v - prevVal;
+          const pct = ((diff / prevVal) * 100).toFixed(1);
+          const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+          const dc = diff > 0 ? '#ef4444' : diff < 0 ? '#22c55e' : 'rgba(255,255,255,0.3)';
+          // Inverser couleurs si "bas" (amélioration = montée)
+          const dc2 = statut==='bas' ? (diff>0?'#22c55e':diff<0?'ef4444':'rgba(255,255,255,0.3)') : dc;
+          const sign = diff > 0 ? '+' : '';
+          deltaHtml = `<span style="font-size:11px;color:${dc2};font-family:'Space Mono',monospace;margin-left:8px">${arrow} ${sign}${diff>0?diff.toFixed(2):Math.abs(diff).toFixed(2)*-1||diff.toFixed(2)} ${u} (${sign}${pct}%)</span>`;
+          deltaHtml = `<span style="font-size:11px;color:${dc2};font-family:'Space Mono',monospace;margin-left:8px">${arrow} ${sign}${diff.toFixed(2)} ${u} (${sign}${pct}%)</span>`;
+        }
+      }
+
+      const sectionLabel = Object.entries(SANTE_SECTIONS).find(([_,s])=>s.marqueurs.includes(key))?.[1]?.title || '';
+
+      horsNorme.push({ key, label, v, u, couleur, statut, refStr, deltaHtml, sectionLabel, note: m.note||null });
+    });
+  });
+
+  if(!horsNorme.length){
+    el.innerHTML = `<div style="text-align:center;padding:32px 0">
+      <div style="font-size:32px;margin-bottom:12px">✅</div>
+      <div style="color:#22c55e;font-family:'Space Mono',monospace;font-size:14px">Tous les marqueurs dans la norme</div>
+      <div style="color:rgba(255,255,255,0.2);font-size:12px;margin-top:8px">Bilan du ${date}</div>
+    </div>`;
+    return;
+  }
+
+  let html = `<div style="font-size:11px;color:rgba(255,255,255,0.25);margin-bottom:16px">Bilan du ${date} — ${horsNorme.length} marqueur(s) hors norme</div>`;
+  html += '<div style="display:flex;flex-direction:column;gap:10px">';
+  horsNorme.forEach(({key, label, v, u, couleur, statut, refStr, deltaHtml, sectionLabel, note}) => {
+    const badgeLabel = statut === 'haut' ? '↑ Élevé' : '↓ Bas';
+    html += `<div class="card" style="padding:14px 18px;border-left:3px solid ${couleur}">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:10px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">${sectionLabel}</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.7)">${label}</div>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:6px">
+          <span style="font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:${couleur}">${v}</span>
+          <span style="font-size:11px;color:rgba(255,255,255,0.3)">${u}</span>
+          ${deltaHtml}
+        </div>
+        <span style="font-size:10px;padding:3px 10px;border-radius:10px;background:${couleur}22;color:${couleur};font-family:'Space Mono',monospace">${badgeLabel}</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.2)">Réf : ${refStr} ${u}</span>
+      </div>
+      ${note?`<div style="font-size:10px;color:rgba(249,115,22,0.5);margin-top:8px;font-style:italic">ℹ️ ${note}</div>`:''}
+    </div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 /* ── BILANS SANGUINS ── */
@@ -1658,6 +1773,7 @@ function showTab(id,btn){
   if(id==='saisie') autoFillDate();
   if(id==='calculateur') autoFillCalcDate();
   if(id in SANTE_SECTIONS) renderSanteSection(id);
+  if(id==='sante_surveiller') renderSurveiller();
   if(id==='tdee'){
     const lastPesee = pesees.length ? pesees[pesees.length-1].val : getPoids();
     document.getElementById('tdeePoids').value = lastPesee;
