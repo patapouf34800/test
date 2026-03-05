@@ -782,7 +782,7 @@ function loadData(){
 }
 
 function exportData(){
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, bilans, poids: getPoids(), objectif: getObjectif(), exportDate: new Date().toISOString() };
+  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), exportDate: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -798,15 +798,50 @@ function importData(event){
   reader.onload = function(e){
     try {
       const data = JSON.parse(e.target.result);
-      if(!data.days) { alert('Fichier invalide.'); return; }
+
+      // Cas 1 : fichier de bilans sanguins standalone
+      if(!data.days && data.bilans){
+        if(!confirm('Ce fichier contient des bilans sanguins. Les fusionner avec les bilans existants ?')) return;
+        let added = 0, updated = 0;
+        data.bilans.forEach(b => {
+          if(!b.id || !b.date) return;
+          const idx = bilans.findIndex(x => x.id === b.id);
+          if(idx >= 0){ bilans[idx] = b; updated++; } else { bilans.push(b); added++; }
+        });
+        if(data.bilanUnites) window._bilanUnites = data.bilanUnites;
+        bilans.sort((a,b) => a.date.localeCompare(b.date));
+        // Calcul auto ratios
+        bilans.forEach(b => {
+          const lip = b.marqueurs && b.marqueurs.bilan_lipidique;
+          if(lip && lip.HDL && lip.cholesterol_total && !lip.ratio_CHOL_HDL){
+            const hdl = lip.HDL.valeur, chol = lip.cholesterol_total.valeur;
+            lip.ratio_CHOL_HDL = { valeur: Math.round(chol/hdl*100)/100, refMin: null, refMax: 5.0, note: 'Calculé automatiquement : Chol/HDL' };
+          }
+        });
+        saveData(); refresh();
+        alert(added + ' bilan(s) ajouté(s)' + (updated ? ', ' + updated + ' mis à jour.' : '.'));
+        return;
+      }
+
+      // Cas 2 : fichier calorietrack complet
+      if(!data.days) { alert('Fichier invalide : format non reconnu.'); return; }
       if(!confirm('Remplacer toutes les données actuelles par celles du fichier ?')) return;
       days = data.days;
       pesees = data.pesees || [];
       veloSessions = data.veloSessions || [];
+      bilans = data.bilans || [];
       if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
       if(data.calcItems) calcItems = data.calcItems;
       if(data.activePeriod) activePeriod = data.activePeriod;
-      if(data.bilans) bilans = data.bilans;
+      if(data.bilanUnites) window._bilanUnites = data.bilanUnites;
+      // Calcul auto ratios
+      bilans.forEach(b => {
+        const lip = b.marqueurs && b.marqueurs.bilan_lipidique;
+        if(lip && lip.HDL && lip.cholesterol_total && !lip.ratio_CHOL_HDL){
+          const hdl = lip.HDL.valeur, chol = lip.cholesterol_total.valeur;
+          lip.ratio_CHOL_HDL = { valeur: Math.round(chol/hdl*100)/100, refMin: null, refMax: 5.0, note: 'Calculé automatiquement : Chol/HDL' };
+        }
+      });
       if(data.poids) document.getElementById('poidsInput').value = data.poids;
       if(data.objectif) document.getElementById('objectifInput').value = data.objectif;
       saveData();
