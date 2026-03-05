@@ -1567,6 +1567,14 @@ function importBilan(event){
       });
       // Conserver les unités de référence si présentes
       if(data.unites_reference && !window._bilanUnites) window._bilanUnites = data.unites_reference;
+      // Calcul automatique des marqueurs dérivés manquants
+      bilans.forEach(b => {
+        const lip = b.marqueurs.bilan_lipidique;
+        if(lip && lip.HDL && lip.cholesterol_total && !lip.ratio_CHOL_HDL){
+          const hdl = lip.HDL.valeur, chol = lip.cholesterol_total.valeur;
+          lip.ratio_CHOL_HDL = { valeur: Math.round(chol/hdl*100)/100, refMin: null, refMax: 5.0, note: 'Calculé automatiquement : Chol/HDL' };
+        }
+      });
       bilans.sort((a,b) => a.date.localeCompare(b.date));
       renderBilans(); renderAllSanteSections(); saveData();
       alert(added + ' bilan(s) importé(s)' + (skipped ? ', ' + skipped + ' mis à jour/ignorés.' : '.'));
