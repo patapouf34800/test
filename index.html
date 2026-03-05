@@ -37,7 +37,12 @@
   .sidebar-actions{padding:16px 12px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;gap:6px}
   .sidebar-save{font-size:10px;color:rgba(255,255,255,0.2);font-family:'Space Mono',monospace;letter-spacing:1px;padding:0 6px;text-align:center}
   .sidebar-section{margin-top:8px}
-  .sidebar-section-label{font-size:9px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:2px;padding:8px 18px 4px}
+  .sidebar-section-label{font-size:9px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:2px;padding:8px 18px 4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:color 0.15s}
+  .sidebar-section-label:hover{color:rgba(255,255,255,0.5)}
+  .sidebar-section-label .chev{font-size:8px;transition:transform 0.2s;display:inline-block}
+  .sidebar-section.collapsed .chev{transform:rotate(-90deg)}
+  .sidebar-section-body{overflow:hidden}
+  .sidebar-section.collapsed .sidebar-section-body{max-height:0!important}
   .sidebar-tab{display:flex;align-items:center;gap:8px;background:transparent;border:none;cursor:pointer;padding:8px 18px;width:100%;text-align:left;font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35);transition:all .2s;border-left:2px solid transparent}
   .sidebar-tab:hover{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.03)}
   .sidebar-tab.active{color:#f97316;background:rgba(249,115,22,0.08);border-left-color:#f97316}
@@ -150,40 +155,51 @@
     <button class="btn btn-secondary" onclick="exportData()" style="padding:6px 10px;font-size:10px;text-align:center">⬇ Exporter</button>
     <label class="btn btn-secondary" style="padding:6px 10px;font-size:10px;cursor:pointer;text-align:center">⬆ Importer<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
     <span id="saveIndicator" class="sidebar-save"></span>
+    </div>
   </div>
 
   <div class="sidebar-section">
-    <div class="sidebar-section-label">Résumé</div>
+    <div class="sidebar-section-label" onclick="toggleSidebarSection(this)"><span>Résumé</span><span class="chev">▾</span></div>
+    <div class="sidebar-section-body">
     <button class="sidebar-tab active" onclick="showTab('dashboard',this)">📊 Dashboard</button>
     <button class="sidebar-tab" onclick="showTab('poids',this)">⚖️ Poids</button>
+    </div>
   </div>
 
   <div class="sidebar-section">
-    <div class="sidebar-section-label">Repas</div>
+    <div class="sidebar-section-label" onclick="toggleSidebarSection(this)"><span>Repas</span><span class="chev">▾</span></div>
+    <div class="sidebar-section-body">
     <button class="sidebar-tab" onclick="showTab('deficit',this)">📉 Déficit</button>
     <button class="sidebar-tab" onclick="showTab('saisie',this)">✏️ Saisie</button>
     <button class="sidebar-tab" onclick="showTab('calculateur',this)">🧮 Calculateur</button>
     <button class="sidebar-tab" onclick="showTab('references',this)">📚 Références</button>
+    </div>
   </div>
 
   <div class="sidebar-section">
-    <div class="sidebar-section-label">Sport</div>
+    <div class="sidebar-section-label" onclick="toggleSidebarSection(this)"><span>Sport</span><span class="chev">▾</span></div>
+    <div class="sidebar-section-body">
     <button class="sidebar-tab" onclick="showTab('velo',this)">🚴 Vélo</button>
     <button class="sidebar-tab" onclick="showTab('saisievelo',this)">➕ Saisie vélo</button>
+    </div>
   </div>
 
   <div class="sidebar-section">
-    <div class="sidebar-section-label">Documents</div>
+    <div class="sidebar-section-label" onclick="toggleSidebarSection(this)"><span>Documents</span><span class="chev">▾</span></div>
+    <div class="sidebar-section-body">
     <button class="sidebar-tab" onclick="showTab('documents',this)">📄 Rapports PDF</button>
+    </div>
   </div>
 
   <div class="sidebar-section">
-    <div class="sidebar-section-label">Analyse</div>
+    <div class="sidebar-section-label" onclick="toggleSidebarSection(this)"><span>Analyse</span><span class="chev">▾</span></div>
+    <div class="sidebar-section-body">
     <button class="sidebar-tab" onclick="showTab('correlations',this)">🔗 Corrélations</button>
   </div>
 
   <div class="sidebar-section">
-    <div class="sidebar-section-label">Santé</div>
+    <div class="sidebar-section-label" onclick="toggleSidebarSection(this)"><span>Santé</span><span class="chev">▾</span></div>
+    <div class="sidebar-section-body">
     <button class="sidebar-tab" onclick="showTab('sante_surveiller',this)">⚠️ À surveiller</button>
     <button class="sidebar-tab" onclick="showTab('tdee',this)">🔥 Besoin journalier</button>
     <button class="sidebar-tab" onclick="showTab('bilans',this)">🩸 Bilans sanguins</button>
@@ -193,6 +209,7 @@
     <button class="sidebar-tab" onclick="showTab('sante_martial',this)">⚙️ Martial</button>
     <button class="sidebar-tab" onclick="showTab('sante_vitamines',this)">☀️ Vitamines</button>
     <button class="sidebar-tab" onclick="showTab('sante_hormones',this)">🔬 Hormones</button>
+    </div>
   </div>
 </nav>
 
@@ -734,6 +751,38 @@
 <script>
 const KCAL_PER_KG = 7700;
 let days = [];
+function initSidebarSections(){
+  document.querySelectorAll('.sidebar-section').forEach(function(section){
+    const body = section.querySelector('.sidebar-section-body');
+    if(!body) return;
+    if(section.classList.contains('collapsed')){
+      body.style.maxHeight = '0';
+      body.style.transition = 'none';
+    } else {
+      body.style.maxHeight = 'none'; // pas de contrainte sur les sections ouvertes
+    }
+  });
+}
+
+function toggleSidebarSection(labelEl){
+  const section = labelEl.closest('.sidebar-section');
+  const body = section.querySelector('.sidebar-section-body');
+  const isCollapsed = section.classList.contains('collapsed');
+  if(isCollapsed){
+    section.classList.remove('collapsed');
+    body.style.transition = 'max-height 0.25s ease';
+    body.style.maxHeight = body.scrollHeight + 'px';
+    setTimeout(function(){ body.style.maxHeight = 'none'; }, 260);
+  } else {
+    body.style.maxHeight = body.scrollHeight + 'px';
+    body.style.transition = 'max-height 0.25s ease';
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){ body.style.maxHeight = '0'; });
+    });
+    section.classList.add('collapsed');
+  }
+}
+
 let charts = {};
 let refs = [
   { id:1, nom:'Riz jasmin cuit', kcal100:130 },
@@ -2865,6 +2914,7 @@ function applyObjectif(kcal){
 const hasData = loadData();
 if(!hasData) days = genDemo();
 refresh();
+initSidebarSections();
 window.addEventListener('beforeunload', saveData);
 const _vd=document.getElementById('veloDate'); if(_vd) _vd.value=new Date().toISOString().split('T')[0];
 
