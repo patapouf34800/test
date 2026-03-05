@@ -1510,14 +1510,22 @@ function genPdfSante(){
       data.vals.forEach((entry,i)=>{
         const bDate = new Date(entry.date).toLocaleDateString('fr-FR',{month:'2-digit',year:'2-digit'});
         const xOff = pageW-14-90+(i*44);
-        doc.setTextColor(...hexToRgb(statutColor(entry.val,data.refMin,data.refMax,c)));
-        doc.setFont('helvetica','bold'); doc.text(`${entry.val}`, xOff, y);
+        const col = statutColor(entry.val,data.refMin,data.refMax,c);
+        doc.setTextColor(...hexToRgb(col));
+        doc.setFont('helvetica','bold'); doc.setFontSize(9);
+        doc.text(`${entry.val}`, xOff, y);
+        // Unité en petit à droite de la valeur
+        if(u){
+          const valW = doc.getTextWidth(`${entry.val}`);
+          doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(...hexToRgb(c.muted));
+          doc.text(u, xOff+valW+1, y);
+        }
         doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.muted)); doc.setFontSize(7);
         doc.text(bDate, xOff, y+3.5);
         doc.setFontSize(9);
       });
-      doc.setTextColor(...hexToRgb(c.muted)); doc.setFont('helvetica','normal');
-      doc.text(`${refStr} ${u}`, pageW-14, y, {align:'right'});
+      doc.setTextColor(...hexToRgb(c.muted)); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+      doc.text(`réf : ${refStr} ${u}`, pageW-14, y, {align:'right'});
       y+=9;
     });
     y+=4;
@@ -1572,9 +1580,13 @@ function genPdfBilan(){
     doc.text(label.toUpperCase(), x+4, yy+7);
     const rgb = col==='ok'?[34,197,94]:col==='warn'?[250,204,21]:col==='danger'?[239,68,68]:[249,115,22];
     doc.setTextColor(...rgb); doc.setFontSize(14); doc.setFont('helvetica','bold');
-    doc.text(String(value), x+4, yy+17);
-    doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(120,120,140);
-    doc.text(unit, x+4+doc.getTextWidth(String(value))+2, yy+17);
+    const valStr = String(value);
+    doc.text(valStr, x+4, yy+17);
+    if(unit){
+      const valW = doc.getTextWidth(valStr);
+      doc.setFontSize(8); doc.setFont('helvetica','normal');
+      doc.text(unit, x+4+valW+1.5, yy+17);
+    }
   }
 
   // POIDS
