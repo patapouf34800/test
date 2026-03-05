@@ -1353,7 +1353,43 @@ const MARQUEUR_LABELS = {
   TSH:'TSH',
 };
 
-const MARQUEUR_INFO = {
+// Direction souhaitée : 'low' = plus bas c'est mieux, 'high' = plus haut c'est mieux, 'neutral' = symétrique
+const MARQUEUR_DIR = {
+  hematies:'neutral', hemoglobine:'neutral', hematocrite:'neutral',
+  MCV:'neutral', MCH:'neutral', MCHC:'neutral',
+  leucocytes:'neutral', neutrophiles_abs:'neutral', eosinophiles_abs:'neutral',
+  basophiles_abs:'neutral', lymphocytes_abs:'neutral', monocytes_abs:'neutral',
+  plaquettes:'neutral',
+  sodium:'neutral', potassium:'neutral',
+  creatinine:'low', eGFR_CKD_EPI:'high', eGFR_MDRD:'high',
+  glucose:'low', HbA1c:'low',
+  GOT_AST:'low', GPT_ALT:'low', gamma_GT:'low', CK_CPK:'low',
+  CRP:'low', sedimentation:'low',
+  cholesterol_total:'low', triglycerides:'low',
+  HDL:'high', LDL:'low', VLDL:'low', ratio_CHOL_HDL:'low',
+  fer:'neutral', ferritine:'low',
+  vitamine_D:'high',
+  TSH:'neutral',
+};
+
+function deltaColor(key, diff, statutLabel, currentVal, refMin, refMax){
+  const dir = MARQUEUR_DIR[key] || 'neutral';
+  if(diff === 0) return 'rgba(255,255,255,0.3)';
+  if(dir === 'neutral') return 'rgba(255,255,255,0.4)';
+
+  const movingWrongWay = (dir==='low' && diff>0) || (dir==='high' && diff<0);
+  const movingRightWay = (dir==='low' && diff<0) || (dir==='high' && diff>0);
+
+  if(movingRightWay){
+    // Amélioration — vert si hors norme (on revient vers la norme), sinon vert plus discret
+    return statutLabel !== 'Normal' ? '#22c55e' : '#22c55e99';
+  }
+  if(movingWrongWay){
+    // Dégradation — rouge si déjà hors norme, orange/jaune si encore dans la norme
+    return statutLabel !== 'Normal' ? '#ef4444' : '#f97316';
+  }
+  return 'rgba(255,255,255,0.4)';
+}
   hematies:       { organe:'🩸 Sang', def:'Globules rouges — transportent l\'oxygène des poumons vers les organes via l\'hémoglobine.', haut:'Trop de globules rouges : risque d\'épaississement du sang (polyglobulie).', bas:'Manque de globules rouges : signe possible d\'anémie.' },
   hemoglobine:    { organe:'🩸 Sang', def:'Protéine dans les globules rouges qui fixe et transporte l\'oxygène.', haut:'Hémoglobine élevée : peut indiquer une déshydratation ou une polyglobulie.', bas:'Hémoglobine basse : anémie — fatigue, essoufflement, pâleur.' },
   hematocrite:    { organe:'🩸 Sang', def:'Proportion du volume sanguin occupée par les globules rouges (en %).', haut:'Trop élevé : sang trop épais, risque de thrombose.', bas:'Trop bas : signe d\'anémie ou de dilution du sang.' },
@@ -1449,12 +1485,7 @@ function renderSanteSection(panelId){
       const pct = ((diff/prev)*100).toFixed(1);
       const sign = diff > 0 ? '+' : '';
       const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
-      // vert si amélioration (baisse si élevé, hausse si bas)
-      let dc = 'rgba(255,255,255,0.3)';
-      if(diff !== 0){
-        const improving = (statutLabel==='Élevé' && diff<0) || (statutLabel==='Bas' && diff>0) || (statutLabel==='Normal');
-        dc = improving ? '#22c55e' : '#ef4444';
-      }
+      const dc = deltaColor(key, diff, statutLabel);
       deltaHtml = `<span style="font-size:10px;color:${dc};font-family:'Space Mono',monospace">${arrow} ${sign}${diff.toFixed(2)} (${sign}${pct}%)</span>`;
     }
     const refStr = (data.refMin!==null?data.refMin:'') + (data.refMin!==null&&data.refMax!==null?' – ':'') + (data.refMax!==null?data.refMax:'');
@@ -1587,12 +1618,9 @@ function renderSurveiller(){
           const diff = v - prevVal;
           const pct = ((diff / prevVal) * 100).toFixed(1);
           const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
-          const dc = diff > 0 ? '#ef4444' : diff < 0 ? '#22c55e' : 'rgba(255,255,255,0.3)';
-          // Inverser couleurs si "bas" (amélioration = montée)
-          const dc2 = statut==='bas' ? (diff>0?'#22c55e':diff<0?'ef4444':'rgba(255,255,255,0.3)') : dc;
           const sign = diff > 0 ? '+' : '';
-          deltaHtml = `<span style="font-size:11px;color:${dc2};font-family:'Space Mono',monospace;margin-left:8px">${arrow} ${sign}${diff>0?diff.toFixed(2):Math.abs(diff).toFixed(2)*-1||diff.toFixed(2)} ${u} (${sign}${pct}%)</span>`;
-          deltaHtml = `<span style="font-size:11px;color:${dc2};font-family:'Space Mono',monospace;margin-left:8px">${arrow} ${sign}${diff.toFixed(2)} ${u} (${sign}${pct}%)</span>`;
+          const dc = deltaColor(key, diff, statut==='haut'?'Élevé':statut==='bas'?'Bas':'Normal');
+          deltaHtml = `<span style="font-size:11px;color:${dc};font-family:'Space Mono',monospace;margin-left:8px">${arrow} ${sign}${diff.toFixed(2)} ${u} (${sign}${pct}%)</span>`;
         }
       }
 
