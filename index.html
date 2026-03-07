@@ -486,9 +486,17 @@
         La formule de Mifflin-St Jeor est considérée comme la plus précise pour estimer le métabolisme de base (MB). Le TDEE = MB × coefficient d'activité. Ces valeurs sont des estimations — la réalité peut varier selon la génétique, la masse musculaire et d'autres facteurs.
       </p>
     </div>
-  </div>
 
-  <!-- CORRÉLATIONS -->
+    <!-- Rétrocorrection -->
+    <div class="chart-card">
+      <div class="chart-title" style="margin-bottom:8px">Rétrocorrection des données historiques</div>
+      <p style="font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:14px;line-height:1.7">
+        Recalcule le maintien (TDEE) pour chaque jour enregistré en interpolant le poids entre les pesées et en appliquant les paramètres TDEE ci-dessus. Les déficits historiques refléteront alors le vrai maintien de l'époque.
+      </p>
+      <div id="retroStatus" style="font-size:11px;color:rgba(255,255,255,0.25);margin-bottom:12px"></div>
+      <button class="btn" onclick="retroCorrigerMaintien()" style="font-size:12px">⚙️ Recalculer le maintien sur tout l'historique</button>
+    </div>
+  </div>
   <div id="correlations" class="panel">
     <div class="chart-card" style="margin-bottom:20px">
       <div class="chart-title" style="margin-bottom:4px">🔗 Corrélations croisées</div>
@@ -861,7 +869,7 @@ function computeStats(){
   // On l'applique uniquement aux jours qui n'en ont pas encore (migration données anciennes)
   days.forEach(d=>{ if(!d.objectif) d.objectif=obj; });
   const filtered=getFilteredDays();
-  const maint=getMaintien(); const deficits=filtered.map(d=>({...d,deficit:maint-d.calories}));
+  const deficits=filtered.map(d=>({...d,deficit:(d.maintien||getMaintien())-d.calories}));
   const totalDeficit=deficits.reduce((s,d)=>s+d.deficit,0);
   const pertePoids=totalDeficit/KCAL_PER_KG;
   const poidsActuel=poidsInit-pertePoids;
@@ -880,7 +888,7 @@ function computeStats(){
   // Deficit de reference sur les 14 derniers jours (plus representatif)
   const recentDays = filtered.slice(-14);
   const recentDeficit = recentDays.length >= 3
-    ? recentDays.reduce(function(s,d){ return s+(getMaintien()-d.calories); },0)/recentDays.length
+    ? recentDays.reduce(function(s,d){ return s+((d.maintien||getMaintien())-d.calories); },0)/recentDays.length
     : avgDailyDeficit;
 
   // Projection jour par jour
@@ -1269,7 +1277,7 @@ function renderChartMain(s){
     crosshair.style.top=area.top+'px';
     crosshair.style.height=(area.bottom-area.top)+'px';
     const d=days[idx];
-    const def=getMaintien()-d.calories;
+    const def=(d.maintien||getMaintien())-d.calories;
     const defStr='<span style="color:'+defColor(def)+'">'+defSign(def)+Math.abs(def).toLocaleString('fr-FR')+' kcal</span>';
     tooltip.innerHTML='<div style="color:#f97316;font-weight:700;margin-bottom:5px">'+d.label+'</div><div style="color:#fff">Calories&nbsp;: <strong>'+d.calories.toLocaleString('fr-FR')+' kcal</strong></div><div style="color:rgba(255,255,255,0.5)">Objectif&nbsp;: '+d.objectif.toLocaleString('fr-FR')+' kcal</div><div style="margin-top:4px">Bilan&nbsp;: '+defStr+'</div>';
     tooltip.style.display='block';
@@ -1284,7 +1292,7 @@ function renderChartMain(s){
 
 function renderChartDeficit(s){
   destroyChart('deficit');
-  const fd=getFilteredDeficit().map(function(d){ return Object.assign({},d,{deficit:getMaintien()-d.calories}); });
+  const fd=getFilteredDeficit().map(function(d){ return Object.assign({},d,{deficit:(d.maintien||getMaintien())-d.calories}); });
   if(!fd.length)return;
   const ctx=document.getElementById('chartDeficit').getContext('2d');
   const deficitOpts={...chartOptions('kcal'),plugins:{...chartOptions('kcal').plugins,tooltip:{enabled:false}}};
@@ -1418,7 +1426,7 @@ function renderChartPoids(s){
 
 function renderDeficitList(s){
   const el=document.getElementById('deficitList');
-  const fd=getFilteredDeficit().map(function(d){ return Object.assign({},d,{deficit:getMaintien()-d.calories}); });
+  const fd=getFilteredDeficit().map(function(d){ return Object.assign({},d,{deficit:(d.maintien||getMaintien())-d.calories}); });
   if(!fd.length){el.innerHTML='<p class="empty-msg">Aucune donnée enregistrée.</p>';return;}
   el.innerHTML=fd.slice().reverse().map(d=>`
     <div class="day-row">
@@ -1434,7 +1442,7 @@ function renderSaisieList(s){
   const el=document.getElementById('saisieList');
   if(!days.length){el.innerHTML='<p class="empty-msg">Aucune donnée. Utilisez le Calculateur journée ou saisissez manuellement.</p>';return;}
   el.innerHTML=days.slice().reverse().map((d,ri)=>{
-    const i=days.length-1-ri, def=getMaintien()-d.calories;
+    const i=days.length-1-ri, def=(d.maintien||getMaintien())-d.calories;
     return `<div class="day-row" id="saisie-row-${i}"${d.note?' title="'+d.note+'"':''}>
       <span class="day-date">${d.label}</span>
       <div class="day-bar-wrap"><div class="day-bar" style="width:${Math.min(100,d.calories/d.objectif*100)}%;background:${defColor(def,null,d.calories)}"></div></div>
@@ -1583,7 +1591,7 @@ function validerJournee(){
     days[existing].calories += total;
     if(calcNoteVal) days[existing].note=calcNoteVal;
   } else {
-    days.push({date:dateVal,label,calories:total,objectif:getObjectif(),note:calcNoteVal||undefined});
+    days.push({date:dateVal,label,calories:total,objectif:getObjectif(),maintien:getMaintien(),note:calcNoteVal||undefined});
     days.sort((a,b)=>a.date.localeCompare(b.date));
   }
   calcItems=[];
@@ -2905,7 +2913,7 @@ function addEntry(){
   const existing=days.findIndex(d=>d.date===dateVal);
   if(existing>=0){days[existing].calories=calVal;if(noteVal) days[existing].note=noteVal;}
   else{
-    days.push({date:dateVal,label,calories:calVal,objectif:getObjectif(),note:noteVal||undefined});
+    days.push({date:dateVal,label,calories:calVal,objectif:getObjectif(),maintien:getMaintien(),note:noteVal||undefined});
     days.sort((a,b)=>a.date.localeCompare(b.date));
   }
   document.getElementById('newCal').value='';
@@ -2934,6 +2942,7 @@ function saveEditDay(i){
   const calVal=parseInt(calEl.value);
   if(!calVal||isNaN(calVal)){alert('Calories invalides.');return;}
   days[i].calories=calVal;
+  days[i].maintien=getMaintien();
   const note=noteEl.value.trim();
   if(note) days[i].note=note;
   else delete days[i].note;
@@ -2984,7 +2993,7 @@ function renderPeseeList(){
       // Jours entre pesée précédente (exclu) et pesée actuelle (inclus)
       const periodDays=days.filter(d=>d.date>startDate&&d.date<=p.date);
       if(periodDays.length>0){
-        const deficitCumul=periodDays.reduce(function(s,d){ return s+(getMaintien()-d.calories); },0);
+        const deficitCumul=periodDays.reduce(function(s,d){ return s+((d.maintien||getMaintien())-d.calories); },0);
         const poidsTh=parseFloat((startPoids-deficitCumul/7700).toFixed(2));
         const diff=parseFloat((p.val-poidsTh).toFixed(2));
         const col=diff<=0?'#22c55e':'#f97316';
@@ -3073,6 +3082,67 @@ function calcTDEE(){
     <div>📐 <strong style="color:rgba(255,255,255,0.7)">Formule MB (${sexe})</strong> = ${formule} = <strong style="color:#f97316">${mb} kcal</strong></div>
     <div>🏃 <strong style="color:rgba(255,255,255,0.7)">Coefficient activité</strong> = ${activite} <span style="color:rgba(255,255,255,0.3)">(${actLabel.split('—')[0].trim()})</span></div>
     <div>⚡ <strong style="color:rgba(255,255,255,0.7)">TDEE</strong> = ${mb} × ${activite} = <strong style="color:#f97316">${tdee} kcal/j</strong></div>`;
+}
+
+function retroCorrigerMaintien(){
+  if(!days.length){ alert('Aucune donnée à corriger.'); return; }
+
+  // Lire les paramètres TDEE actuels
+  const sexe    = document.getElementById('tdeeSexe').value;
+  const age     = parseInt(document.getElementById('tdeeAge').value) || 30;
+  const taille  = parseInt(document.getElementById('tdeeTaille').value) || 175;
+  const activite= parseFloat(document.getElementById('tdeeActivite').value) || 1.55;
+
+  if(!pesees.length){
+    alert('Aucune pesée enregistrée — impossible d\'interpoler le poids historique.\nAjoutez au moins une pesée dans l\'onglet Poids.');
+    return;
+  }
+
+  // Construire une map date→poids à partir des pesées
+  const peseeMap = {};
+  pesees.forEach(function(p){ peseeMap[p.date] = p.val; });
+  const peseeDates = pesees.map(function(p){ return p.date; }).sort();
+
+  // Interpolation linéaire du poids pour une date donnée
+  function interpolePoids(date){
+    if(peseeMap[date]) return peseeMap[date];
+    // Trouver la pesée avant et après
+    var before = null, after = null;
+    for(var i = 0; i < peseeDates.length; i++){
+      if(peseeDates[i] <= date) before = peseeDates[i];
+      if(peseeDates[i] >= date && !after) after = peseeDates[i];
+    }
+    if(before && after && before !== after){
+      var t1 = new Date(before).getTime(), t2 = new Date(after).getTime(), t = new Date(date).getTime();
+      var ratio = (t - t1) / (t2 - t1);
+      return peseeMap[before] + ratio * (peseeMap[after] - peseeMap[before]);
+    }
+    if(before) return peseeMap[before];
+    if(after)  return peseeMap[after];
+    return parseFloat(document.getElementById('tdeePoids').value) || 75;
+  }
+
+  // Recalculer TDEE pour un poids donné
+  function calcTDEEPoids(poids){
+    var mb = sexe === 'homme'
+      ? 10*poids + 6.25*taille - 5*age + 5
+      : 10*poids + 6.25*taille - 5*age - 161;
+    return Math.round(mb * activite);
+  }
+
+  // Appliquer sur tous les jours
+  var updated = 0;
+  days.forEach(function(d){
+    var poids = interpolePoids(d.date);
+    d.maintien = calcTDEEPoids(poids);
+    updated++;
+  });
+
+  saveData();
+  refresh();
+
+  var el = document.getElementById('retroStatus');
+  if(el) el.innerHTML = '✅ ' + updated + ' jours mis à jour. Maintien recalculé avec interpolation du poids.';
 }
 
 function applyObjectif(kcal){
