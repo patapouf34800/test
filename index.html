@@ -3857,7 +3857,7 @@ function renderBilanHebdo(){
   const subtitle = document.getElementById('bilanHebdoSubtitle');
   subtitle.textContent = n === 0
     ? 'Aucune donnée macro cette semaine — utilise le Calculateur chaque jour pour alimenter cette section.'
-    : n + ' jour' + (n > 1 ? 's' : '') + ' avec données macro sur 7 · poids ref : ' + c.poids.toFixed(1) + ' kg';
+    : n + ' jour' + (n > 1 ? 's' : '') + ' avec données macro sur 7';
 
   // Moyennes
   function avg(key){ return n === 0 ? null : parseFloat((withData.reduce(function(s,d){ return s + (d.data[key] || 0); }, 0) / n).toFixed(1)); }
