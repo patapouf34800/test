@@ -185,6 +185,7 @@
   <div class="sidebar-section">
     <div class="sidebar-section-label">Santé</div>
     <button class="sidebar-tab" onclick="showTab('sante_surveiller',this)">⚠️ À surveiller</button>
+    <button class="sidebar-tab" onclick="showTab('tension',this)">🫀 Tension</button>
     <button class="sidebar-tab" onclick="showTab('tdee',this)">🔥 Besoin journalier</button>
     <button class="sidebar-tab" onclick="showTab('bilans',this)">🩸 Bilans sanguins</button>
     <button class="sidebar-tab" onclick="showTab('sante_hemato',this)">🔴 Hématologie</button>
@@ -676,6 +677,53 @@
     </div>
   </div>
 
+  <!-- TENSION -->
+  <div id="tension" class="panel">
+    <div class="chart-card" style="margin-bottom:20px">
+      <div class="chart-title" style="margin-bottom:16px">🫀 Tension artérielle</div>
+      <!-- Saisie -->
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px">
+        <div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px">DATE</div>
+          <input type="date" id="tensionDate" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px">
+        </div>
+        <div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px">SYSTOLIQUE (mmHg)</div>
+          <input type="number" id="tensionSys" min="60" max="250" placeholder="120" style="width:90px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px">
+        </div>
+        <div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px">DIASTOLIQUE (mmHg)</div>
+          <input type="number" id="tensionDia" min="40" max="150" placeholder="80" style="width:90px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px">
+        </div>
+        <div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px">POULS (bpm)</div>
+          <input type="number" id="tensionPouls" min="30" max="220" placeholder="65" style="width:80px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px">
+        </div>
+        <button onclick="addTension()" style="background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.4);color:rgba(249,115,22,0.9);padding:7px 18px;border-radius:6px;cursor:pointer;font-size:13px">+ Ajouter</button>
+      </div>
+      <!-- KPIs -->
+      <div id="tensionKpis" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px"></div>
+      <!-- Graph -->
+      <div style="position:relative;height:300px"><canvas id="tensionChart"></canvas></div>
+    </div>
+    <!-- Légende zones -->
+    <div class="chart-card" style="margin-bottom:20px">
+      <div class="chart-title" style="margin-bottom:12px">Zones de référence</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;font-size:11px">
+        <div style="padding:8px 12px;border-radius:6px;background:rgba(34,197,94,0.1);border-left:3px solid #22c55e"><strong style="color:#22c55e">Optimale</strong><div style="color:rgba(255,255,255,0.4);margin-top:2px">Sys &lt;120 — Dia &lt;80</div></div>
+        <div style="padding:8px 12px;border-radius:6px;background:rgba(163,230,53,0.1);border-left:3px solid #a3e635"><strong style="color:#a3e635">Normale</strong><div style="color:rgba(255,255,255,0.4);margin-top:2px">Sys 120–129 — Dia 80–84</div></div>
+        <div style="padding:8px 12px;border-radius:6px;background:rgba(234,179,8,0.08);border-left:3px solid #eab308"><strong style="color:#eab308">Normale haute</strong><div style="color:rgba(255,255,255,0.4);margin-top:2px">Sys 130–139 — Dia 85–89</div></div>
+        <div style="padding:8px 12px;border-radius:6px;background:rgba(249,115,22,0.1);border-left:3px solid rgba(249,115,22,0.8)"><strong style="color:rgba(249,115,22,0.9)">Hypertension G1</strong><div style="color:rgba(255,255,255,0.4);margin-top:2px">Sys 140–159 — Dia 90–99</div></div>
+        <div style="padding:8px 12px;border-radius:6px;background:rgba(239,68,68,0.1);border-left:3px solid #ef4444"><strong style="color:#ef4444">Hypertension G2</strong><div style="color:rgba(255,255,255,0.4);margin-top:2px">Sys ≥160 — Dia ≥100</div></div>
+      </div>
+    </div>
+    <!-- Historique -->
+    <div class="chart-card">
+      <div class="chart-title" style="margin-bottom:12px">Historique</div>
+      <div id="tensionList"></div>
+    </div>
+  </div>
+
   <!-- VELO -->
   <div id="velo" class="panel">
     <div class="chart-card">
@@ -753,6 +801,7 @@ let veloActivePeriod = 'tout';
 let deficitActivePeriod = 'tout';
 let nbProjChoice = 90;
 let bilans = [];
+let tensions = [];
 let poidsAxisVisible = false;
 
 function getFilteredDays(){
@@ -852,13 +901,171 @@ function computeStats(){
     poidsEquilibre,filtered};
 }
 
+/* ── TENSION ── */
+function tensionZone(sys, dia){
+  const s = sys, d = dia;
+  if(s < 120 && d < 80) return { label:'Optimale', color:'#22c55e' };
+  if(s <= 129 && d <= 84) return { label:'Normale', color:'#a3e635' };
+  if(s <= 139 && d <= 89) return { label:'Normale haute', color:'#eab308' };
+  if(s <= 159 && d <= 99) return { label:'Hypertension G1', color:'rgba(249,115,22,0.9)' };
+  return { label:'Hypertension G2', color:'#ef4444' };
+}
+
+function addTension(){
+  const date = document.getElementById('tensionDate').value;
+  const sys = parseInt(document.getElementById('tensionSys').value);
+  const dia = parseInt(document.getElementById('tensionDia').value);
+  const pouls = parseInt(document.getElementById('tensionPouls').value) || null;
+  if(!date || isNaN(sys) || isNaN(dia)){ alert('Date, systolique et diastolique requis.'); return; }
+  // Remplacer si même date
+  const idx = tensions.findIndex(function(t){ return t.date === date; });
+  const entry = { date, sys, dia, pouls };
+  if(idx >= 0) tensions[idx] = entry;
+  else tensions.push(entry);
+  tensions.sort(function(a,b){ return a.date.localeCompare(b.date); });
+  saveData();
+  renderTension();
+  document.getElementById('tensionSys').value = '';
+  document.getElementById('tensionDia').value = '';
+  document.getElementById('tensionPouls').value = '';
+}
+
+function deleteTension(date){
+  tensions = tensions.filter(function(t){ return t.date !== date; });
+  saveData();
+  renderTension();
+}
+
+function renderTension(){
+  // Init date
+  const dateEl = document.getElementById('tensionDate');
+  if(dateEl && !dateEl.value) dateEl.value = new Date().toISOString().split('T')[0];
+
+  // KPIs
+  const kpiEl = document.getElementById('tensionKpis');
+  if(kpiEl && tensions.length){
+    const last = tensions[tensions.length-1];
+    const zone = tensionZone(last.sys, last.dia);
+    const avgSys = Math.round(tensions.reduce(function(a,t){ return a+t.sys; },0)/tensions.length);
+    const avgDia = Math.round(tensions.reduce(function(a,t){ return a+t.dia; },0)/tensions.length);
+    const avgZone = tensionZone(avgSys, avgDia);
+    kpiEl.innerHTML =
+      '<div class="kpi-box" style="min-width:120px"><div class="kpi-label">DERNIÈRE</div><div class="kpi-value" style="color:'+zone.color+'">'+last.sys+'/'+last.dia+'</div><div style="font-size:10px;color:'+zone.color+';opacity:0.7;margin-top:2px">'+zone.label+'</div></div>' +
+      '<div class="kpi-box" style="min-width:120px"><div class="kpi-label">MOYENNE</div><div class="kpi-value" style="color:'+avgZone.color+'">'+avgSys+'/'+avgDia+'</div><div style="font-size:10px;color:'+avgZone.color+';opacity:0.7;margin-top:2px">'+avgZone.label+'</div></div>' +
+      '<div class="kpi-box" style="min-width:80px"><div class="kpi-label">MESURES</div><div class="kpi-value">'+tensions.length+'</div></div>' +
+      (last.pouls ? '<div class="kpi-box" style="min-width:100px"><div class="kpi-label">DERNIER POULS</div><div class="kpi-value">'+last.pouls+' <span style="font-size:12px;font-weight:normal;color:rgba(255,255,255,0.3)">bpm</span></div></div>' : '');
+  } else if(kpiEl) kpiEl.innerHTML = '';
+
+  // Chart
+  if(charts['tension']){ charts['tension'].destroy(); delete charts['tension']; }
+  const cvs = document.getElementById('tensionChart'); if(!cvs) return;
+  if(!tensions.length){ cvs.getContext('2d').clearRect(0,0,cvs.width,cvs.height); }
+  else {
+    const labels = tensions.map(function(t){ return new Date(t.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); });
+    const sysVals = tensions.map(function(t){ return t.sys; });
+    const diaVals = tensions.map(function(t){ return t.dia; });
+    const poulsVals = tensions.map(function(t){ return t.pouls; });
+    const hasPouls = poulsVals.some(function(v){ return v !== null; });
+
+    // Zones en background via annotation plugin indisponible — on utilise des datasets fill
+    // Bandes colorées : datasets empilés fill between
+    const datasets = [
+      // Bandes de fond (ordre : du bas vers le haut)
+      { label:'_opt_base', data: tensions.map(function(){ return 60; }), fill:false, borderWidth:0, pointRadius:0, yAxisID:'y' },
+      { label:'Optimale (<120/80)', data: tensions.map(function(){ return 20; }), fill:'-1', backgroundColor:'rgba(34,197,94,0.07)', borderWidth:0, pointRadius:0, yAxisID:'y' },
+      { label:'Normale (120–129/80–84)', data: tensions.map(function(){ return 10; }), fill:'-1', backgroundColor:'rgba(163,230,53,0.07)', borderWidth:0, pointRadius:0, yAxisID:'y' },
+      { label:'Normale haute (130–139/85–89)', data: tensions.map(function(){ return 10; }), fill:'-1', backgroundColor:'rgba(234,179,8,0.06)', borderWidth:0, pointRadius:0, yAxisID:'y' },
+      { label:'Hypertension G1 (140–159/90–99)', data: tensions.map(function(){ return 20; }), fill:'-1', backgroundColor:'rgba(249,115,22,0.07)', borderWidth:0, pointRadius:0, yAxisID:'y' },
+      { label:'Hypertension G2 (≥160/≥100)', data: tensions.map(function(){ return 40; }), fill:'-1', backgroundColor:'rgba(239,68,68,0.07)', borderWidth:0, pointRadius:0, yAxisID:'y' },
+      // Lignes données
+      { label:'Systolique', data: sysVals, borderColor:'rgba(239,68,68,0.85)', backgroundColor:'rgba(239,68,68,0.15)', pointRadius:4, pointHoverRadius:6, borderWidth:2, tension:0.3, fill:false, yAxisID:'y' },
+      { label:'Diastolique', data: diaVals, borderColor:'rgba(56,189,248,0.85)', backgroundColor:'rgba(56,189,248,0.15)', pointRadius:4, pointHoverRadius:6, borderWidth:2, tension:0.3, fill:false, yAxisID:'y' },
+    ];
+    if(hasPouls) datasets.push({ label:'Pouls', data: poulsVals, borderColor:'rgba(255,255,255,0.25)', pointRadius:3, pointHoverRadius:5, borderWidth:1.5, borderDash:[4,3], tension:0.3, fill:false, yAxisID:'y2' });
+
+    charts['tension'] = new Chart(cvs.getContext('2d'), {
+      type:'line',
+      data:{ labels, datasets },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{ mode:'index', intersect:false },
+        plugins:{
+          legend:{
+            display:true,
+            labels:{
+              color:'rgba(255,255,255,0.3)', font:{size:10}, boxWidth:10,
+              filter: function(item){ return !item.text.startsWith('_') && (item.text==='Systolique'||item.text==='Diastolique'||item.text==='Pouls'||item.text.indexOf('(')>-1); }
+            }
+          },
+          tooltip:{
+            backgroundColor:'rgba(10,10,20,0.95)', borderColor:'rgba(249,115,22,0.3)', borderWidth:1,
+            titleColor:'rgba(255,255,255,0.6)', bodyColor:'rgba(255,255,255,0.55)',
+            filter: function(item){ return !item.dataset.label.startsWith('_'); },
+            callbacks:{
+              afterBody: function(items){
+                const idx = items[0].dataIndex;
+                const t = tensions[idx];
+                const zone = tensionZone(t.sys, t.dia);
+                return ['Zone : '+zone.label];
+              }
+            }
+          }
+        },
+        scales:{
+          x:{ grid:{color:'rgba(255,255,255,0.03)'}, ticks:{color:'rgba(255,255,255,0.2)',font:{size:9},maxTicksLimit:12} },
+          y:{
+            min:60, max:180,
+            grid:{color:'rgba(255,255,255,0.04)'},
+            ticks:{color:'rgba(255,255,255,0.25)',font:{size:9}},
+            title:{display:true,text:'mmHg',color:'rgba(255,255,255,0.2)',font:{size:9}}
+          },
+          y2:{
+            display: hasPouls,
+            position:'right', min:40, max:120,
+            grid:{drawOnChartArea:false},
+            ticks:{color:'rgba(255,255,255,0.15)',font:{size:9}},
+            title:{display:true,text:'bpm',color:'rgba(255,255,255,0.15)',font:{size:9}}
+          }
+        }
+      }
+    });
+  }
+
+  // Historique
+  const listEl = document.getElementById('tensionList'); if(!listEl) return;
+  if(!tensions.length){ listEl.innerHTML='<p class="empty-msg">Aucune mesure enregistrée.</p>'; return; }
+  const sorted = tensions.slice().reverse();
+  listEl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px">' +
+    '<thead><tr style="color:rgba(255,255,255,0.25);font-size:10px;text-transform:uppercase;letter-spacing:1px">' +
+    '<th style="text-align:left;padding:6px 8px">Date</th>' +
+    '<th style="text-align:center;padding:6px 8px">Sys</th>' +
+    '<th style="text-align:center;padding:6px 8px">Dia</th>' +
+    '<th style="text-align:center;padding:6px 8px">Pouls</th>' +
+    '<th style="text-align:center;padding:6px 8px">Zone</th>' +
+    '<th style="text-align:right;padding:6px 8px"></th>' +
+    '</tr></thead><tbody>' +
+    sorted.map(function(t){
+      const zone = tensionZone(t.sys, t.dia);
+      const date = new Date(t.date).toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+      return '<tr style="border-top:1px solid rgba(255,255,255,0.05)">' +
+        '<td style="padding:8px;color:rgba(255,255,255,0.5)">'+date+'</td>' +
+        '<td style="text-align:center;padding:8px;color:#ef4444;font-family:\'Space Mono\',monospace;font-weight:700">'+t.sys+'</td>' +
+        '<td style="text-align:center;padding:8px;color:#38bdf8;font-family:\'Space Mono\',monospace;font-weight:700">'+t.dia+'</td>' +
+        '<td style="text-align:center;padding:8px;color:rgba(255,255,255,0.35)">'+(t.pouls||'—')+'</td>' +
+        '<td style="text-align:center;padding:8px"><span style="font-size:10px;color:'+zone.color+';background:'+zone.color+'22;padding:2px 8px;border-radius:10px">'+zone.label+'</span></td>' +
+        '<td style="text-align:right;padding:8px"><button onclick="deleteTension(\''+t.date+'\')" style="background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;font-size:12px" title="Supprimer">✕</button></td>' +
+        '</tr>';
+    }).join('') +
+    '</tbody></table>';
+}
+
 /* ── STORAGE ── */
 const STORAGE_KEY = 'calorietrack_v1';
 
 function saveData(){
   const calcDateEl = document.getElementById('calcDate');
   const calcDateVal = (calcDateEl && calcDateEl.value) ? calcDateEl.value : (window._savedCalcDate || '');
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, activePeriod, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif(), bilans, bilanUnites: window._bilanUnites||{} };
+  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, activePeriod, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif(), bilans, bilanUnites: window._bilanUnites||{}, tensions };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     localStorage.setItem(STORAGE_KEY+'_calc', JSON.stringify({calcItems, calcDate: calcDateVal}));
@@ -880,6 +1087,7 @@ function loadData(){
     if(data.activePeriod) activePeriod = data.activePeriod;
     if(data.veloSessions) veloSessions = data.veloSessions;
     if(data.bilans) bilans = data.bilans;
+    if(data.tensions) tensions = data.tensions;
     if(data.bilanUnites) window._bilanUnites = data.bilanUnites;
     if(data.calcDate) window._savedCalcDate = data.calcDate;
     // Backup: try dedicated calc storage
@@ -898,7 +1106,7 @@ function loadData(){
 }
 
 function exportData(){
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), exportDate: new Date().toISOString() };
+  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), tensions, exportDate: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2645,6 +2853,7 @@ function showTab(id,btn){
   if(id==='documents') renderDocuments();
   if(id==='correlations'){ initCorrMarqueur(); renderCorrelations(); }
   if(id==='sante_surveiller') renderSurveiller();
+  if(id==='tension') renderTension();
   if(id==='tdee'){
     const lastPesee = pesees.length ? pesees[pesees.length-1].val : getPoids();
     document.getElementById('tdeePoids').value = lastPesee;
