@@ -1449,7 +1449,7 @@ function renderRefs(){
   document.getElementById('refTitle').textContent=`Ma liste d'aliments (${refs.length})`;
   const grid=document.getElementById('refGrid');
   if(!refs.length){grid.innerHTML='<p class="empty-msg" style="grid-column:1/-1">Aucun aliment. Ajoutez vos habituels ci-dessus.</p>';updateDeleteSelectedBtn();return;}
-  grid.innerHTML=refs.map(r=>`
+  grid.innerHTML=refs.slice().reverse().map(r=>`
     <div class="ref-item" id="ref-item-${r.id}" onclick="toggleRefSelect(${r.id})" style="cursor:pointer">
       <span class="ref-name">${r.nom}</span>
       <span class="ref-kcal">${r.kcal100} kcal/100g</span>
@@ -1514,7 +1514,7 @@ function renderCalcSelect(){
   const sel=document.getElementById('calcSelect');
   const cur=sel.value;
   sel.innerHTML='<option value="">— Choisir un aliment —</option>'+
-    refs.map(r=>`<option value="${r.id}">${r.nom} (${r.kcal100} kcal/100g)</option>`).join('');
+    refs.slice().reverse().map(r=>`<option value="${r.id}">${r.nom} (${r.kcal100} kcal/100g)</option>`).join('');
   sel.value=cur;
 }
 
