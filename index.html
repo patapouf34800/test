@@ -774,6 +774,16 @@
       </div>
     </div>
 
+    <!-- Bandeau cibles macros -->
+    <div class="chart-card" id="nutriCiblesCard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="chart-title" style="margin-bottom:0">🎯 Cibles journalières</div>
+        <span style="font-size:10px;color:rgba(255,255,255,0.2)" id="nutriCiblesBase"></span>
+      </div>
+      <div class="kpi-grid" id="nutriCiblesGrid"></div>
+      <p style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:12px">Protéines : 1.8g/kg · Lipides : 30% des kcal · Glucides : reste des kcal · Fibres : 25–30g</p>
+    </div>
+
     <div class="chart-card" id="nutriDayDetail">
       <div class="chart-title">Composition journalière</div>
       <p class="empty-msg">Cliquez sur une barre pour voir le détail du jour.</p>
@@ -3066,6 +3076,7 @@ function getNutriDays(){
 }
 
 function renderNutri(){
+  renderNutriCibles();
   const filtered = getNutriDays().filter(function(d){ return d.p!=null||d.g!=null||d.l!=null||d.f!=null; });
 
   if(!filtered.length){
@@ -3120,32 +3131,95 @@ function renderNutri(){
   document.getElementById('nutriDayDetail').innerHTML = '<div class="chart-title">Composition journalière</div><p class="empty-msg" style="color:rgba(255,255,255,0.2)">Cliquez sur une barre pour voir le détail du jour.</p>';
 }
 
-function renderNutriDetail(d){
-  const total = (d.p||0) + (d.g||0) + (d.l||0) + (d.f||0);
-  function pct(v){ return total > 0 ? Math.round((v||0)/total*100) : 0; }
-  function bar(v, color){ return '<div style="height:8px;border-radius:4px;background:rgba(255,255,255,0.06);overflow:hidden;margin-top:4px"><div style="height:100%;width:'+pct(v)+'%;background:'+color+';border-radius:4px;transition:width .4s"></div></div>'; }
+function getNutriCibles(){
+  const poids = parseFloat(document.getElementById('poidsInput').value) || 80;
+  const kcal  = getObjectif();
+  const prot  = Math.round(poids * 1.8);           // 1.8g/kg
+  const lip   = Math.round(kcal * 0.30 / 9);       // 30% kcal / 9 kcal/g
+  const fibres = 28;                                // fixe
+  const glucKcal = kcal - prot*4 - lip*9 - fibres*2;
+  const gluc  = Math.round(Math.max(glucKcal, 0) / 4);
+  return { prot, gluc, lip, fibres, poids, kcal };
+}
+
+function renderNutriCibles(){
+  const c = getNutriCibles();
+  const base = document.getElementById('nutriCiblesBase');
+  if(base) base.textContent = 'Base : '+c.poids+'kg · objectif '+c.kcal.toLocaleString('fr-FR')+' kcal';
 
   const macros = [
-    { label:'Protéines', val: d.p, color:'#f97316', kcal: Math.round((d.p||0)*4) },
-    { label:'Glucides',  val: d.g, color:'#38bdf8', kcal: Math.round((d.g||0)*4) },
-    { label:'Lipides',   val: d.l, color:'#a78bfa', kcal: Math.round((d.l||0)*9) },
-    { label:'Fibres',    val: d.f, color:'#4ade80', kcal: Math.round((d.f||0)*2) },
+    { label:'Protéines', cible: c.prot,   color:'#f97316' },
+    { label:'Glucides',  cible: c.gluc,   color:'#38bdf8' },
+    { label:'Lipides',   cible: c.lip,    color:'#a78bfa' },
+    { label:'Fibres',    cible: c.fibres, color:'#4ade80' },
+  ];
+
+  const grid = document.getElementById('nutriCiblesGrid');
+  if(!grid) return;
+  grid.innerHTML = macros.map(function(m){
+    return '<div class="card">'
+      +'<div class="card-label">'+m.label+'</div>'
+      +'<div class="card-value" style="color:'+m.color+'">'+m.cible+'</div>'
+      +'<div class="card-unit">g / jour</div>'
+      +'</div>';
+  }).join('');
+}
+
+function renderNutriDetail(d){
+  const c = getNutriCibles();
+  const total = (d.p||0) + (d.g||0) + (d.l||0) + (d.f||0);
+
+  function pctOfTotal(v){ return total > 0 ? Math.round((v||0)/total*100) : 0; }
+  function pctOfCible(v, cible){ return cible > 0 ? Math.min(Math.round((v||0)/cible*100), 150) : 0; }
+  function statusColor(v, cible){
+    if(v == null) return 'rgba(255,255,255,0.2)';
+    const r = v / cible;
+    if(r >= 0.85 && r <= 1.15) return '#22c55e';  // vert : ±15%
+    if(r >= 0.6  && r <= 1.4)  return '#facc15';  // jaune : écart modéré
+    return '#f97316';                               // orange : écart important
+  }
+
+  function progressBar(v, cible, color){
+    const fill = pctOfCible(v, cible);
+    const status = statusColor(v, cible);
+    return '<div style="position:relative;height:8px;border-radius:4px;background:rgba(255,255,255,0.06);overflow:visible;margin-top:6px">'
+      // Barre remplie
+      +'<div style="height:100%;width:'+Math.min(fill,100)+'%;background:'+status+';border-radius:4px;transition:width .4s"></div>'
+      // Marqueur cible à 100%
+      +'<div style="position:absolute;top:-3px;left:calc(min(100%,100%));width:2px;height:14px;background:rgba(255,255,255,0.25);border-radius:1px"></div>'
+      +'</div>';
+  }
+
+  const macros = [
+    { label:'Protéines', val: d.p, cible: c.prot,   color:'#f97316', kcalFactor: 4 },
+    { label:'Glucides',  val: d.g, cible: c.gluc,   color:'#38bdf8', kcalFactor: 4 },
+    { label:'Lipides',   val: d.l, cible: c.lip,    color:'#a78bfa', kcalFactor: 9 },
+    { label:'Fibres',    val: d.f, cible: c.fibres, color:'#4ade80', kcalFactor: 2 },
   ];
 
   document.getElementById('nutriDayDetail').innerHTML =
     '<div class="chart-title">'+d.label+' — Composition</div>'+
-    '<div class="kpi-grid" style="margin-bottom:20px">'+
+    '<div class="kpi-grid" style="margin-bottom:16px">'+
     macros.map(function(m){
+      const fill = pctOfCible(m.val, m.cible);
+      const sc = statusColor(m.val, m.cible);
+      const kcal = Math.round((m.val||0) * m.kcalFactor);
+      const diff = m.val != null ? Math.round(m.val - m.cible) : null;
+      const diffStr = diff != null ? (diff > 0 ? '+'+diff : ''+diff)+'g vs cible' : '';
       return '<div class="card">'
         +'<div class="card-label">'+m.label+'</div>'
-        +'<div class="card-value" style="color:'+m.color+'">'+(m.val!=null ? m.val : '—')+'</div>'
-        +'<div class="card-unit">g'+( m.val!=null ? ' · '+m.kcal+' kcal' : '')+'</div>'
-        +bar(m.val, m.color)
-        +'<div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:3px">'+pct(m.val)+'% du total</div>'
+        +'<div class="card-value" style="color:'+m.color+'">'+(m.val != null ? m.val : '—')+'</div>'
+        +'<div class="card-unit">g · '+kcal+' kcal</div>'
+        +progressBar(m.val, m.cible, m.color)
+        +'<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px">'
+        +'<span style="color:'+sc+'">'+fill+'% cible</span>'
+        +'<span style="color:rgba(255,255,255,0.2)">cible : '+m.cible+'g</span>'
+        +'</div>'
+        +(diffStr ? '<div style="font-size:10px;color:rgba(255,255,255,0.25);margin-top:2px">'+diffStr+'</div>' : '')
         +'</div>';
     }).join('')+
     '</div>'+
-    '<p style="font-size:11px;color:rgba(255,255,255,0.25)">Total macros : '+total.toFixed(1)+'g · Calories enregistrées : '+d.calories.toLocaleString('fr-FR')+' kcal</p>';
+    '<p style="font-size:11px;color:rgba(255,255,255,0.25)">Total macros : '+total.toFixed(1)+'g · Calories : '+d.calories.toLocaleString('fr-FR')+' kcal · Répartition : '+pctOfTotal(d.p)+'% prot / '+pctOfTotal(d.g)+'% gluc / '+pctOfTotal(d.l)+'% lip</p>';
 }
 
 function showTab(id,btn){
