@@ -3184,9 +3184,7 @@ function renderBilanHebdo(){
   if(n === 0){
     subtitle.textContent = 'Aucune donnée macro pour cette semaine.';
   } else {
-    subtitle.textContent = n + '/7 jours renseignés'
-      + (isComplete ? ' · semaine complète' : ' · en cours')
-      + ' · poids réf : ' + c.poids.toFixed(1) + ' kg';
+    subtitle.textContent = n + '/7 jours renseignés' + (isComplete ? ' · semaine complète' : ' · en cours');
   }
 
   // Badge fin de semaine
@@ -3197,9 +3195,13 @@ function renderBilanHebdo(){
   function avg(key){ return n === 0 ? null : parseFloat((withData.reduce(function(s,d){ return s + (d.data[key] || 0); }, 0) / n).toFixed(1)); }
   const avgP = avg('p'), avgG = avg('g'), avgL = avg('l'), avgF = avg('f');
 
-  // Jours au-dessus du seuil
-  function joursOk(key, cible){ return withData.filter(function(d){ return (d.data[key]||0) >= cible; }).length; }
-  const okP = joursOk('p', c.protMin), okL = joursOk('l', c.lip), okF = joursOk('f', c.fibres);
+  // Cibles de référence = moyenne des cibles snapshotées de chaque jour renseigné
+  function avgCible(key){ return n === 0 ? c[key] : parseFloat((withData.reduce(function(s,d){ return s + ((d.data.cibles||c)[key]||0); },0)/n).toFixed(1)); }
+  const cProtMin = avgCible('protMin'), cLip = avgCible('lip'), cFibres = avgCible('fibres');
+
+  // Jours au-dessus du seuil — chaque jour comparé à SES propres cibles
+  function joursOk(key, cibleKey){ return withData.filter(function(d){ return (d.data[key]||0) >= ((d.data.cibles||c)[cibleKey]||0); }).length; }
+  const okP = joursOk('p','protMin'), okL = joursOk('l','lip'), okF = joursOk('f','fibres');
 
   // KPI cards
   function kpiCard(label, avg, cibleLabel, cibleVal, color, joursOk){
@@ -3224,9 +3226,9 @@ function renderBilanHebdo(){
   }
 
   document.getElementById('bilanHebdoKpi').innerHTML = n === 0 ? '' :
-    kpiCard('Protéines', avgP, '≥'+c.protMin+'g', c.protMin, '#f97316', okP)
-    + kpiCard('Lipides',   avgL, '≥'+c.lip+'g plancher', c.lip, '#a78bfa', okL)
-    + kpiCard('Fibres',    avgF, '≥'+c.fibres+'g OMS', c.fibres, '#4ade80', okF)
+    kpiCard('Protéines', avgP, '≥'+cProtMin+'g', cProtMin, '#f97316', okP)
+    + kpiCard('Lipides',   avgL, '≥'+cLip+'g plancher', cLip, '#a78bfa', okL)
+    + kpiCard('Fibres',    avgF, '≥'+cFibres+'g OMS', cFibres, '#4ade80', okF)
     + '<div class="card"><div class="card-label">Glucides <span style="color:rgba(255,255,255,0.2);font-weight:normal">(moy. '+n+'j)</span></div>'
     + '<div class="card-value" style="color:#38bdf8">'+(avgG !== null ? avgG : '—')+'<span style="font-size:14px;color:rgba(255,255,255,0.3)">'+(avgG !== null ? 'g' : '')+'</span></div>'
     + '<div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:10px">variable d\'ajustement</div></div>';
@@ -3273,24 +3275,24 @@ function renderBilanHebdo(){
     conseils = '<p style="font-size:13px;color:rgba(255,255,255,0.3)">Encore <strong style="color:rgba(255,255,255,0.5)">'+(3-n)+' jour(s)</strong> de données avant la première analyse.</p>';
   } else {
     var alertes = [], bons = [];
-    if(avgP !== null && avgP < c.protMin){
+    if(avgP !== null && avgP < cProtMin){
       alertes.push('<div style="padding:10px 14px;border-radius:8px;background:rgba(249,115,22,0.07);border-left:3px solid #f97316;margin-bottom:8px">'
         +'<div style="font-size:12px;font-weight:600;color:#f97316;margin-bottom:4px">⚠ Protéines insuffisantes</div>'
-        +'<div style="font-size:12px;color:rgba(255,255,255,0.5)">Moy. : <strong style="color:#f97316">'+avgP+'g</strong> · seuil : '+c.protMin+'g · manque : −'+(c.protMin-avgP).toFixed(0)+'g/j</div>'
+        +'<div style="font-size:12px;color:rgba(255,255,255,0.5)">Moy. : <strong style="color:#f97316">'+avgP+'g</strong> · seuil : '+cProtMin+'g · manque : −'+(cProtMin-avgP).toFixed(0)+'g/j</div>'
         +'<div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">Privilégie : poulet, œufs, fromage blanc, thon, lentilles, tofu</div></div>');
     } else if(avgP !== null) bons.push('Protéines ✓ ('+avgP+'g/j)');
 
-    if(avgL !== null && avgL < c.lip){
+    if(avgL !== null && avgL < cLip){
       alertes.push('<div style="padding:10px 14px;border-radius:8px;background:rgba(167,139,250,0.07);border-left:3px solid #a78bfa;margin-bottom:8px">'
         +'<div style="font-size:12px;font-weight:600;color:#a78bfa;margin-bottom:4px">⚠ Lipides sous le plancher</div>'
-        +'<div style="font-size:12px;color:rgba(255,255,255,0.5)">Moy. : <strong style="color:#a78bfa">'+avgL+'g</strong> · plancher : '+c.lip+'g · manque : −'+(c.lip-avgL).toFixed(0)+'g/j</div>'
+        +'<div style="font-size:12px;color:rgba(255,255,255,0.5)">Moy. : <strong style="color:#a78bfa">'+avgL+'g</strong> · plancher : '+cLip+'g · manque : −'+(cLip-avgL).toFixed(0)+'g/j</div>'
         +'<div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">Privilégie : avocat, noix, huile d\'olive, saumon, œufs entiers, sardines</div></div>');
     } else if(avgL !== null) bons.push('Lipides ✓ ('+avgL+'g/j)');
 
-    if(avgF !== null && avgF < c.fibres){
+    if(avgF !== null && avgF < cFibres){
       alertes.push('<div style="padding:10px 14px;border-radius:8px;background:rgba(74,222,128,0.07);border-left:3px solid #4ade80;margin-bottom:8px">'
         +'<div style="font-size:12px;font-weight:600;color:#4ade80;margin-bottom:4px">⚠ Fibres insuffisantes</div>'
-        +'<div style="font-size:12px;color:rgba(255,255,255,0.5)">Moy. : <strong style="color:#4ade80">'+avgF+'g</strong> · cible : '+c.fibres+'g · manque : −'+(c.fibres-avgF).toFixed(0)+'g/j</div>'
+        +'<div style="font-size:12px;color:rgba(255,255,255,0.5)">Moy. : <strong style="color:#4ade80">'+avgF+'g</strong> · cible : '+cFibres+'g · manque : −'+(cFibres-avgF).toFixed(0)+'g/j</div>'
         +'<div style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">Privilégie : légumineuses, légumes verts, chia, flocons d\'avoine, pruneaux</div></div>');
     } else if(avgF !== null) bons.push('Fibres ✓ ('+avgF+'g/j)');
 
