@@ -162,7 +162,7 @@
 
   <div class="sidebar-section">
     <div class="sidebar-section-label">Alimentation</div>
-    <button class="sidebar-tab" onclick="showTab('saisie',this)">✏️ Saisie</button>
+    <button class="sidebar-tab" onclick="showTab('saisie',this)" style="display:none">✏️ Saisie</button>
     <button class="sidebar-tab" onclick="showTab('calculateur',this)">🧮 Calculateur</button>
     <button class="sidebar-tab" onclick="showTab('deficit',this)">📉 Déficit</button>
     <button class="sidebar-tab" onclick="showTab('nutriments',this)">🥗 Nutriments</button>
@@ -330,14 +330,6 @@
         <button class="btn" onclick="addEntry()">Enregistrer</button>
       </div>
     </div>
-    <div class="chart-card">
-      <div class="chart-title" id="saisieTitle">Données enregistrées</div>
-      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
-        <button class="btn btn-secondary" onclick="resetDemo()">↺ Données démo</button>
-        <button class="btn btn-secondary" onclick="clearAll()" style="border-color:rgba(239,68,68,0.3);color:#ef4444;background:rgba(239,68,68,0.08)">🗑 Effacer tout</button>
-      </div>
-      <div class="day-list" id="saisieList"></div>
-    </div>
   </div>
 
   <!-- CALCULATEUR JOURNÉE -->
@@ -396,6 +388,17 @@
         <button class="btn btn-secondary" onclick="clearCalc()" style="margin-top:22px">🗑 Vider</button>
       </div>
       <p style="font-size:12px;color:rgba(255,255,255,0.3);margin-top:12px">Le total sera automatiquement envoyé dans l'onglet Saisie.</p>
+    </div>
+
+    <div class="chart-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div class="chart-title" style="margin-bottom:0" id="saisieTitle">Données enregistrées</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="resetDemo()" style="font-size:11px;padding:6px 12px">↺ Données démo</button>
+          <button class="btn btn-secondary" onclick="clearAll()" style="border-color:rgba(239,68,68,0.3);color:#ef4444;background:rgba(239,68,68,0.08);font-size:11px;padding:6px 12px">🗑 Effacer tout</button>
+        </div>
+      </div>
+      <div class="day-list" id="saisieList"></div>
     </div>
   </div>
 
@@ -3380,7 +3383,7 @@ function showTab(id,btn){
   document.getElementById(id).classList.add('active');
   if(btn) btn.classList.add('active');
   if(id==='saisie') autoFillDate();
-  if(id==='calculateur') autoFillCalcDate();
+  if(id==='calculateur'){ autoFillCalcDate(); refresh(); }
   if(id in SANTE_SECTIONS) renderSanteSection(id);
   if(id==='documents') renderDocuments();
   if(id==='correlations'){ initCorrMarqueur(); renderCorrelations(); }
