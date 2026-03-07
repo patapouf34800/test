@@ -7,10 +7,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Mon suivi santé">
+<meta name="apple-mobile-web-app-title" content="CalorieTrack">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Mon suivi santé</title>
+<title>CalorieTrack</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
@@ -27,6 +27,7 @@
   h1{font-family:'Space Mono',monospace;font-size:18px;letter-spacing:-0.5px}
   h1 span{color:#f97316}
   .subtitle{font-family:monospace;font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px;margin-top:3px}
+  .header-controls{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:14px}
   .control-group{display:flex;flex-direction:column;gap:4px}
   .control-group label{font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px}
 
@@ -42,6 +43,7 @@
   .sidebar-tab:hover{color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.03)}
   .sidebar-tab.active{color:#f97316;background:rgba(249,115,22,0.08);border-left-color:#f97316}
   .main-content{margin-left:200px;flex:1;min-width:0}
+  .main-topbar{padding:16px 28px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:flex-end;align-items:center;gap:8px}
   input[type=number],input[type=date],input[type=text]{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;font-family:inherit;outline:none;transition:border-color .2s}
   input[type=number]{width:110px}
   input[type=date]{width:150px}
@@ -50,6 +52,8 @@
   select{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;font-family:inherit;outline:none;cursor:pointer;width:100%}
   select:focus{border-color:#f97316}
   select option{background:#1a1a2e;color:#fff}
+
+  .tabs{display:none}
   .tab{display:none}
 
   .content{padding:24px 28px;max-width:1100px;margin:0 auto}
@@ -140,8 +144,8 @@
 
 <nav class="sidebar">
   <div class="sidebar-logo">
-    <h1>MON SUIVI<span> SANTÉ</span></h1>
-    <p class="subtitle">MON SUIVI SANTÉ</p>
+    <h1>CALORIE<span>TRACK</span></h1>
+    <p class="subtitle">SUIVI CALORIQUE</p>
   </div>
   <div class="sidebar-actions">
     <button class="btn btn-secondary" onclick="exportData()" style="padding:6px 10px;font-size:10px;text-align:center">⬇ Exporter</button>
@@ -486,17 +490,9 @@
         La formule de Mifflin-St Jeor est considérée comme la plus précise pour estimer le métabolisme de base (MB). Le TDEE = MB × coefficient d'activité. Ces valeurs sont des estimations — la réalité peut varier selon la génétique, la masse musculaire et d'autres facteurs.
       </p>
     </div>
-
-    <!-- Rétrocorrection -->
-    <div class="chart-card">
-      <div class="chart-title" style="margin-bottom:8px">Rétrocorrection des données historiques</div>
-      <p style="font-size:12px;color:rgba(255,255,255,0.35);margin-bottom:14px;line-height:1.7">
-        Recalcule le maintien (TDEE) pour chaque jour enregistré en interpolant le poids entre les pesées et en appliquant les paramètres TDEE ci-dessus. Les déficits historiques refléteront alors le vrai maintien de l'époque.
-      </p>
-      <div id="retroStatus" style="font-size:11px;color:rgba(255,255,255,0.25);margin-bottom:12px"></div>
-      <button class="btn" onclick="retroCorrigerMaintien()" style="font-size:12px">⚙️ Recalculer le maintien sur tout l'historique</button>
-    </div>
   </div>
+
+  <!-- CORRÉLATIONS -->
   <div id="correlations" class="panel">
     <div class="chart-card" style="margin-bottom:20px">
       <div class="chart-title" style="margin-bottom:4px">🔗 Corrélations croisées</div>
@@ -830,29 +826,13 @@ function getFilteredDays(){
 
 function getPoids(){ return parseFloat(document.getElementById('poidsInput').value)||75; }
 function formatDuree(min){ const h=Math.floor(min/60); const m=Math.round(min%60); return h>0 ? (m>0 ? h+'h '+m+'min' : h+'h') : m+'min'; }
-function defColor(def, alpha, calories){
-  // Si on a les calories, on utilise la logique 3 zones
-  if(calories !== undefined){
-    const obj = getObjectif(), maint = getMaintien();
-    if(calories <= obj)   return alpha ? 'rgba(34,197,94,'+alpha+')' : '#22c55e';   // sous objectif → vert
-    if(calories <= maint) return alpha ? 'rgba(250,204,21,'+alpha+')' : '#facc15';  // entre objectif et maintien → orange
-    return alpha ? 'rgba(239,68,68,'+alpha+')' : '#ef4444';                          // au-dessus maintien → rouge
-  }
-  // Fallback ancien comportement (déficit seul)
-  if(def === 0) return alpha ? 'rgba(250,204,21,'+alpha+')' : '#facc15';
-  return def > 0 ? (alpha ? 'rgba(34,197,94,'+alpha+')' : '#22c55e') : (alpha ? 'rgba(239,68,68,'+alpha+')' : '#ef4444');
+function defColor(def,alpha){
+  if(def===0) return alpha?'rgba(250,204,21,'+alpha+')':'#facc15';
+  return def>0 ? (alpha?'rgba(34,197,94,'+alpha+')':'#22c55e') : (alpha?'rgba(239,68,68,'+alpha+')':'#ef4444');
 }
-function defClass(calories){
-  const obj = getObjectif(), maint = getMaintien();
-  if(calories <= obj)   return 'green';
-  if(calories <= maint) return 'yellow';
-  return 'red';
-}
-function defSign(def){ return def === 0 ? '±' : def > 0 ? '−' : '+'; }
-function getObjectif(){ return parseInt(document.getElementById('objectifInput').value) || 2200; }
-function getMaintien(){
-  return (window._tdee && window._tdee > 0) ? window._tdee : getObjectif();
-}
+function defClass(def){ return def===0?'yellow':def>0?'green':'red'; }
+function defSign(def){ return def===0?'±':def>0?'−':'+'; }
+function getObjectif(){ return parseInt(document.getElementById('objectifInput').value)||2200; }
 
 function genDemo(){
   const obj=getObjectif(), result=[], today=new Date();
@@ -869,7 +849,7 @@ function computeStats(){
   // On l'applique uniquement aux jours qui n'en ont pas encore (migration données anciennes)
   days.forEach(d=>{ if(!d.objectif) d.objectif=obj; });
   const filtered=getFilteredDays();
-  const deficits=filtered.map(d=>({...d,deficit:(d.maintien||getMaintien())-d.calories}));
+  const deficits=filtered.map(d=>({...d,deficit:d.objectif-d.calories}));
   const totalDeficit=deficits.reduce((s,d)=>s+d.deficit,0);
   const pertePoids=totalDeficit/KCAL_PER_KG;
   const poidsActuel=poidsInit-pertePoids;
@@ -888,7 +868,7 @@ function computeStats(){
   // Deficit de reference sur les 14 derniers jours (plus representatif)
   const recentDays = filtered.slice(-14);
   const recentDeficit = recentDays.length >= 3
-    ? recentDays.reduce(function(s,d){ return s+((d.maintien||getMaintien())-d.calories); },0)/recentDays.length
+    ? recentDays.reduce((s,d)=>s+(d.objectif-d.calories),0)/recentDays.length
     : avgDailyDeficit;
 
   // Projection jour par jour
@@ -1150,15 +1130,15 @@ function importData(event){
       if(!data.days && data.bilans){
         if(!confirm('Ce fichier contient des bilans sanguins. Les fusionner avec les bilans existants ?')) return;
         let added = 0, updated = 0;
-        data.bilans.forEach(function(b) {
+        data.bilans.forEach(b => {
           if(!b.id || !b.date) return;
-          const idx = bilans.findIndex(function(x){ return x.id === b.id; });
+          const idx = bilans.findIndex(x => x.id === b.id);
           if(idx >= 0){ bilans[idx] = b; updated++; } else { bilans.push(b); added++; }
         });
         if(data.bilanUnites) window._bilanUnites = data.bilanUnites;
-        bilans.sort(function(a,b){ return a.date.localeCompare(b.date); });
+        bilans.sort((a,b) => a.date.localeCompare(b.date));
         // Calcul auto ratios
-        bilans.forEach(function(b) {
+        bilans.forEach(b => {
           const lip = b.marqueurs && b.marqueurs.bilan_lipidique;
           if(lip && lip.HDL && lip.cholesterol_total && !lip.ratio_CHOL_HDL){
             const hdl = lip.HDL.valeur, chol = lip.cholesterol_total.valeur;
@@ -1183,7 +1163,7 @@ function importData(event){
       if(data.activePeriod) activePeriod = data.activePeriod;
       if(data.bilanUnites) window._bilanUnites = data.bilanUnites;
       // Calcul auto ratios
-      bilans.forEach(function(b) {
+      bilans.forEach(b => {
         const lip = b.marqueurs && b.marqueurs.bilan_lipidique;
         if(lip && lip.HDL && lip.cholesterol_total && !lip.ratio_CHOL_HDL){
           const hdl = lip.HDL.valeur, chol = lip.cholesterol_total.valeur;
@@ -1277,7 +1257,7 @@ function renderChartMain(s){
     crosshair.style.top=area.top+'px';
     crosshair.style.height=(area.bottom-area.top)+'px';
     const d=days[idx];
-    const def=(d.maintien||getMaintien())-d.calories;
+    const def=d.objectif-d.calories;
     const defStr='<span style="color:'+defColor(def)+'">'+defSign(def)+Math.abs(def).toLocaleString('fr-FR')+' kcal</span>';
     tooltip.innerHTML='<div style="color:#f97316;font-weight:700;margin-bottom:5px">'+d.label+'</div><div style="color:#fff">Calories&nbsp;: <strong>'+d.calories.toLocaleString('fr-FR')+' kcal</strong></div><div style="color:rgba(255,255,255,0.5)">Objectif&nbsp;: '+d.objectif.toLocaleString('fr-FR')+' kcal</div><div style="margin-top:4px">Bilan&nbsp;: '+defStr+'</div>';
     tooltip.style.display='block';
@@ -1292,13 +1272,13 @@ function renderChartMain(s){
 
 function renderChartDeficit(s){
   destroyChart('deficit');
-  const fd=getFilteredDeficit().map(function(d){ return Object.assign({},d,{deficit:(d.maintien||getMaintien())-d.calories}); });
+  const fd=getFilteredDeficit().map(d=>({...d,deficit:d.objectif-d.calories}));
   if(!fd.length)return;
   const ctx=document.getElementById('chartDeficit').getContext('2d');
   const deficitOpts={...chartOptions('kcal'),plugins:{...chartOptions('kcal').plugins,tooltip:{enabled:false}}};
   charts['deficit']=new Chart(ctx,{type:'bar',data:{labels:fd.map(d=>d.label),datasets:[{
     label:'Déficit',data:fd.map(d=>d.deficit),
-    backgroundColor:fd.map(function(d){ return defColor(d.deficit,'0.75',d.calories); }),borderRadius:3
+    backgroundColor:fd.map(d=>defColor(d.deficit,'0.75')),borderRadius:3
   }]},options:deficitOpts});
 
   const crosshairD=document.getElementById('crosshairDeficit');
@@ -1426,14 +1406,14 @@ function renderChartPoids(s){
 
 function renderDeficitList(s){
   const el=document.getElementById('deficitList');
-  const fd=getFilteredDeficit().map(function(d){ return Object.assign({},d,{deficit:(d.maintien||getMaintien())-d.calories}); });
+  const fd=getFilteredDeficit().map(d=>({...d,deficit:d.objectif-d.calories}));
   if(!fd.length){el.innerHTML='<p class="empty-msg">Aucune donnée enregistrée.</p>';return;}
   el.innerHTML=fd.slice().reverse().map(d=>`
     <div class="day-row">
       <span class="day-date">${d.label}</span>
-      <div class="day-bar-wrap"><div class="day-bar" style="width:${Math.min(100,d.calories/d.objectif*100)}%;background:${defColor(d.deficit,null,d.calories)}"></div></div>
+      <div class="day-bar-wrap"><div class="day-bar" style="width:${Math.min(100,d.calories/d.objectif*100)}%;background:${defColor(d.deficit)}"></div></div>
       <span class="day-cal">${d.calories.toLocaleString('fr-FR')} kcal</span>
-      <span class="day-def ${defClass(d.calories)}">${defSign(d.deficit)}${Math.abs(Math.round(d.deficit)).toLocaleString('fr-FR')} kcal</span>
+      <span class="day-def ${defClass(d.deficit)}">${defSign(d.deficit)}${Math.abs(Math.round(d.deficit)).toLocaleString('fr-FR')} kcal</span>
     </div>`).join('');
 }
 
@@ -1442,12 +1422,12 @@ function renderSaisieList(s){
   const el=document.getElementById('saisieList');
   if(!days.length){el.innerHTML='<p class="empty-msg">Aucune donnée. Utilisez le Calculateur journée ou saisissez manuellement.</p>';return;}
   el.innerHTML=days.slice().reverse().map((d,ri)=>{
-    const i=days.length-1-ri, def=(d.maintien||getMaintien())-d.calories;
+    const i=days.length-1-ri, def=d.objectif-d.calories;
     return `<div class="day-row" id="saisie-row-${i}"${d.note?' title="'+d.note+'"':''}>
       <span class="day-date">${d.label}</span>
-      <div class="day-bar-wrap"><div class="day-bar" style="width:${Math.min(100,d.calories/d.objectif*100)}%;background:${defColor(def,null,d.calories)}"></div></div>
+      <div class="day-bar-wrap"><div class="day-bar" style="width:${Math.min(100,d.calories/d.objectif*100)}%;background:${defColor(def)}"></div></div>
       <span class="day-cal">${d.calories.toLocaleString('fr-FR')} kcal</span>
-      <span class="day-def ${defClass(d.calories)}">${defSign(def)}${Math.abs(Math.round(def)).toLocaleString('fr-FR')} kcal</span>
+      <span class="day-def ${defClass(def)}">${defSign(def)}${Math.abs(Math.round(def)).toLocaleString('fr-FR')} kcal</span>
       ${d.note?'<span style="font-size:13px;opacity:0.5">📝</span>':''}
       <button class="day-edit-btn" onclick="editDay(${i})" title="Modifier">✏️</button>
       <button class="day-del" onclick="deleteDay(${i})">×</button>
@@ -1591,7 +1571,7 @@ function validerJournee(){
     days[existing].calories += total;
     if(calcNoteVal) days[existing].note=calcNoteVal;
   } else {
-    days.push({date:dateVal,label,calories:total,objectif:getObjectif(),maintien:getMaintien(),note:calcNoteVal||undefined});
+    days.push({date:dateVal,label,calories:total,objectif:getObjectif(),note:calcNoteVal||undefined});
     days.sort((a,b)=>a.date.localeCompare(b.date));
   }
   calcItems=[];
@@ -2056,8 +2036,8 @@ function hexToRgb(hex){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice
 function genPdfSante(){
   const { jsPDF } = window.jspdf;
   if(!bilans.length){ alert('Aucun bilan à exporter.'); return; }
-  const selectedIds = Array.from(document.querySelectorAll('.pdf-bilan-cb:checked')).map(function(cb){ return cb.value; });
-  const selectedBilans = bilans.filter(function(b){ return selectedIds.includes(b.id); });
+  const selectedIds = [...document.querySelectorAll('.pdf-bilan-cb:checked')].map(cb=>cb.value);
+  const selectedBilans = bilans.filter(b=>selectedIds.includes(b.id));
   if(!selectedBilans.length){ alert('Sélectionnez au moins un bilan.'); return; }
   const nom = document.getElementById('pdfPatientNom').value || 'Patient';
   const medecin = document.getElementById('pdfMedecin').value;
@@ -2067,8 +2047,8 @@ function genPdfSante(){
   const pageH = doc.internal.pageSize.getHeight();
   let y = 0; let pageNum = 1;
 
-  function newPageSante(){ doc.addPage(); pageNum++; pdfFooter(doc,c,pageNum,pageW,pageH); y=28; }
-  function checkY(needed){ if(y+needed > pageH-18) newPageSante(); }
+  function newPage(){ doc.addPage(); pageNum++; pdfFooter(doc,c,pageNum,pageW,pageH); y=28; }
+  function checkY(needed){ if(y+needed > pageH-18) newPage(); }
 
   // PAGE DE GARDE
   pdfHeader(doc, c, 'RAPPORT MÉDICAL — BILANS BIOLOGIQUES', new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}), pageW);
@@ -2083,8 +2063,8 @@ function genPdfSante(){
   // Résumé À surveiller (dernier bilan)
   const lastB = selectedBilans[selectedBilans.length-1];
   const horsNorme = [];
-  Object.values(lastB.marqueurs).forEach(function(cat) {
-    Object.entries(cat).forEach(function(km) { var key=km[0], m=km[1];
+  Object.values(lastB.marqueurs).forEach(cat => {
+    Object.entries(cat).forEach(([key, m]) => {
       if(m.refMax!==null&&m.valeur>m.refMax) horsNorme.push({key,m,statut:'haut'});
       else if(m.refMin!==null&&m.valeur<m.refMin) horsNorme.push({key,m,statut:'bas'});
     });
@@ -2095,7 +2075,7 @@ function genPdfSante(){
     y+=7;
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...hexToRgb(c.accent));
     doc.text('⚠ Marqueurs hors norme (dernier bilan)', 18, y); y+=7;
-    horsNorme.forEach(function(hn){ var key=hn.key, m=hn.m, statut=hn.statut;
+    horsNorme.forEach(({key,m,statut})=>{
       const u = getUnite(key); const label = MARQUEUR_LABELS[key]||key;
       const col = statut==='haut'?c.danger:c.info;
       doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.text));
@@ -2111,10 +2091,10 @@ function genPdfSante(){
 
   // Sections par catégorie
   const SECTIONS_LABELS = { hematologie:'Hématologie', biochimie:'Biochimie', bilan_lipidique:'Bilan lipidique', vitamines:'Vitamines', bilan_martial:'Bilan martial', hormones:'Hormones' };
-  Object.entries(SECTIONS_LABELS).forEach(function(ce){ var catKey=ce[0], catLabel=ce[1];
+  Object.entries(SECTIONS_LABELS).forEach(([catKey, catLabel])=>{
     // Collecter marqueurs présents
     const marqueurs = {};
-    selectedBilans.forEach(function(b){ const cat=b.marqueurs[catKey]; if(cat) Object.entries(cat).forEach(function(km2){ var k=km2[0],m=km2[1]; if(!marqueurs[k]) marqueurs[k]={vals:[],refMin:m.refMin,refMax:m.refMax}; marqueurs[k].vals.push({date:b.date,val:m.valeur}); }); });
+    selectedBilans.forEach(b=>{ const cat=b.marqueurs[catKey]; if(cat) Object.entries(cat).forEach(([k,m])=>{ if(!marqueurs[k]) marqueurs[k]={vals:[],refMin:m.refMin,refMax:m.refMax}; marqueurs[k].vals.push({date:b.date,val:m.valeur}); }); });
     if(!Object.keys(marqueurs).length) return;
 
     checkY(16);
@@ -2124,7 +2104,7 @@ function genPdfSante(){
     doc.text(catLabel.toUpperCase(), 18, y+5.5); y+=12;
 
     // Tableau marqueurs
-    Object.entries(marqueurs).forEach(function(me){ var key=me[0], data=me[1];
+    Object.entries(marqueurs).forEach(([key, data])=>{
       checkY(9);
       const label = MARQUEUR_LABELS[key]||key; const u = getUnite(key);
       const lastEntry = data.vals[data.vals.length-1];
@@ -2136,7 +2116,7 @@ function genPdfSante(){
       doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.text));
       doc.text(label, 18, y);
       // Valeurs par bilan
-      data.vals.forEach(function(entry,i){
+      data.vals.forEach((entry,i)=>{
         const bDate = new Date(entry.date).toLocaleDateString('fr-FR',{month:'2-digit',year:'2-digit'});
         const xOff = pageW-14-90+(i*44);
         const col = statutColor(entry.val,data.refMin,data.refMax,c);
@@ -2180,8 +2160,8 @@ function genPdfBilan(){
   const pageH = doc.internal.pageSize.getHeight();
   let y = 0; let pageNum = 1;
 
-  function newPageBilan(){ doc.addPage(); pageNum++; y=26; }
-  function checkYBilan(needed){ if(y+needed > pageH-18) newPageBilan(); }
+  function newPage(){ doc.addPage(); pageNum++; y=26; }
+  function checkY(needed){ if(y+needed > pageH-18) newPage(); }
 
   // Fond sombre
   doc.setFillColor(5,5,8); doc.rect(0,0,pageW,pageH,'F');
@@ -2189,7 +2169,7 @@ function genPdfBilan(){
   // Header orange
   doc.setFillColor(249,115,22); doc.rect(0,0,pageW,16,'F');
   doc.setTextColor(255,255,255); doc.setFontSize(12); doc.setFont('helvetica','bold');
-  doc.text('MON SUIVI SANTÉ — BILAN PERSONNEL', 14, 11);
+  doc.text('CALORIETRACK — BILAN PERSONNEL', 14, 11);
   doc.setFontSize(9); doc.setFont('helvetica','normal');
   doc.text(new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}), pageW-14, 11, {align:'right'});
   y=26;
@@ -2219,7 +2199,7 @@ function genPdfBilan(){
 
   // POIDS
   if(inclPoids && pesees.length){
-    checkYBilan(36);
+    checkY(36);
     doc.setFillColor(249,115,22); doc.rect(14,y,pageW-28,7,'F');
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
     doc.text('POIDS & COMPOSITION', 18, y+5); y+=11;
@@ -2235,7 +2215,7 @@ function genPdfBilan(){
 
   // CALORIES
   if(inclCalories && periodeDays.length){
-    checkYBilan(36);
+    checkY(36);
     doc.setFillColor(249,115,22); doc.rect(14,y,pageW-28,7,'F');
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
     doc.text('ALIMENTATION', 18, y+5); y+=11;
@@ -2251,7 +2231,7 @@ function genPdfBilan(){
 
   // VÉLO
   if(inclVelo && veloSessions.length){
-    checkYBilan(36);
+    checkY(36);
     const veloP = veloSessions.filter(s=>!cutoff||new Date(s.date)>=cutoff);
     if(veloP.length){
       doc.setFillColor(249,115,22); doc.rect(14,y,pageW-28,7,'F');
@@ -2269,7 +2249,7 @@ function genPdfBilan(){
 
   // SANTÉ — marqueurs clés
   if(inclSante && bilans.length){
-    checkYBilan(16);
+    checkY(16);
     doc.setFillColor(249,115,22); doc.rect(14,y,pageW-28,7,'F');
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
     doc.text('MARQUEURS SANGUINS CLÉS', 18, y+5); y+=11;
@@ -2282,7 +2262,7 @@ function genPdfBilan(){
       const u=getUnite(key); const label=MARQUEUR_LABELS[key]||key;
       const col = found.refMax!==null&&found.valeur>found.refMax?'danger':found.refMin!==null&&found.valeur<found.refMin?'warn':'ok';
       kpiBox(label, found.valeur, u, col, 14+(xi%(4))*(bw2+3.3), bw2, rowY);
-      xi++; if(xi%4===0){ rowY+=26; checkYBilan(26); }
+      xi++; if(xi%4===0){ rowY+=26; checkY(26); }
     });
     y = rowY+26;
   }
@@ -2290,7 +2270,7 @@ function genPdfBilan(){
   // Footer
   doc.setFillColor(14,14,26); doc.rect(0,pageH-14,pageW,14,'F');
   doc.setFontSize(8); doc.setTextColor(100,100,120); doc.setFont('helvetica','normal');
-  doc.text('MON SUIVI SANTÉ — Rapport personnel confidentiel', 14, pageH-5);
+  doc.text('CALORIETRACK — Rapport personnel confidentiel', 14, pageH-5);
   doc.text('Page '+pageNum, pageW-14, pageH-5, {align:'right'});
 
   doc.save('bilan_perso_' + new Date().toLocaleDateString('fr-FR').replace(/\//g,'-') + '.pdf');
@@ -2913,7 +2893,7 @@ function addEntry(){
   const existing=days.findIndex(d=>d.date===dateVal);
   if(existing>=0){days[existing].calories=calVal;if(noteVal) days[existing].note=noteVal;}
   else{
-    days.push({date:dateVal,label,calories:calVal,objectif:getObjectif(),maintien:getMaintien(),note:noteVal||undefined});
+    days.push({date:dateVal,label,calories:calVal,objectif:getObjectif(),note:noteVal||undefined});
     days.sort((a,b)=>a.date.localeCompare(b.date));
   }
   document.getElementById('newCal').value='';
@@ -2942,7 +2922,6 @@ function saveEditDay(i){
   const calVal=parseInt(calEl.value);
   if(!calVal||isNaN(calVal)){alert('Calories invalides.');return;}
   days[i].calories=calVal;
-  days[i].maintien=getMaintien();
   const note=noteEl.value.trim();
   if(note) days[i].note=note;
   else delete days[i].note;
@@ -2993,7 +2972,7 @@ function renderPeseeList(){
       // Jours entre pesée précédente (exclu) et pesée actuelle (inclus)
       const periodDays=days.filter(d=>d.date>startDate&&d.date<=p.date);
       if(periodDays.length>0){
-        const deficitCumul=periodDays.reduce(function(s,d){ return s+((d.maintien||getMaintien())-d.calories); },0);
+        const deficitCumul=periodDays.reduce((s,d)=>s+(d.objectif-d.calories),0);
         const poidsTh=parseFloat((startPoids-deficitCumul/7700).toFixed(2));
         const diff=parseFloat((p.val-poidsTh).toFixed(2));
         const col=diff<=0?'#22c55e':'#f97316';
@@ -3024,7 +3003,6 @@ function calcTDEE(){
   else mb = 10*poids + 6.25*taille - 5*age - 161;
   const tdee = Math.round(mb * activite);
   mb = Math.round(mb);
-  window._tdee = tdee; // maintien global utilisé pour le calcul du déficit réel
 
   // KPIs
   const results = document.getElementById('tdeeResults');
@@ -3082,67 +3060,6 @@ function calcTDEE(){
     <div>📐 <strong style="color:rgba(255,255,255,0.7)">Formule MB (${sexe})</strong> = ${formule} = <strong style="color:#f97316">${mb} kcal</strong></div>
     <div>🏃 <strong style="color:rgba(255,255,255,0.7)">Coefficient activité</strong> = ${activite} <span style="color:rgba(255,255,255,0.3)">(${actLabel.split('—')[0].trim()})</span></div>
     <div>⚡ <strong style="color:rgba(255,255,255,0.7)">TDEE</strong> = ${mb} × ${activite} = <strong style="color:#f97316">${tdee} kcal/j</strong></div>`;
-}
-
-function retroCorrigerMaintien(){
-  if(!days.length){ alert('Aucune donnée à corriger.'); return; }
-
-  // Lire les paramètres TDEE actuels
-  const sexe    = document.getElementById('tdeeSexe').value;
-  const age     = parseInt(document.getElementById('tdeeAge').value) || 30;
-  const taille  = parseInt(document.getElementById('tdeeTaille').value) || 175;
-  const activite= parseFloat(document.getElementById('tdeeActivite').value) || 1.55;
-
-  if(!pesees.length){
-    alert('Aucune pesée enregistrée — impossible d\'interpoler le poids historique.\nAjoutez au moins une pesée dans l\'onglet Poids.');
-    return;
-  }
-
-  // Construire une map date→poids à partir des pesées
-  const peseeMap = {};
-  pesees.forEach(function(p){ peseeMap[p.date] = p.val; });
-  const peseeDates = pesees.map(function(p){ return p.date; }).sort();
-
-  // Interpolation linéaire du poids pour une date donnée
-  function interpolePoids(date){
-    if(peseeMap[date]) return peseeMap[date];
-    // Trouver la pesée avant et après
-    var before = null, after = null;
-    for(var i = 0; i < peseeDates.length; i++){
-      if(peseeDates[i] <= date) before = peseeDates[i];
-      if(peseeDates[i] >= date && !after) after = peseeDates[i];
-    }
-    if(before && after && before !== after){
-      var t1 = new Date(before).getTime(), t2 = new Date(after).getTime(), t = new Date(date).getTime();
-      var ratio = (t - t1) / (t2 - t1);
-      return peseeMap[before] + ratio * (peseeMap[after] - peseeMap[before]);
-    }
-    if(before) return peseeMap[before];
-    if(after)  return peseeMap[after];
-    return parseFloat(document.getElementById('tdeePoids').value) || 75;
-  }
-
-  // Recalculer TDEE pour un poids donné
-  function calcTDEEPoids(poids){
-    var mb = sexe === 'homme'
-      ? 10*poids + 6.25*taille - 5*age + 5
-      : 10*poids + 6.25*taille - 5*age - 161;
-    return Math.round(mb * activite);
-  }
-
-  // Appliquer sur tous les jours
-  var updated = 0;
-  days.forEach(function(d){
-    var poids = interpolePoids(d.date);
-    d.maintien = calcTDEEPoids(poids);
-    updated++;
-  });
-
-  saveData();
-  refresh();
-
-  var el = document.getElementById('retroStatus');
-  if(el) el.innerHTML = '✅ ' + updated + ' jours mis à jour. Maintien recalculé avec interpolation du poids.';
 }
 
 function applyObjectif(kcal){
