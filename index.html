@@ -1778,10 +1778,12 @@ function validerJournee(){
     if(calcNoteVal) days[existing].note=calcNoteVal;
     // Ajouter les items au détail existant
     days[existing].items = (days[existing].items || []).concat(calcItems.map(function(i){ return Object.assign({},i); }));
+    days[existing].cibles = getNutriCibles();
   } else {
     const day={date:dateVal,label,calories:total,objectif:getObjectif(),note:calcNoteVal||undefined};
     if(hasMacro){day.p=tp;day.g=tg;day.l=tl;day.f=tf;}
     day.items = calcItems.map(function(i){ return Object.assign({},i); });
+    day.cibles = getNutriCibles();
     days.push(day);
     days.sort((a,b)=>a.date.localeCompare(b.date));
   }
@@ -3171,7 +3173,7 @@ function renderNutriCibles(){
 }
 
 function renderNutriDetail(d){
-  const c = getNutriCibles();
+  const c = d.cibles || getNutriCibles();
   const total = (d.p||0) + (d.g||0) + (d.l||0) + (d.f||0);
   function pctOfTotal(v){ return total > 0 ? Math.round((v||0)/total*100) : 0; }
 
