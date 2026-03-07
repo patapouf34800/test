@@ -411,10 +411,10 @@
           <label>Kcal/100g</label>
           <input type="number" id="refKcal" placeholder="ex: 130" style="width:100%" onkeydown="if(event.key==='Enter')addRef()">
         </div>
-        <button class="btn" onclick="toggleRefMacros()" id="btnRefMacros" style="align-self:flex-end;font-size:11px;padding:7px 10px;background:rgba(255,255,255,0.04)">+ Macros</button>
+        <button class="btn" onclick="toggleRefMacros()" id="btnRefMacros" style="display:none">+ Macros</button>
         <button class="btn" onclick="addRef()" style="align-self:flex-end">Ajouter</button>
       </div>
-      <div id="refMacrosPanel" style="display:none;margin-top:10px">
+      <div id="refMacrosPanel" style="margin-top:10px">
         <div class="form-row">
           <div class="form-group" style="max-width:120px">
             <label>Protéines (g)</label>
@@ -1544,12 +1544,27 @@ function renderRefs(){
   document.getElementById('refTitle').textContent=`Ma liste d'aliments (${refs.length})`;
   const grid=document.getElementById('refGrid');
   if(!refs.length){grid.innerHTML='<p class="empty-msg" style="grid-column:1/-1">Aucun aliment. Ajoutez vos habituels ci-dessus.</p>';updateDeleteSelectedBtn();return;}
-  grid.innerHTML=refs.slice().reverse().map(r=>`
-    <div class="ref-item" id="ref-item-${r.id}" onclick="toggleRefSelect(${r.id})" style="cursor:pointer">
-      <span class="ref-name">${r.nom}</span>
-      <span class="ref-kcal">${r.kcal100} kcal/100g</span>
-      <button class="ref-del" onclick="event.stopPropagation();deleteRef(${r.id})">×</button>
-    </div>`).join('');
+  grid.innerHTML=refs.slice().reverse().map(r=>{
+    const hasMacros = r.prot!=null||r.gluc!=null||r.lip!=null||r.fib!=null;
+    const macroTags = hasMacros
+      ? '<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">'
+        +(r.prot!=null?'<span style="font-size:9px;color:#f97316;background:rgba(249,115,22,0.1);padding:1px 5px;border-radius:3px">P '+r.prot+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">P —</span>')
+        +(r.gluc!=null?'<span style="font-size:9px;color:#38bdf8;background:rgba(56,189,248,0.1);padding:1px 5px;border-radius:3px">G '+r.gluc+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">G —</span>')
+        +(r.lip!=null?'<span style="font-size:9px;color:#a78bfa;background:rgba(167,139,250,0.1);padding:1px 5px;border-radius:3px">L '+r.lip+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">L —</span>')
+        +(r.fib!=null?'<span style="font-size:9px;color:#4ade80;background:rgba(74,222,128,0.1);padding:1px 5px;border-radius:3px">F '+r.fib+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">F —</span>')
+        +'</div>'
+      : '<div style="margin-top:5px;font-size:9px;color:rgba(249,115,22,0.5)">⚠ macros non renseignées</div>';
+    return `<div class="ref-item" id="ref-item-${r.id}" onclick="toggleRefSelect(${r.id})" style="cursor:pointer;flex-direction:column;align-items:flex-start;gap:2px">
+      <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px">
+        <span class="ref-name">${r.nom}</span>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <span class="ref-kcal">${r.kcal100} kcal</span>
+          <button class="ref-del" onclick="event.stopPropagation();deleteRef(${r.id})">×</button>
+        </div>
+      </div>
+      ${macroTags}
+    </div>`;
+  }).join('');
   updateDeleteSelectedBtn();
 }
 
