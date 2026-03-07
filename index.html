@@ -1194,13 +1194,14 @@ function loadData(){
     if(data.tensions) tensions = data.tensions;
     if(data.bilanUnites) window._bilanUnites = data.bilanUnites;
     if(data.calcDate) window._savedCalcDate = data.calcDate;
-    // Backup: try dedicated calc storage
+    // Bug 3 fix : utiliser _calc uniquement si la clé principale n'a pas de calcItems
     try {
       const calcRaw = localStorage.getItem(STORAGE_KEY+'_calc');
       if(calcRaw) {
         const calcData = JSON.parse(calcRaw);
-        if(calcData.calcItems && calcData.calcItems.length > 0) calcItems = calcData.calcItems;
-        if(calcData.calcDate) window._savedCalcDate = calcData.calcDate;
+        if((!data.calcItems || data.calcItems.length === 0) && calcData.calcItems && calcData.calcItems.length > 0)
+          calcItems = calcData.calcItems;
+        if(calcData.calcDate && !data.calcDate) window._savedCalcDate = calcData.calcDate;
       }
     } catch(e){}
     if(data.poids) document.getElementById('poidsInput').value = data.poids;
@@ -1224,7 +1225,9 @@ function exportData(){
     taille: parseInt(document.getElementById('tdeeTaille').value)||175,
     activite: parseFloat(document.getElementById('tdeeActivite').value)||1.2
   };
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, activePeriod, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), tensions, tdeeParams, exportDate: new Date().toISOString() };
+  const calcDateEl2 = document.getElementById('calcDate');
+  const calcDateVal2 = (calcDateEl2 && calcDateEl2.value) ? calcDateEl2.value : (window._savedCalcDate || '');
+  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, calcDate: calcDateVal2, activePeriod, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), tensions, tdeeParams, exportDate: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1287,6 +1290,19 @@ function importData(event){
       });
       if(data.poids) document.getElementById('poidsInput').value = data.poids;
       if(data.objectif) document.getElementById('objectifInput').value = data.objectif;
+      // Bug 1 fix : restaurer les paramètres TDEE dans l'UI
+      if(data.tdeeParams){
+        const p = data.tdeeParams;
+        const se = document.getElementById('tdeeSexe'); if(se && p.sexe) se.value = p.sexe;
+        const ae = document.getElementById('tdeeAge'); if(ae && p.age) ae.value = p.age;
+        const te = document.getElementById('tdeeTaille'); if(te && p.taille) te.value = p.taille;
+        const ac = document.getElementById('tdeeActivite'); if(ac && p.activite) ac.value = p.activite;
+      }
+      // Bug 2 fix : restaurer la date du calculateur
+      if(data.calcDate){
+        window._savedCalcDate = data.calcDate;
+        const cd = document.getElementById('calcDate'); if(cd) cd.value = data.calcDate;
+      }
       saveData();
       refresh();
     } catch(err) { alert('Erreur de lecture du fichier JSON.'); }
@@ -3197,6 +3213,8 @@ function renderBilanHebdo(){
   // Cibles de référence = moyenne des cibles snapshotées de chaque jour renseigné
   function avgCible(key){ return n === 0 ? c[key] : parseFloat((withData.reduce(function(s,d){ return s + ((d.data.cibles||c)[key]||0); },0)/n).toFixed(1)); }
   const cProtMin = avgCible('protMin'), cLip = avgCible('lip'), cFibres = avgCible('fibres');
+  // Bug 4 fix : kcal moyen de la semaine analysée (depuis snapshots ou objectif actuel)
+  const cKcal = n === 0 ? c.kcal : parseFloat((withData.reduce(function(s,d){ return s + ((d.data.cibles||c).kcal||c.kcal); },0)/n).toFixed(0));
 
   // Jours au-dessus du seuil — chaque jour comparé à SES propres cibles
   function joursOk(key, cibleKey){ return withData.filter(function(d){ return (d.data[key]||0) >= ((d.data.cibles||c)[cibleKey]||0); }).length; }
@@ -3369,7 +3387,9 @@ function renderBilanHebdo(){
 
     // ── Glucides en excès ────────────────────────────────────────────────────
     if(avgG !== null && avgP !== null && avgL !== null){
-      var budgetGluc = Math.round((c.kcal - (avgP * 4) - (avgL * 9)) / 4);
+      // Utiliser l'objectif moyen de la semaine (snapshoté) plutôt que l'objectif actuel
+      var avgKcal = parseFloat((withData.reduce(function(s,d){ return s + (d.data.objectif || c.kcal); }, 0) / n).toFixed(0));
+      var budgetGluc = Math.round((avgKcal - (avgP * 4) - (avgL * 9)) / 4);
       if(budgetGluc > 0 && avgG > budgetGluc * 1.1){
         var glucContrib = {};
         withData.forEach(function(day){
