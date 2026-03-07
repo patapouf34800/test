@@ -7,10 +7,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="CalorieTrack">
+<meta name="apple-mobile-web-app-title" content="Mon suivi santé">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>CalorieTrack</title>
+<title>Mon suivi santé</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-zoom/2.0.1/chartjs-plugin-zoom.min.js"></script>
@@ -145,8 +145,8 @@
 
 <nav class="sidebar">
   <div class="sidebar-logo">
-    <h1>CALORIE<span>TRACK</span></h1>
-    <p class="subtitle">SUIVI CALORIQUE</p>
+    <h1>MON SUIVI<span> SANTÉ</span></h1>
+    <p class="subtitle">SUIVI PERSONNEL</p>
   </div>
   <div class="sidebar-actions">
     <button class="btn btn-secondary" onclick="exportData()" style="padding:6px 10px;font-size:10px;text-align:center">⬇ Exporter</button>
@@ -1170,7 +1170,7 @@ function exportData(){
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const filename = 'calorietrack_' + new Date().toLocaleDateString('fr-FR').replace(/\//g,'-') + '.json';
+  const filename = 'mon-suivi-sante_' + new Date().toLocaleDateString('fr-FR').replace(/\//g,'-') + '.json';
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
@@ -1207,7 +1207,7 @@ function importData(event){
         return;
       }
 
-      // Cas 2 : fichier calorietrack complet
+      // Cas 2 : fichier complet
       if(!data.days) { alert('Fichier invalide : format non reconnu.'); return; }
       if(!confirm('Remplacer toutes les données actuelles par celles du fichier ?')) return;
       days = data.days;
@@ -2367,7 +2367,7 @@ function genPdfBilan(){
   // Header orange
   doc.setFillColor(249,115,22); doc.rect(0,0,pageW,16,'F');
   doc.setTextColor(255,255,255); doc.setFontSize(12); doc.setFont('helvetica','bold');
-  doc.text('CALORIETRACK — BILAN PERSONNEL', 14, 11);
+  doc.text('MON SUIVI SANTÉ — BILAN PERSONNEL', 14, 11);
   doc.setFontSize(9); doc.setFont('helvetica','normal');
   doc.text(new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}), pageW-14, 11, {align:'right'});
   y=26;
@@ -2468,7 +2468,7 @@ function genPdfBilan(){
   // Footer
   doc.setFillColor(14,14,26); doc.rect(0,pageH-14,pageW,14,'F');
   doc.setFontSize(8); doc.setTextColor(100,100,120); doc.setFont('helvetica','normal');
-  doc.text('CALORIETRACK — Rapport personnel confidentiel', 14, pageH-5);
+  doc.text('MON SUIVI SANTÉ — Rapport personnel confidentiel', 14, pageH-5);
   doc.text('Page '+pageNum, pageW-14, pageH-5, {align:'right'});
 
   doc.save('bilan_perso_' + new Date().toLocaleDateString('fr-FR').replace(/\//g,'-') + '.pdf');
