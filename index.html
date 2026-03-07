@@ -463,8 +463,8 @@
           <input type="number" id="poidsInput" value="75" step="0.1" oninput="refresh()" style="width:100%">
         </div>
         <div class="form-group">
-          <label>Objectif kcal/j</label>
-          <input type="number" id="objectifInput" value="2200" step="50" oninput="refresh()" style="width:100%">
+          <label>Objectif kcal/j <span style="color:rgba(249,115,22,0.6);font-size:9px;text-transform:none;letter-spacing:0">(TDEE maintien · calculé auto)</span></label>
+          <input type="number" id="objectifInput" value="2200" step="50" readonly style="width:100%;opacity:0.6;cursor:default;border-color:rgba(249,115,22,0.2)" title="Calculé automatiquement depuis le TDEE maintien et la dernière pesée">
         </div>
       </div>
       <div class="chart-title" style="margin-bottom:16px">Vos paramètres TDEE</div>
@@ -472,18 +472,18 @@
 
         <div class="form-group">
           <label>Sexe</label>
-          <select id="tdeeSexe" onchange="calcTDEE()">
+          <select id="tdeeSexe" onchange="calcTDEE();syncObjectifDynamique();refresh()">
             <option value="homme">Homme</option>
             <option value="femme">Femme</option>
           </select>
         </div>
         <div class="form-group">
           <label>Âge (ans)</label>
-          <input type="number" id="tdeeAge" value="30" min="10" max="100" oninput="calcTDEE()" style="width:100%">
+          <input type="number" id="tdeeAge" value="30" min="10" max="100" oninput="calcTDEE();syncObjectifDynamique();refresh()" style="width:100%">
         </div>
         <div class="form-group">
           <label>Taille (cm)</label>
-          <input type="number" id="tdeeTaille" value="175" min="100" max="250" oninput="calcTDEE()" style="width:100%">
+          <input type="number" id="tdeeTaille" value="175" min="100" max="250" oninput="calcTDEE();syncObjectifDynamique();refresh()" style="width:100%">
         </div>
         <div class="form-group">
           <label>Poids actuel (kg)</label>
@@ -493,7 +493,7 @@
 
       <div class="form-group" style="margin-bottom:20px">
         <label>Niveau d'activité physique</label>
-        <select id="tdeeActivite" onchange="calcTDEE()" style="margin-top:6px">
+        <select id="tdeeActivite" onchange="calcTDEE();syncObjectifDynamique();refresh()" style="margin-top:6px">
           <option value="1.2" selected>Sédentaire — bureau, peu ou pas de sport</option>
           <option value="1.375">Légèrement actif — sport 1-3x/semaine</option>
           <option value="1.55">Modérément actif — sport 3-5x/semaine</option>
@@ -947,7 +947,7 @@ function computeStats(){
   const obj=getObjectif(), poidsInit=getPoids();
   // Ne pas écraser l'objectif des jours passés — chaque jour garde celui en vigueur au moment de la saisie
   // On l'applique uniquement aux jours qui n'en ont pas encore (migration données anciennes)
-  days.forEach(d=>{ if(!d.objectif) d.objectif=obj; });
+  days.forEach(d=>{ if(!d.objectif) d.objectif=getObjectifPourDate(d.date); });
   const filtered=getFilteredDays();
   const deficits=filtered.map(d=>({...d,deficit:d.objectif-d.calories}));
   const totalDeficit=deficits.reduce((s,d)=>s+d.deficit,0);
@@ -1168,7 +1168,17 @@ const STORAGE_KEY = 'calorietrack_v1';
 function saveData(){
   const calcDateEl = document.getElementById('calcDate');
   const calcDateVal = (calcDateEl && calcDateEl.value) ? calcDateEl.value : (window._savedCalcDate || '');
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, activePeriod, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif(), bilans, bilanUnites: window._bilanUnites||{}, tensions };
+  const tdeeSexeEl = document.getElementById('tdeeSexe');
+  const tdeeAgeEl = document.getElementById('tdeeAge');
+  const tdeeTailleEl = document.getElementById('tdeeTaille');
+  const tdeeActiviteEl = document.getElementById('tdeeActivite');
+  const tdeeParams = {
+    sexe: tdeeSexeEl ? tdeeSexeEl.value : 'homme',
+    age: tdeeAgeEl ? parseInt(tdeeAgeEl.value)||30 : 30,
+    taille: tdeeTailleEl ? parseInt(tdeeTailleEl.value)||175 : 175,
+    activite: tdeeActiviteEl ? parseFloat(tdeeActiviteEl.value)||1.2 : 1.2
+  };
+  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, activePeriod, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif(), bilans, bilanUnites: window._bilanUnites||{}, tensions, tdeeParams };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     localStorage.setItem(STORAGE_KEY+'_calc', JSON.stringify({calcItems, calcDate: calcDateVal}));
@@ -1204,6 +1214,13 @@ function loadData(){
     } catch(e){}
     if(data.poids) document.getElementById('poidsInput').value = data.poids;
     if(data.objectif) document.getElementById('objectifInput').value = data.objectif;
+    if(data.tdeeParams){
+      const p = data.tdeeParams;
+      const se = document.getElementById('tdeeSexe'); if(se && p.sexe) se.value = p.sexe;
+      const ae = document.getElementById('tdeeAge'); if(ae && p.age) ae.value = p.age;
+      const te = document.getElementById('tdeeTaille'); if(te && p.taille) te.value = p.taille;
+      const ac = document.getElementById('tdeeActivite'); if(ac && p.activite) ac.value = p.activite;
+    }
     return true;
   } catch(e) { return false; }
 }
@@ -3462,10 +3479,10 @@ function addPesee(){
   if(existing>=0){pesees[existing].val=val;}
   else{pesees.push({date:dateVal,label,val});pesees.sort((a,b)=>a.date.localeCompare(b.date));}
   document.getElementById('peseeVal').value='';
-  refresh(); saveData();
+  syncObjectifDynamique(); refresh(); saveData();
 }
 
-function deletePesee(i){pesees.splice(i,1);refresh();saveData();}
+function deletePesee(i){pesees.splice(i,1);syncObjectifDynamique();refresh();saveData();}
 
 function renderPeseeList(){
   const el=document.getElementById('peseeList');
@@ -3503,6 +3520,40 @@ function renderPeseeList(){
 }
 
 /* ── TDEE ── */
+function getTDEEMaintienPourPoids(poids){
+  const sexe = document.getElementById('tdeeSexe').value || 'homme';
+  const age = parseInt(document.getElementById('tdeeAge').value) || 30;
+  const taille = parseInt(document.getElementById('tdeeTaille').value) || 175;
+  const activite = parseFloat(document.getElementById('tdeeActivite').value) || 1.2;
+  let mb;
+  if(sexe === 'homme') mb = 10*poids + 6.25*taille - 5*age + 5;
+  else mb = 10*poids + 6.25*taille - 5*age - 161;
+  return Math.round(mb * activite);
+}
+
+function getObjectifPourDate(dateStr){
+  // Cherche la dernière pesée réelle <= dateStr
+  const peseesBefore = pesees.filter(function(p){ return p.date <= dateStr; });
+  if(peseesBefore.length > 0){
+    const derniere = peseesBefore[peseesBefore.length - 1];
+    return getTDEEMaintienPourPoids(derniere.val);
+  }
+  // Sinon poids initial (poidsInput)
+  return getTDEEMaintienPourPoids(getPoids());
+}
+
+function syncObjectifDynamique(){
+  // Met à jour objectifInput avec le TDEE maintien du jour courant
+  const today = new Date().toISOString().split('T')[0];
+  const tdeeAujourdhui = getObjectifPourDate(today);
+  document.getElementById('objectifInput').value = tdeeAujourdhui;
+  // Recalcule les objectifs de chaque jour existant
+  days.forEach(function(d){
+    d.objectif = getObjectifPourDate(d.date);
+  });
+}
+
+
 function calcTDEE(){
   const sexe = document.getElementById('tdeeSexe').value;
   const age = parseInt(document.getElementById('tdeeAge').value) || 30;
@@ -3767,6 +3818,7 @@ function renderBilanHebdo(){
 
 
 const hasData = loadData();
+syncObjectifDynamique();
 if(!hasData) days = genDemo();
 refresh();
 window.addEventListener('beforeunload', saveData);
