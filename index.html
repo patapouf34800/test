@@ -461,48 +461,81 @@
     <div class="chart-card">
       <div class="chart-title">🍲 Composer une recette</div>
 
-      <!-- Nom + portions -->
-      <div class="form-row" style="margin-bottom:14px">
+      <!-- Nom -->
+      <div class="form-row" style="margin-bottom:16px">
         <div class="form-group" style="flex:2">
           <label>Nom de la recette</label>
           <input type="text" id="recetteNom" placeholder="ex: Poulet rôti aux légumes" style="width:100%"
             onkeydown="if(event.key==='Enter') document.getElementById('recetteIngSearch').focus()">
         </div>
-        <div class="form-group" style="max-width:160px">
-          <label>Poids total (g)</label>
-          <input type="number" id="recettePoids" placeholder="ex: 800" min="1" style="width:100%"
-            oninput="renderRecetteTotal()">
-        </div>
-        <div class="form-group" style="max-width:130px">
-          <label>Nb de portions</label>
-          <input type="number" id="recettePortions" placeholder="ex: 4" min="1" value="4" style="width:100%"
-            oninput="renderRecetteTotal()">
-        </div>
       </div>
 
-      <!-- Ajout ingrédient -->
-      <div class="form-row" style="align-items:flex-start">
-        <div class="form-group" style="position:relative;flex:1">
-          <label>Rechercher un ingrédient</label>
+      <!-- Ajout ingrédient — recherche -->
+      <div class="form-row" style="align-items:flex-start;margin-bottom:8px">
+        <div class="form-group" style="position:relative;flex:2">
+          <label>Rechercher un ingrédient (CIQUAL ou référence)</label>
           <input type="text" id="recetteIngSearch" placeholder="Ex: poulet, riz, tomate…" autocomplete="off"
             oninput="searchRecetteIng(this.value)"
             onkeydown="recetteIngKeydown(event)"
             style="width:100%">
           <div id="recetteIngSugg" style="display:none;position:absolute;z-index:100;left:0;right:0;top:100%;background:#13131a;border:1px solid rgba(249,115,22,0.3);border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.5)"></div>
-          <div id="recetteIngSelected" style="margin-top:6px;font-size:12px;color:rgba(249,115,22,0.8);min-height:18px"></div>
+          <div id="recetteIngSelected" style="margin-top:5px;font-size:12px;color:rgba(249,115,22,0.8);min-height:16px"></div>
         </div>
-        <div class="form-group" style="max-width:150px">
+        <div class="form-group" style="max-width:140px">
           <label>Quantité (g)</label>
           <input type="number" id="recetteIngGrams" placeholder="ex: 300" style="width:100%"
-            onkeydown="if(event.key==='Enter') addRecetteIng()">
+            onkeydown="if(event.key==='Enter') document.getElementById('recetteManuelToggle').style.display==='none' ? addRecetteIng() : null">
         </div>
         <button class="btn" onclick="addRecetteIng()" style="align-self:flex-end">+ Ajouter</button>
       </div>
 
-      <!-- Liste des ingrédients -->
-      <div class="calc-items" id="recetteIngList" style="margin-top:14px"></div>
+      <!-- Saisie manuelle des macros (si aliment inconnu) -->
+      <div style="margin-bottom:14px">
+        <button onclick="toggleRecetteManuel()" style="background:none;border:none;color:rgba(249,115,22,0.5);font-size:11px;cursor:pointer;padding:0;text-decoration:underline;font-family:inherit">
+          ✏️ Saisir manuellement (aliment hors CIQUAL)
+        </button>
+        <div id="recetteManuelPanel" style="display:none;margin-top:10px;padding:12px 16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px">
+          <div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Valeurs pour 100g</div>
+          <div class="form-row">
+            <div class="form-group" style="flex:2">
+              <label>Nom de l'ingrédient</label>
+              <input type="text" id="recetteManuelNom" placeholder="ex: Sauce maison" style="width:100%">
+            </div>
+            <div class="form-group" style="max-width:140px">
+              <label>Quantité (g)</label>
+              <input type="number" id="recetteManuelGrams" placeholder="ex: 150" style="width:100%">
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:4px">
+            <div class="form-group" style="max-width:110px">
+              <label>Kcal/100g</label>
+              <input type="number" id="recetteManuelKcal" placeholder="ex: 120" step="1" style="width:100%">
+            </div>
+            <div class="form-group" style="max-width:110px">
+              <label>Protéines (g)</label>
+              <input type="number" id="recetteManuelP" placeholder="0" step="0.1" style="width:100%">
+            </div>
+            <div class="form-group" style="max-width:110px">
+              <label>Glucides (g)</label>
+              <input type="number" id="recetteManuelG" placeholder="0" step="0.1" style="width:100%">
+            </div>
+            <div class="form-group" style="max-width:110px">
+              <label>Lipides (g)</label>
+              <input type="number" id="recetteManuelL" placeholder="0" step="0.1" style="width:100%">
+            </div>
+            <div class="form-group" style="max-width:110px">
+              <label>Fibres (g)</label>
+              <input type="number" id="recetteManuelF" placeholder="0" step="0.1" style="width:100%">
+            </div>
+            <button class="btn btn-secondary" onclick="addRecetteIngManuel()" style="align-self:flex-end">+ Ajouter</button>
+          </div>
+        </div>
+      </div>
 
-      <!-- Total recette -->
+      <!-- Liste des ingrédients -->
+      <div class="calc-items" id="recetteIngList"></div>
+
+      <!-- Total / 100g -->
       <div class="total-bar" id="recetteTotalBar" style="margin-top:18px;display:none">
         <div>
           <div class="total-label">Total recette</div>
@@ -510,18 +543,17 @@
         </div>
         <div style="text-align:right">
           <div class="total-value" id="recetteTotalKcal">0 kcal</div>
-          <div id="recettePer100" style="font-size:11px;color:rgba(255,255,255,0.35);margin-top:4px"></div>
-          <div id="recetteParPortion" style="font-size:11px;color:rgba(249,115,22,0.6);margin-top:2px"></div>
+          <div id="recettePer100" style="font-size:12px;color:rgba(255,255,255,0.45);margin-top:4px"></div>
         </div>
       </div>
 
       <!-- Actions -->
-      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
         <button class="btn btn-green" onclick="saveRecette()" id="btnSaveRecette">💾 Enregistrer dans Références</button>
         <button class="btn btn-secondary" onclick="clearRecette()">🗑 Vider</button>
       </div>
       <p style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:10px">
-        💡 Renseignez le poids total cuit de la recette pour calculer les valeurs /100g précises. Sans poids, le calcul est fait sur la somme des ingrédients bruts.
+        💡 Les valeurs /100g sont calculées automatiquement à partir des poids et macros de chaque ingrédient.
       </p>
     </div>
 
@@ -1849,6 +1881,11 @@ var _recetteSelectedItem = null;
 var _recetteIngItems = []; // [{nom, kcal100, grams, p, g, l, f}]
 var _recetteSuggIdx = -1;
 
+function toggleRecetteManuel(){
+  const panel = document.getElementById('recetteManuelPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
 function searchRecetteIng(q){
   const box = document.getElementById('recetteIngSugg');
   _recetteSelectedItem = null;
@@ -1883,15 +1920,14 @@ function searchRecetteIng(q){
       ? '<span style="font-size:9px;color:#f97316;background:rgba(249,115,22,0.15);padding:1px 5px;border-radius:3px;margin-left:4px">perso</span>'
       : '';
     const macros = (r.p!=null||r.g!=null||r.l!=null)
-      ? ' <span style="font-size:10px;color:rgba(255,255,255,0.3)">'
-        +(r.p!=null?'P'+r.p+' ':'')+(r.g!=null?'G'+r.g+' ':'')+(r.l!=null?'L'+r.l+' ':'')+'</span>'
+      ? '<span style="font-size:10px;color:rgba(255,255,255,0.3);margin-left:6px">'
+        +(r.p!=null?'P'+r.p+' ':'')+(r.g!=null?'G'+r.g+' ':'')+(r.l!=null?'L'+r.l:'')+'</span>'
       : '';
     return '<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;gap:6px" '
       +'onmouseover="this.style.background=\'rgba(249,115,22,0.08)\'" onmouseout="this.style.background=\'\'" '
       +'onclick="selectRecetteIng('+i+')" data-idx="'+i+'">'
-      +'<span style="flex:1">'+r.nom+badge+'</span>'
-      +'<span style="font-family:\'Space Mono\',monospace;font-size:11px;color:#f97316">'+r.kcal100+' kcal</span>'
-      +macros
+      +'<span style="flex:1">'+r.nom+badge+macros+'</span>'
+      +'<span style="font-family:\'Space Mono\',monospace;font-size:11px;color:#f97316;flex-shrink:0">'+r.kcal100+' kcal</span>'
       +'</div>';
   }).join('');
 
@@ -1921,9 +1957,7 @@ function recetteIngKeydown(e){
 }
 
 function highlightRecetteSugg(items){
-  items.forEach(function(el,i){
-    el.style.background = i===_recetteSuggIdx ? 'rgba(249,115,22,0.15)' : '';
-  });
+  items.forEach(function(el,i){ el.style.background = i===_recetteSuggIdx ? 'rgba(249,115,22,0.15)' : ''; });
   if(items[_recetteSuggIdx]) items[_recetteSuggIdx].scrollIntoView({block:'nearest'});
 }
 
@@ -1931,20 +1965,39 @@ function addRecetteIng(){
   if(!_recetteSelectedItem){ alert('Sélectionnez d\'abord un ingrédient dans la liste.'); return; }
   const grams = parseFloat(document.getElementById('recetteIngGrams').value);
   if(!grams||grams<=0){ alert('Renseignez une quantité valide.'); return; }
-  _recetteIngItems.push({
-    nom: _recetteSelectedItem.nom,
-    kcal100: _recetteSelectedItem.kcal100,
-    p: _recetteSelectedItem.p,
-    g: _recetteSelectedItem.g,
-    l: _recetteSelectedItem.l,
-    f: _recetteSelectedItem.f,
-    grams: grams
-  });
+  _recetteIngItems.push({ nom:_recetteSelectedItem.nom, kcal100:_recetteSelectedItem.kcal100, p:_recetteSelectedItem.p??null, g:_recetteSelectedItem.g??null, l:_recetteSelectedItem.l??null, f:_recetteSelectedItem.f??null, grams:grams });
   _recetteSelectedItem = null;
   document.getElementById('recetteIngSearch').value = '';
   document.getElementById('recetteIngSelected').textContent = '';
   document.getElementById('recetteIngGrams').value = '';
   document.getElementById('recetteIngSugg').style.display = 'none';
+  renderRecetteIngList();
+  renderRecetteTotal();
+}
+
+function addRecetteIngManuel(){
+  const nom = document.getElementById('recetteManuelNom').value.trim();
+  const grams = parseFloat(document.getElementById('recetteManuelGrams').value);
+  const kcal = parseFloat(document.getElementById('recetteManuelKcal').value);
+  if(!nom){ alert('Donnez un nom à l\'ingrédient.'); return; }
+  if(!grams||grams<=0){ alert('Renseignez une quantité valide.'); return; }
+  if(!kcal||kcal<0){ alert('Renseignez les kcal/100g.'); return; }
+  const p = parseFloat(document.getElementById('recetteManuelP').value);
+  const g = parseFloat(document.getElementById('recetteManuelG').value);
+  const l = parseFloat(document.getElementById('recetteManuelL').value);
+  const f = parseFloat(document.getElementById('recetteManuelF').value);
+  _recetteIngItems.push({
+    nom: nom, kcal100: kcal, grams: grams,
+    p: !isNaN(p)&&p>=0 ? p : null,
+    g: !isNaN(g)&&g>=0 ? g : null,
+    l: !isNaN(l)&&l>=0 ? l : null,
+    f: !isNaN(f)&&f>=0 ? f : null,
+    manuel: true
+  });
+  // Reset fields
+  ['recetteManuelNom','recetteManuelGrams','recetteManuelKcal','recetteManuelP','recetteManuelG','recetteManuelL','recetteManuelF'].forEach(function(id){
+    document.getElementById(id).value='';
+  });
   renderRecetteIngList();
   renderRecetteTotal();
 }
@@ -1960,14 +2013,16 @@ function renderRecetteIngList(){
   if(!_recetteIngItems.length){ el.innerHTML=''; return; }
   el.innerHTML = _recetteIngItems.map(function(item,i){
     const kcal = Math.round(item.kcal100 * item.grams / 100);
-    const macroStr = [
-      item.p!=null ? '<span style="color:#f97316">P'+Math.round(item.p*item.grams/100)+'g</span>' : null,
-      item.g!=null ? '<span style="color:#38bdf8">G'+Math.round(item.g*item.grams/100)+'g</span>' : null,
-      item.l!=null ? '<span style="color:#a78bfa">L'+Math.round(item.l*item.grams/100)+'g</span>' : null,
+    const macroTags = [
+      item.p!=null ? '<span style="font-size:10px;color:#f97316">P'+Math.round(item.p*item.grams/100*10)/10+'g</span>' : null,
+      item.g!=null ? '<span style="font-size:10px;color:#38bdf8">G'+Math.round(item.g*item.grams/100*10)/10+'g</span>' : null,
+      item.l!=null ? '<span style="font-size:10px;color:#a78bfa">L'+Math.round(item.l*item.grams/100*10)/10+'g</span>' : null,
+      item.f!=null ? '<span style="font-size:10px;color:#4ade80">F'+Math.round(item.f*item.grams/100*10)/10+'g</span>' : null,
     ].filter(Boolean).join('<span style="color:rgba(255,255,255,0.15)"> · </span>');
+    const manuelBadge = item.manuel ? '<span style="font-size:9px;color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;margin-left:4px">manuel</span>' : '';
     return '<div class="calc-row">'
-      +'<span class="calc-food">'+item.nom+'</span>'
-      +(macroStr?'<span style="font-size:11px;display:flex;gap:4px;align-items:center">'+macroStr+'</span>':'')
+      +'<span class="calc-food">'+item.nom+manuelBadge+'</span>'
+      +(macroTags?'<span style="display:flex;gap:5px;align-items:center;flex-shrink:0">'+macroTags+'</span>':'')
       +'<span class="calc-grammage">'+item.grams+'g</span>'
       +'<span class="calc-kcal">'+kcal+' kcal</span>'
       +'<button class="calc-del" onclick="removeRecetteIng('+i+')">×</button>'
@@ -1979,116 +2034,88 @@ function renderRecetteTotal(){
   const bar = document.getElementById('recetteTotalBar');
   if(!_recetteIngItems.length){ bar.style.display='none'; return; }
 
-  // Totaux bruts
-  const totalKcal = _recetteIngItems.reduce(function(s,it){ return s + it.kcal100*it.grams/100; }, 0);
-  const totalP = _recetteIngItems.some(function(it){ return it.p!=null; })
-    ? _recetteIngItems.reduce(function(s,it){ return s + (it.p!=null ? it.p*it.grams/100 : 0); }, 0) : null;
-  const totalG = _recetteIngItems.some(function(it){ return it.g!=null; })
-    ? _recetteIngItems.reduce(function(s,it){ return s + (it.g!=null ? it.g*it.grams/100 : 0); }, 0) : null;
-  const totalL = _recetteIngItems.some(function(it){ return it.l!=null; })
-    ? _recetteIngItems.reduce(function(s,it){ return s + (it.l!=null ? it.l*it.grams/100 : 0); }, 0) : null;
-  const totalF = _recetteIngItems.some(function(it){ return it.f!=null; })
-    ? _recetteIngItems.reduce(function(s,it){ return s + (it.f!=null ? it.f*it.grams/100 : 0); }, 0) : null;
+  const totalGrams = _recetteIngItems.reduce(function(s,it){ return s+it.grams; }, 0);
+  const totalKcal  = _recetteIngItems.reduce(function(s,it){ return s+it.kcal100*it.grams/100; }, 0);
+  const hasP = _recetteIngItems.some(function(it){ return it.p!=null; });
+  const hasG = _recetteIngItems.some(function(it){ return it.g!=null; });
+  const hasL = _recetteIngItems.some(function(it){ return it.l!=null; });
+  const hasF = _recetteIngItems.some(function(it){ return it.f!=null; });
+  const totalP = hasP ? _recetteIngItems.reduce(function(s,it){ return s+(it.p!=null?it.p*it.grams/100:0); },0) : null;
+  const totalG = hasG ? _recetteIngItems.reduce(function(s,it){ return s+(it.g!=null?it.g*it.grams/100:0); },0) : null;
+  const totalL = hasL ? _recetteIngItems.reduce(function(s,it){ return s+(it.l!=null?it.l*it.grams/100:0); },0) : null;
+  const totalF = hasF ? _recetteIngItems.reduce(function(s,it){ return s+(it.f!=null?it.f*it.grams/100:0); },0) : null;
 
-  // Poids de référence pour /100g
-  const poidsInput = parseFloat(document.getElementById('recettePoids').value);
-  const poidsRef = (!isNaN(poidsInput) && poidsInput > 0)
-    ? poidsInput
-    : _recetteIngItems.reduce(function(s,it){ return s + it.grams; }, 0);
-
-  const k100 = Math.round(totalKcal / poidsRef * 100);
-  const p100 = totalP!=null ? Math.round(totalP / poidsRef * 100 * 10)/10 : null;
-  const g100 = totalG!=null ? Math.round(totalG / poidsRef * 100 * 10)/10 : null;
-  const l100 = totalL!=null ? Math.round(totalL / poidsRef * 100 * 10)/10 : null;
-  const f100 = totalF!=null ? Math.round(totalF / poidsRef * 100 * 10)/10 : null;
-
-  const portions = parseInt(document.getElementById('recettePortions').value) || 1;
-  const kcalPortion = Math.round(totalKcal / portions);
+  // /100g basé sur la somme des grammages
+  const k100 = Math.round(totalKcal/totalGrams*100);
+  const p100 = totalP!=null ? Math.round(totalP/totalGrams*100*10)/10 : null;
+  const g100 = totalG!=null ? Math.round(totalG/totalGrams*100*10)/10 : null;
+  const l100 = totalL!=null ? Math.round(totalL/totalGrams*100*10)/10 : null;
+  const f100 = totalF!=null ? Math.round(totalF/totalGrams*100*10)/10 : null;
 
   bar.style.display = 'flex';
-  document.getElementById('recetteTotalKcal').textContent = Math.round(totalKcal) + ' kcal';
+  document.getElementById('recetteTotalKcal').textContent = Math.round(totalKcal)+' kcal · '+Math.round(totalGrams)+'g';
 
   const macroStr = [
-    totalP!=null ? '<span style="color:#f97316">P'+Math.round(totalP)+'g</span>' : null,
-    totalG!=null ? '<span style="color:#38bdf8">G'+Math.round(totalG)+'g</span>' : null,
-    totalL!=null ? '<span style="color:#a78bfa">L'+Math.round(totalL)+'g</span>' : null,
-    totalF!=null ? '<span style="color:#4ade80">F'+Math.round(totalF)+'g</span>' : null,
-  ].filter(Boolean).join(' · ');
+    totalP!=null?'<span style="color:#f97316">P'+Math.round(totalP)+'g</span>':null,
+    totalG!=null?'<span style="color:#38bdf8">G'+Math.round(totalG)+'g</span>':null,
+    totalL!=null?'<span style="color:#a78bfa">L'+Math.round(totalL)+'g</span>':null,
+    totalF!=null?'<span style="color:#4ade80">F'+Math.round(totalF)+'g</span>':null,
+  ].filter(Boolean).join(' <span style="color:rgba(255,255,255,0.2)">·</span> ');
   document.getElementById('recetteTotalMacros').innerHTML = macroStr || '';
 
-  const per100Parts = [k100+' kcal'];
-  if(p100!=null) per100Parts.push('P'+p100+'g');
-  if(g100!=null) per100Parts.push('G'+g100+'g');
-  if(l100!=null) per100Parts.push('L'+l100+'g');
-  if(f100!=null) per100Parts.push('F'+f100+'g');
-  document.getElementById('recettePer100').textContent = '→ /100g : ' + per100Parts.join(' · ');
-
-  document.getElementById('recetteParPortion').textContent =
-    '→ Par portion (×' + portions + ') : ' + kcalPortion + ' kcal';
+  const per100Parts = ['<strong style="color:#f97316">'+k100+' kcal</strong>'];
+  if(p100!=null) per100Parts.push('<span style="color:#f97316">P'+p100+'g</span>');
+  if(g100!=null) per100Parts.push('<span style="color:#38bdf8">G'+g100+'g</span>');
+  if(l100!=null) per100Parts.push('<span style="color:#a78bfa">L'+l100+'g</span>');
+  if(f100!=null) per100Parts.push('<span style="color:#4ade80">F'+f100+'g</span>');
+  document.getElementById('recettePer100').innerHTML = '→ /100g : ' + per100Parts.join(' · ');
 }
 
 function saveRecette(){
   const nom = document.getElementById('recetteNom').value.trim();
-  if(!nom){ alert('Merci de donner un nom à la recette.'); document.getElementById('recetteNom').focus(); return; }
+  if(!nom){ alert('Donnez un nom à la recette.'); document.getElementById('recetteNom').focus(); return; }
   if(!_recetteIngItems.length){ alert('Ajoutez au moins un ingrédient.'); return; }
 
-  const poidsInput = parseFloat(document.getElementById('recettePoids').value);
-  const poidsRef = (!isNaN(poidsInput) && poidsInput > 0)
-    ? poidsInput
-    : _recetteIngItems.reduce(function(s,it){ return s + it.grams; }, 0);
-  const portions = parseInt(document.getElementById('recettePortions').value) || 1;
+  const totalGrams = _recetteIngItems.reduce(function(s,it){ return s+it.grams; }, 0);
+  const totalKcal  = _recetteIngItems.reduce(function(s,it){ return s+it.kcal100*it.grams/100; }, 0);
+  const hasP = _recetteIngItems.some(function(it){ return it.p!=null; });
+  const hasG = _recetteIngItems.some(function(it){ return it.g!=null; });
+  const hasL = _recetteIngItems.some(function(it){ return it.l!=null; });
+  const hasF = _recetteIngItems.some(function(it){ return it.f!=null; });
+  const totalP = hasP ? _recetteIngItems.reduce(function(s,it){ return s+(it.p!=null?it.p*it.grams/100:0); },0) : null;
+  const totalG = hasG ? _recetteIngItems.reduce(function(s,it){ return s+(it.g!=null?it.g*it.grams/100:0); },0) : null;
+  const totalL = hasL ? _recetteIngItems.reduce(function(s,it){ return s+(it.l!=null?it.l*it.grams/100:0); },0) : null;
+  const totalF = hasF ? _recetteIngItems.reduce(function(s,it){ return s+(it.f!=null?it.f*it.grams/100:0); },0) : null;
 
-  const totalKcal = _recetteIngItems.reduce(function(s,it){ return s + it.kcal100*it.grams/100; }, 0);
-  const totalP = _recetteIngItems.some(function(it){ return it.p!=null; })
-    ? _recetteIngItems.reduce(function(s,it){ return s + (it.p!=null ? it.p*it.grams/100 : 0); }, 0) : null;
-  const totalG = _recetteIngItems.some(function(it){ return it.g!=null; })
-    ? _recetteIngItems.reduce(function(s,it){ return s + (it.g!=null ? it.g*it.grams/100 : 0); }, 0) : null;
-  const totalL = _recetteIngItems.some(function(it){ return it.l!=null; })
-    ? _recetteIngItems.reduce(function(s,it){ return s + (it.l!=null ? it.l*it.grams/100 : 0); }, 0) : null;
-  const totalF = _recetteIngItems.some(function(it){ return it.f!=null; })
-    ? _recetteIngItems.reduce(function(s,it){ return s + (it.f!=null ? it.f*it.grams/100 : 0); }, 0) : null;
+  const k100 = Math.round(totalKcal/totalGrams*100);
+  const p100 = totalP!=null ? Math.round(totalP/totalGrams*100*10)/10 : null;
+  const g100 = totalG!=null ? Math.round(totalG/totalGrams*100*10)/10 : null;
+  const l100 = totalL!=null ? Math.round(totalL/totalGrams*100*10)/10 : null;
+  const f100 = totalF!=null ? Math.round(totalF/totalGrams*100*10)/10 : null;
 
-  const k100 = Math.round(totalKcal / poidsRef * 100);
-  const p100 = totalP!=null ? Math.round(totalP / poidsRef * 100 * 10)/10 : null;
-  const g100 = totalG!=null ? Math.round(totalG / poidsRef * 100 * 10)/10 : null;
-  const l100 = totalL!=null ? Math.round(totalL / poidsRef * 100 * 10)/10 : null;
-  const f100 = totalF!=null ? Math.round(totalF / poidsRef * 100 * 10)/10 : null;
-
-  // Sauvegarde dans la liste des recettes
+  // Sauvegarde recette
   const recette = {
-    id: recetteNextId++,
-    nom: nom,
+    id: recetteNextId++, nom: nom,
     ingredients: JSON.parse(JSON.stringify(_recetteIngItems)),
-    poids: poidsRef,
-    portions: portions,
-    kcal100: k100,
-    p: p100, g: g100, l: l100, f: f100,
-    totalKcal: Math.round(totalKcal),
+    totalGrams: Math.round(totalGrams), totalKcal: Math.round(totalKcal),
+    kcal100: k100, p: p100, g: g100, l: l100, f: f100,
     date: new Date().toISOString().split('T')[0]
   };
   recettes.push(recette);
 
-  // Ajout dans les références
+  // Ajout / mise à jour dans refs
   const refNom = '🍲 ' + nom;
-  const existingRef = refs.findIndex(function(r){ return r.nom === refNom; });
   const refEntry = { id: refNextId++, nom: refNom, kcal100: k100 };
   if(p100!=null) refEntry.p = p100;
   if(g100!=null) refEntry.g = g100;
   if(l100!=null) refEntry.l = l100;
   if(f100!=null) refEntry.f = f100;
+  const existingIdx = refs.findIndex(function(r){ return r.nom===refNom; });
+  if(existingIdx>=0) refs[existingIdx] = refEntry;
+  else refs.push(refEntry);
 
-  if(existingRef >= 0){
-    refs[existingRef] = refEntry;
-  } else {
-    refs.push(refEntry);
-  }
+  renderRecettes(); renderRefs(); renderCalcSelect(); saveData();
 
-  renderRecettes();
-  renderRefs();
-  renderCalcSelect();
-  saveData();
-
-  // Confirmation visuelle
   const btn = document.getElementById('btnSaveRecette');
   const orig = btn.textContent;
   btn.textContent = '✓ Enregistré dans Références !';
@@ -2100,12 +2127,11 @@ function clearRecette(){
   _recetteIngItems = [];
   _recetteSelectedItem = null;
   document.getElementById('recetteNom').value = '';
-  document.getElementById('recettePoids').value = '';
-  document.getElementById('recettePortions').value = '4';
   document.getElementById('recetteIngSearch').value = '';
   document.getElementById('recetteIngSelected').textContent = '';
   document.getElementById('recetteIngGrams').value = '';
   document.getElementById('recetteIngSugg').style.display = 'none';
+  ['recetteManuelNom','recetteManuelGrams','recetteManuelKcal','recetteManuelP','recetteManuelG','recetteManuelL','recetteManuelF'].forEach(function(id){ document.getElementById(id).value=''; });
   renderRecetteIngList();
   renderRecetteTotal();
 }
@@ -2115,45 +2141,31 @@ function loadRecetteForEdit(id){
   if(!rec) return;
   _recetteIngItems = JSON.parse(JSON.stringify(rec.ingredients));
   document.getElementById('recetteNom').value = rec.nom;
-  document.getElementById('recettePoids').value = rec.poids;
-  document.getElementById('recettePortions').value = rec.portions;
   renderRecetteIngList();
   renderRecetteTotal();
-  // Scroll to top of panel
-  document.getElementById('recettes').scrollIntoView({behavior:'smooth'});
+  document.getElementById('recettes').querySelector('.chart-card').scrollIntoView({behavior:'smooth'});
 }
 
 function deleteRecette(id){
   const rec = recettes.find(function(r){ return r.id===id; });
   if(!rec) return;
-  if(!confirm('Supprimer la recette "'+rec.nom+'" ?\n\nNota : la référence correspondante dans "Références" sera aussi supprimée.')) return;
+  if(!confirm('Supprimer la recette "'+rec.nom+'" ?\nLa référence 🍲 associée sera aussi supprimée.')) return;
   recettes = recettes.filter(function(r){ return r.id!==id; });
-  // Supprimer aussi la ref correspondante
   const refNom = '🍲 ' + rec.nom;
-  refs = refs.filter(function(r){ return r.nom !== refNom; });
-  renderRecettes();
-  renderRefs();
-  renderCalcSelect();
-  saveData();
+  refs = refs.filter(function(r){ return r.nom!==refNom; });
+  renderRecettes(); renderRefs(); renderCalcSelect(); saveData();
 }
 
 function clearAllRecettes(){
   if(!recettes.length) return;
-  if(!confirm('Supprimer toutes les recettes sauvegardées ?\n\nLes références associées (🍲) seront aussi supprimées.')) return;
-  recettes.forEach(function(rec){
-    const refNom = '🍲 ' + rec.nom;
-    refs = refs.filter(function(r){ return r.nom !== refNom; });
-  });
-  recettes = [];
-  recetteNextId = 1;
-  renderRecettes();
-  renderRefs();
-  renderCalcSelect();
-  saveData();
+  if(!confirm('Supprimer toutes les recettes sauvegardées ?\nLes références 🍲 associées seront aussi supprimées.')) return;
+  recettes.forEach(function(rec){ const rn='🍲 '+rec.nom; refs=refs.filter(function(r){ return r.nom!==rn; }); });
+  recettes = []; recetteNextId = 1;
+  renderRecettes(); renderRefs(); renderCalcSelect(); saveData();
 }
 
 function renderRecettes(){
-  document.getElementById('recetteListTitle').textContent = 'Mes recettes sauvegardées (' + recettes.length + ')';
+  document.getElementById('recetteListTitle').textContent = 'Mes recettes sauvegardées ('+recettes.length+')';
   const grid = document.getElementById('recetteGrid');
   if(!recettes.length){
     grid.innerHTML = '<p class="empty-msg">Aucune recette sauvegardée. Composez votre première recette ci-dessus.</p>';
@@ -2161,34 +2173,32 @@ function renderRecettes(){
   }
   grid.innerHTML = recettes.slice().reverse().map(function(rec){
     const macroTags = [
-      rec.p!=null ? '<span style="font-size:9px;color:#f97316;background:rgba(249,115,22,0.1);padding:1px 5px;border-radius:3px">P '+rec.p+'g</span>' : null,
-      rec.g!=null ? '<span style="font-size:9px;color:#38bdf8;background:rgba(56,189,248,0.1);padding:1px 5px;border-radius:3px">G '+rec.g+'g</span>' : null,
-      rec.l!=null ? '<span style="font-size:9px;color:#a78bfa;background:rgba(167,139,250,0.1);padding:1px 5px;border-radius:3px">L '+rec.l+'g</span>' : null,
-      rec.f!=null ? '<span style="font-size:9px;color:#4ade80;background:rgba(74,222,128,0.1);padding:1px 5px;border-radius:3px">F '+rec.f+'g</span>' : null,
+      rec.p!=null?'<span style="font-size:9px;color:#f97316;background:rgba(249,115,22,0.1);padding:1px 6px;border-radius:3px">P '+rec.p+'g</span>':null,
+      rec.g!=null?'<span style="font-size:9px;color:#38bdf8;background:rgba(56,189,248,0.1);padding:1px 6px;border-radius:3px">G '+rec.g+'g</span>':null,
+      rec.l!=null?'<span style="font-size:9px;color:#a78bfa;background:rgba(167,139,250,0.1);padding:1px 6px;border-radius:3px">L '+rec.l+'g</span>':null,
+      rec.f!=null?'<span style="font-size:9px;color:#4ade80;background:rgba(74,222,128,0.1);padding:1px 6px;border-radius:3px">F '+rec.f+'g</span>':null,
     ].filter(Boolean).join(' ');
-    const ingList = rec.ingredients.slice(0,4).map(function(it){ return it.nom+' ('+it.grams+'g)'; }).join(', ')
-      + (rec.ingredients.length > 4 ? ' …' : '');
+    const ingPreview = rec.ingredients.slice(0,5).map(function(it){ return it.nom+' ('+it.grams+'g)'; }).join(', ')
+      +(rec.ingredients.length>5?' …':'');
     return '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:14px 18px;transition:border-color .2s" onmouseover="this.style.borderColor=\'rgba(249,115,22,0.3)\'" onmouseout="this.style.borderColor=\'rgba(255,255,255,0.07)\'">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">'
-        +'<div style="flex:1;min-width:180px">'
+        +'<div style="flex:1;min-width:200px">'
           +'<div style="font-size:14px;font-weight:600;color:rgba(255,255,255,0.9);margin-bottom:5px">🍲 '+rec.nom+'</div>'
-          +'<div style="font-size:11px;color:rgba(255,255,255,0.25);margin-bottom:8px">'+ingList+'</div>'
-          +'<div style="display:flex;gap:4px;flex-wrap:wrap">'
-            +'<span style="font-family:\'Space Mono\',monospace;font-size:11px;color:#f97316">'+rec.kcal100+' kcal/100g</span>'
-            +' <span style="color:rgba(255,255,255,0.2);font-size:11px">·</span> '
-            +'<span style="font-size:11px;color:rgba(255,255,255,0.3)">Total : '+rec.totalKcal+' kcal · '+rec.poids+'g · '+rec.portions+' portion(s)</span>'
+          +'<div style="font-size:11px;color:rgba(255,255,255,0.25);margin-bottom:8px;line-height:1.5">'+ingPreview+'</div>'
+          +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+            +'<span style="font-family:\'Space Mono\',monospace;font-size:12px;color:#f97316">'+rec.kcal100+' kcal/100g</span>'
+            +'<span style="color:rgba(255,255,255,0.15);font-size:11px">·</span>'
+            +'<span style="font-size:11px;color:rgba(255,255,255,0.3)">Total : '+rec.totalKcal+' kcal · '+rec.totalGrams+'g</span>'
           +'</div>'
-          +(macroTags ? '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">'+macroTags+'</div>' : '')
+          +(macroTags?'<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:7px">'+macroTags+'</div>':'')
         +'</div>'
         +'<div style="display:flex;gap:8px;align-items:center;flex-shrink:0">'
           +'<button class="btn btn-secondary" onclick="loadRecetteForEdit('+rec.id+')" style="font-size:10px;padding:5px 10px">✏️ Éditer</button>'
           +'<button class="ref-del" onclick="deleteRecette('+rec.id+')" style="font-size:18px">×</button>'
         +'</div>'
-      +'</div>'
-      +'</div>';
+      +'</div></div>';
   }).join('');
 }
-
 
 /* ── CALCULATEUR ── */
 function renderCalcSelect(){ /* select hidden maintenu pour compat — non utilisé */ }
