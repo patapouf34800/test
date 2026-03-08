@@ -566,18 +566,18 @@
 
         <div class="form-group">
           <label>Sexe</label>
-          <select id="tdeeSexe" onchange="calcTDEE();syncObjectifDynamique();refresh()">
+          <select id="tdeeSexe" onchange="calcTDEE();refresh()">
             <option value="homme">Homme</option>
             <option value="femme">Femme</option>
           </select>
         </div>
         <div class="form-group">
           <label>Âge (ans)</label>
-          <input type="number" id="tdeeAge" value="30" min="10" max="100" oninput="calcTDEE();syncObjectifDynamique();refresh()" style="width:100%">
+          <input type="number" id="tdeeAge" value="30" min="10" max="100" oninput="calcTDEE();syncObjectifAge();refresh();saveData()" style="width:100%">
         </div>
         <div class="form-group">
           <label>Taille (cm)</label>
-          <input type="number" id="tdeeTaille" value="175" min="100" max="250" oninput="calcTDEE();syncObjectifDynamique();refresh()" style="width:100%">
+          <input type="number" id="tdeeTaille" value="175" min="100" max="250" oninput="calcTDEE();syncObjectifTaille();refresh();saveData()" style="width:100%">
         </div>
         <div class="form-group">
           <label>Poids actuel (kg)</label>
@@ -587,7 +587,7 @@
 
       <div class="form-group" style="margin-bottom:20px">
         <label>Niveau d'activité physique</label>
-        <select id="tdeeActivite" onchange="calcTDEE();syncObjectifDynamique();refresh()" style="margin-top:6px">
+        <select id="tdeeActivite" onchange="calcTDEE();syncObjectifActivite();refresh();saveData()" style="margin-top:6px">
           <option value="1.2" selected>Sédentaire — bureau, peu ou pas de sport</option>
           <option value="1.375">Légèrement actif — sport 1-3x/semaine</option>
           <option value="1.55">Modérément actif — sport 3-5x/semaine</option>
@@ -3965,14 +3965,33 @@ function getObjectifPourDate(dateStr){
 }
 
 function syncObjectifDynamique(){
-  // Met à jour objectifInput avec le TDEE maintien du jour courant
+  // Appelé au chargement / ajout-suppression de pesée
+  // Recalcule TOUT (passé + présent + futur) — comportement poids déjà correct via getObjectifPourDate
   const today = new Date().toISOString().split('T')[0];
-  const tdeeAujourdhui = getObjectifPourDate(today);
-  document.getElementById('objectifInput').value = tdeeAujourdhui;
-  // Recalcule les objectifs de chaque jour existant
-  days.forEach(function(d){
-    d.objectif = getObjectifPourDate(d.date);
-  });
+  document.getElementById('objectifInput').value = getObjectifPourDate(today);
+  days.forEach(function(d){ d.objectif = getObjectifPourDate(d.date); });
+  saveData();
+}
+
+function syncObjectifAge(){
+  // Âge : recalcule uniquement présent et futur (le passé garde son objectif historique)
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('objectifInput').value = getObjectifPourDate(today);
+  days.forEach(function(d){ if(d.date >= today) d.objectif = getObjectifPourDate(d.date); });
+}
+
+function syncObjectifTaille(){
+  // Taille : recalcule tout (passé + présent + futur) — mesure réelle de la personne
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('objectifInput').value = getObjectifPourDate(today);
+  days.forEach(function(d){ d.objectif = getObjectifPourDate(d.date); });
+}
+
+function syncObjectifActivite(){
+  // Activité : laisse le passé, recalcule présent et futur uniquement
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('objectifInput').value = getObjectifPourDate(today);
+  days.forEach(function(d){ if(d.date >= today) d.objectif = getObjectifPourDate(d.date); });
 }
 
 
