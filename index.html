@@ -172,6 +172,7 @@
   <div class="sidebar-section">
     <div class="sidebar-section-label">Aliments</div>
     <button class="sidebar-tab" onclick="showTab('references',this)">📚 Références</button>
+    <button class="sidebar-tab" onclick="showTab('ciqual_explorer',this)">🔬 Données macro</button>
   </div>
 
   <div class="sidebar-section">
@@ -450,8 +451,10 @@
       </div>
       <div class="ref-grid" id="refGrid"></div>
     </div>
+  </div>
 
-    <!-- DONNÉES MACRO CIQUAL -->
+  <!-- EXPLORATEUR CIQUAL -->
+  <div id="ciqual_explorer" class="panel">
     <div class="chart-card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
         <div>
@@ -3812,6 +3815,7 @@ function showTab(id,btn){
   }
   if(id==='nutriments') renderNutri();
   if(id==='bilan_hebdo') renderBilanHebdo();
+  if(id==='ciqual_explorer') renderCiqualExplorer();
   if(id==='poids'){ const pd=document.getElementById('peseeDate'); if(!pd.value) pd.value=new Date().toISOString().split('T')[0]; }
 }
 
