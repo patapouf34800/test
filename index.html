@@ -469,16 +469,16 @@
         <!-- Recherche nom -->
         <div class="form-group" style="grid-column:1/-1">
           <label>Recherche par nom</label>
-          <input type="text" id="ciqualFilterNom" placeholder="ex: poulet, lentilles, sardine…" oninput="renderCiqualExplorer()" style="width:100%">
+          <input type="text" id="ciqualFilterNom" autocomplete="off" placeholder="ex: poulet, lentilles, sardine…" oninput="renderCiqualExplorer()" style="width:100%">
         </div>
 
         <!-- Kcal -->
         <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px">
           <div style="font-size:10px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">⚡ Kcal / 100g</div>
           <div style="display:flex;gap:8px;align-items:center">
-            <input type="number" id="ciqualKcalMin" placeholder="min" min="0" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
+            <input type="number" id="ciqualKcalMin" placeholder="min" min="0" autocomplete="off" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
             <span style="color:rgba(255,255,255,0.2);font-size:11px">–</span>
-            <input type="number" id="ciqualKcalMax" placeholder="max" min="0" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
+            <input type="number" id="ciqualKcalMax" placeholder="max" min="0" autocomplete="off" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
           </div>
         </div>
 
@@ -486,9 +486,9 @@
         <div style="background:rgba(249,115,22,0.04);border:1px solid rgba(249,115,22,0.12);border-radius:10px;padding:12px">
           <div style="font-size:10px;color:#f97316;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Protéines / 100g</div>
           <div style="display:flex;gap:8px;align-items:center">
-            <input type="number" id="ciqualProtMin" placeholder="min" min="0" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
+            <input type="number" id="ciqualProtMin" placeholder="min" min="0" autocomplete="off" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
             <span style="color:rgba(255,255,255,0.2);font-size:11px">–</span>
-            <input type="number" id="ciqualProtMax" placeholder="max" min="0" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
+            <input type="number" id="ciqualProtMax" placeholder="max" min="0" autocomplete="off" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
           </div>
         </div>
 
@@ -496,9 +496,9 @@
         <div style="background:rgba(56,189,248,0.04);border:1px solid rgba(56,189,248,0.12);border-radius:10px;padding:12px">
           <div style="font-size:10px;color:#38bdf8;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Glucides / 100g</div>
           <div style="display:flex;gap:8px;align-items:center">
-            <input type="number" id="ciqualGlucMin" placeholder="min" min="0" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
+            <input type="number" id="ciqualGlucMin" placeholder="min" min="0" autocomplete="off" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
             <span style="color:rgba(255,255,255,0.2);font-size:11px">–</span>
-            <input type="number" id="ciqualGlucMax" placeholder="max" min="0" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
+            <input type="number" id="ciqualGlucMax" placeholder="max" min="0" autocomplete="off" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
           </div>
         </div>
 
@@ -506,9 +506,9 @@
         <div style="background:rgba(167,139,250,0.04);border:1px solid rgba(167,139,250,0.12);border-radius:10px;padding:12px">
           <div style="font-size:10px;color:#a78bfa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Lipides / 100g</div>
           <div style="display:flex;gap:8px;align-items:center">
-            <input type="number" id="ciqualLipMin" placeholder="min" min="0" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
+            <input type="number" id="ciqualLipMin" placeholder="min" min="0" autocomplete="off" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
             <span style="color:rgba(255,255,255,0.2);font-size:11px">–</span>
-            <input type="number" id="ciqualLipMax" placeholder="max" min="0" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
+            <input type="number" id="ciqualLipMax" placeholder="max" min="0" autocomplete="off" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
           </div>
         </div>
 
@@ -516,9 +516,9 @@
         <div style="background:rgba(74,222,128,0.04);border:1px solid rgba(74,222,128,0.12);border-radius:10px;padding:12px">
           <div style="font-size:10px;color:#4ade80;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Fibres / 100g</div>
           <div style="display:flex;gap:8px;align-items:center">
-            <input type="number" id="ciqualFibMin" placeholder="min" min="0" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
+            <input type="number" id="ciqualFibMin" placeholder="min" min="0" autocomplete="off" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
             <span style="color:rgba(255,255,255,0.2);font-size:11px">–</span>
-            <input type="number" id="ciqualFibMax" placeholder="max" min="0" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
+            <input type="number" id="ciqualFibMax" placeholder="max" min="0" autocomplete="off" oninput="renderCiqualExplorer()" style="width:80px;font-size:12px">
           </div>
         </div>
 
