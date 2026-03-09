@@ -360,9 +360,10 @@
       <div class="calc-items" id="calcItems"></div>
 
       <div class="total-bar" style="margin-top:18px">
-        <div>
+        <div style="flex:1">
           <div class="total-label">Total de la journée</div>
           <div style="font-size:13px;color:rgba(255,255,255,0.3);margin-top:4px" id="calcVsObjectif"></div>
+          <div id="calcMacroTotals" style="display:none;margin-top:10px;display:flex;gap:10px;flex-wrap:wrap"></div>
         </div>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <div class="total-value" id="calcTotalVal">0 kcal</div>
@@ -2365,10 +2366,22 @@ function renderCalcItems(){
   document.getElementById('calcTotalVal').textContent=total.toLocaleString('fr-FR')+' kcal';
   const obj=getObjectif(), diff=obj-total;
   const vs=document.getElementById('calcVsObjectif');
-  if(total===0){vs.textContent='';return;}
+  if(total===0){vs.textContent='';document.getElementById('calcMacroTotals').style.display='none';return;}
   vs.innerHTML=diff>=0
     ?`<span class="green">−${diff.toLocaleString('fr-FR')} kcal sous l'objectif de ${obj.toLocaleString('fr-FR')} kcal</span>`
     :`<span class="red">+${Math.abs(diff).toLocaleString('fr-FR')} kcal au-dessus de l'objectif de ${obj.toLocaleString('fr-FR')} kcal</span>`;
+  // Totaux macros
+  var tp=0,tg=0,tl=0,tf=0,hasP=false,hasG=false,hasL=false,hasF=false;
+  calcItems.forEach(function(i){if(i.p!=null){tp+=i.p;hasP=true;}if(i.g!=null){tg+=i.g;hasG=true;}if(i.l!=null){tl+=i.l;hasL=true;}if(i.f!=null){tf+=i.f;hasF=true;}});
+  tp=Math.round(tp*10)/10;tg=Math.round(tg*10)/10;tl=Math.round(tl*10)/10;tf=Math.round(tf*10)/10;
+  const macroEl=document.getElementById('calcMacroTotals');
+  if(hasP||hasG||hasL||hasF){
+    const tag=(val,label,color,bg)=>`<span style="display:inline-flex;align-items:center;gap:5px;background:${bg};border:1px solid ${color}33;border-radius:8px;padding:5px 10px"><span style="font-size:9px;color:${color}88;text-transform:uppercase;letter-spacing:1px">${label}</span><span style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:${color}">${val}g</span></span>`;
+    macroEl.style.display='flex';
+    macroEl.innerHTML=(hasP?tag(tp,'Prot','#f97316','rgba(249,115,22,0.08)'):'')+(hasG?tag(tg,'Gluc','#38bdf8','rgba(56,189,248,0.08)'):'')+(hasL?tag(tl,'Lip','#a78bfa','rgba(167,139,250,0.08)'):'')+(hasF?tag(tf,'Fibres','#4ade80','rgba(74,222,128,0.08)'):'');
+  } else {
+    macroEl.style.display='none';
+  }
 }
 
 function removeCalcItem(i){ if(!confirm('Retirer "'+calcItems[i].nom+'" de la liste ?')) return; calcItems.splice(i,1); renderCalcItems(); saveData(); }
