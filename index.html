@@ -1061,6 +1061,17 @@
       <div class="chart-title">📈 Progression vitesse moyenne (km/h)</div>
       <div style="position:relative;height:200px"><canvas id="chartVitesse"></canvas></div>
     </div>
+    <div class="chart-card" style="margin-top:20px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+        <div class="chart-title" style="margin-bottom:0">🔥 Dépense calorique estimée</div>
+        <span style="font-size:10px;color:rgba(255,255,255,0.2);font-family:'Space Mono',monospace">MET 7 × poids du jour × durée — indicatif</span>
+      </div>
+      <div style="position:relative;height:200px"><canvas id="chartVeloKcal"></canvas></div>
+      <div class="legend" style="margin-top:12px">
+        <div class="legend-item"><div class="legend-dot" style="background:#4ade80;border-radius:2px"></div>Dépense par session</div>
+        <div class="legend-item"><div class="legend-line" style="background:rgba(74,222,128,0.4)"></div>Cumul</div>
+      </div>
+    </div>
   </div>
 
   <!-- SAISIE VELO -->
@@ -3615,12 +3626,15 @@ function renderVelo(){
   const totalDist=filtered.reduce((s,v)=>s+v.distance,0);
   const totalDur=filtered.reduce((s,v)=>s+v.duree,0);
   const nb=filtered.length;
+  const totalKcal=filtered.reduce((s,v)=>s+veloKcal(v),0);
   const kpiEl=document.getElementById('kpiVelo');
   if(kpiEl) kpiEl.innerHTML=[
     {l:'Distance totale',v:totalDist.toFixed(1),u:'km',c:'#38bdf8'},
     {l:'Durée totale',v:formatDuree(totalDur),u:'',c:'#f97316'},
     {l:'Sessions',v:nb,u:'',c:'#e8e8f0'},
-    {l:'Moy. distance',v:nb?(totalDist/nb).toFixed(1):0,u:'km/session',c:'#e8e8f0'}
+    {l:'Moy. distance',v:nb?(totalDist/nb).toFixed(1):0,u:'km/session',c:'#e8e8f0'},
+    {l:'Dépense estimée',v:totalKcal.toLocaleString('fr-FR'),u:'kcal',c:'#4ade80'},
+    {l:'Moy. par session',v:nb?Math.round(totalKcal/nb):0,u:'kcal',c:'#4ade80'}
   ].map(k=>`<div class="kpi-card"><div class="kpi-label">${k.l}</div><div class="kpi-value" style="color:${k.c}">${k.v}<span class="kpi-unit"> ${k.u}</span></div></div>`).join('');
   if(charts['velo']){charts['velo'].destroy();delete charts['velo'];}
   const cvs=document.getElementById('chartVelo');
@@ -3628,7 +3642,7 @@ function renderVelo(){
     charts['velo']=new Chart(cvs.getContext('2d'),{type:'bar',
       data:{labels:filtered.map(v=>v.label),datasets:[
         {label:'Distance (km)',data:filtered.map(v=>v.distance),backgroundColor:'rgba(56,189,248,0.65)',borderColor:'#38bdf8',borderWidth:1,borderRadius:3,yAxisID:'yDist'},
-        {label:'Dur\u00e9e (min)',data:filtered.map(v=>v.duree),type:'line',borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.08)',fill:false,tension:0.4,pointRadius:3,pointBackgroundColor:'#f97316',borderWidth:2,yAxisID:'yDur'}
+        {label:'Durée (min)',data:filtered.map(v=>v.duree),type:'line',borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.08)',fill:false,tension:0.4,pointRadius:3,pointBackgroundColor:'#f97316',borderWidth:2,yAxisID:'yDur'}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(10,10,20,0.95)',titleColor:'#f97316',bodyColor:'#fff',borderColor:'rgba(249,115,22,0.3)',borderWidth:1}},
@@ -3645,7 +3659,6 @@ function renderVelo(){
   const cvs2=document.getElementById('chartVitesse');
   if(cvs2&&filtered.length>1){
     const vitesses=filtered.map(v=>v.duree>0?parseFloat((v.distance/(v.duree/60)).toFixed(2)):null);
-    // Moyenne glissante 5 sessions pour la tendance
     const tendance=vitesses.map((_, i)=>{
       const slice=vitesses.slice(Math.max(0,i-4),i+1).filter(x=>x!==null);
       return slice.length?parseFloat((slice.reduce((a,b)=>a+b,0)/slice.length).toFixed(2)):null;
@@ -3653,7 +3666,7 @@ function renderVelo(){
     charts['vitesse']=new Chart(cvs2.getContext('2d'),{type:'line',
       data:{labels:filtered.map(v=>v.label),datasets:[
         {label:'Vitesse (km/h)',data:vitesses,borderColor:'rgba(56,189,248,0.25)',backgroundColor:'rgba(56,189,248,0.03)',fill:true,tension:0.3,pointRadius:2,pointBackgroundColor:'rgba(56,189,248,0.35)',borderWidth:1,spanGaps:true},
-        {label:'Tendance (moy. 5)',data:tendance,borderColor:'#f97316',backgroundColor:'transparent',fill:false,tension:0.4,pointRadius:0,borderWidth:2.5,borderDash:[],spanGaps:true}
+        {label:'Tendance (moy. 5)',data:tendance,borderColor:'#f97316',backgroundColor:'transparent',fill:false,tension:0.4,pointRadius:0,borderWidth:2.5,spanGaps:true}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(10,10,20,0.95)',titleColor:'#f97316',bodyColor:'#fff',borderColor:'rgba(249,115,22,0.3)',borderWidth:1,callbacks:{label:ctx=>ctx.dataset.label+' : '+ctx.parsed.y+' km/h'}}},
@@ -3665,19 +3678,60 @@ function renderVelo(){
     });
   }
 
+  // Graph dépense calorique estimée (MET 7)
+  if(charts['veloKcal']){charts['veloKcal'].destroy();delete charts['veloKcal'];}
+  const cvs3=document.getElementById('chartVeloKcal');
+  if(cvs3&&filtered.length){
+    const kcalData=filtered.map(v=>veloKcal(v));
+    // Cumul glissant pour tendance
+    const kcalCumul=kcalData.map((_,i)=>kcalData.slice(0,i+1).reduce((a,b)=>a+b,0));
+    charts['veloKcal']=new Chart(cvs3.getContext('2d'),{type:'bar',
+      data:{labels:filtered.map(v=>v.label),datasets:[
+        {label:'Dépense (kcal)',data:kcalData,backgroundColor:'rgba(74,222,128,0.5)',borderColor:'#4ade80',borderWidth:1,borderRadius:3,yAxisID:'yKcal'},
+        {label:'Cumul (kcal)',data:kcalCumul,type:'line',borderColor:'rgba(74,222,128,0.4)',backgroundColor:'transparent',fill:false,tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3],yAxisID:'yCumul'}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(10,10,20,0.95)',titleColor:'#4ade80',bodyColor:'#fff',borderColor:'rgba(74,222,128,0.3)',borderWidth:1,callbacks:{label:ctx=>ctx.dataset.label+' : '+Math.round(ctx.parsed.y).toLocaleString('fr-FR')+' kcal'}}},
+        scales:{
+          yKcal:{position:'left',grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:10}},title:{display:true,text:'kcal/session',color:'#4ade80',font:{size:10}}},
+          yCumul:{position:'right',grid:{drawOnChartArea:false},ticks:{color:'rgba(255,255,255,0.15)',font:{size:10}},title:{display:true,text:'cumul kcal',color:'rgba(74,222,128,0.4)',font:{size:10}}},
+          x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:10},maxRotation:45}}
+        }
+      }
+    });
+  }
+
   const listEl=document.getElementById('veloList');
   const titleEl=document.getElementById('veloListTitle');
-  if(titleEl) titleEl.textContent='Sessions enregistr\u00e9es ('+veloSessions.length+')';
+  if(titleEl) titleEl.textContent='Sessions enregistrées ('+veloSessions.length+')';
   if(listEl){
     if(!veloSessions.length){listEl.innerHTML='<p class="empty-msg">Aucune session.</p>';return;}
     listEl.innerHTML=veloSessions.slice().reverse().map((v,ri)=>{
       const idx=veloSessions.length-1-ri;
+      const kcal=veloKcal(v);
+      const poids=getPoidsAvantDate(v.date);
       return '<div class="day-row"><span class="day-date">'+v.label+'</span>'
         +'<span style="color:#38bdf8;font-family:\'Space Mono\',monospace;font-size:13px;min-width:65px">'+v.distance+' km</span>'
         +'<span style="color:#f97316;font-family:\'Space Mono\',monospace;font-size:13px;min-width:65px">'+v.duree+' min</span>'
+        +'<span style="color:#4ade80;font-family:\'Space Mono\',monospace;font-size:12px;min-width:75px">~'+kcal+' kcal</span>'
+        +'<span style="color:rgba(255,255,255,0.2);font-size:11px;min-width:55px">'+poids+'kg</span>'
         +'<button class="day-del" onclick="deleteVelo('+idx+')">\u00d7</button></div>';
     }).join('');
   }
+}
+
+const VELO_MET = 7;
+
+function getPoidsAvantDate(dateStr){
+  // Retourne la dernière pesée réelle enregistrée avant ou à dateStr, sinon poids paramètre
+  const avant = pesees.filter(function(p){ return p.date <= dateStr; });
+  if(avant.length) return avant[avant.length-1].val;
+  return getPoids();
+}
+
+function veloKcal(session){
+  const poids = getPoidsAvantDate(session.date);
+  return Math.round(VELO_MET * poids * (session.duree / 60));
 }
 
 function setPeriod(period, btn){
