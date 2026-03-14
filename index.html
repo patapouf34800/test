@@ -1461,7 +1461,7 @@ function exportData(){
   };
   const calcDateEl2 = document.getElementById('calcDate');
   const calcDateVal2 = (calcDateEl2 && calcDateEl2.value) ? calcDateEl2.value : (window._savedCalcDate || '');
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, calcDate: calcDateVal2, activePeriod, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), tensions, tdeeParams, recettes, recetteNextId, exportDate: new Date().toISOString() };
+  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, calcDate: calcDateVal2, activePeriod, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), tensions, tdeeParams, recettes, recetteNextId, weeklySnapshots: window._weeklySnapshots||[], exportDate: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1514,6 +1514,8 @@ function importData(event){
       if(data.calcItems) calcItems = data.calcItems;
       if(data.activePeriod) activePeriod = data.activePeriod;
       if(data.bilanUnites) window._bilanUnites = data.bilanUnites;
+      if(data.weeklySnapshots) window._weeklySnapshots = data.weeklySnapshots;
+      else if(data.lastWeekBilanSnapshot) window._weeklySnapshots = [data.lastWeekBilanSnapshot];
       if(data.recettes){ recettes = data.recettes; recetteNextId = data.recetteNextId || recettes.length+1; }
       // Calcul auto ratios
       bilans.forEach(b => {
