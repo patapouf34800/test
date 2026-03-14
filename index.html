@@ -1400,7 +1400,7 @@ function saveData(){
     taille: tdeeTailleEl ? parseInt(tdeeTailleEl.value)||175 : 175,
     activite: tdeeActiviteEl ? parseFloat(tdeeActiviteEl.value)||1.2 : 1.2
   };
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, activePeriod, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif(), bilans, bilanUnites: window._bilanUnites||{}, tensions, tdeeParams, recettes, recetteNextId, weeklySnapshots: window._weeklySnapshots||[] };
+  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, activePeriod, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif(), bilans, bilanUnites: window._bilanUnites||{}, tensions, tdeeParams, recettes, recetteNextId, weeklySnapshots: window._weeklySnapshots||[], usageCount };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     localStorage.setItem(STORAGE_KEY+'_calc', JSON.stringify({calcItems, calcDate: calcDateVal}));
@@ -1426,6 +1426,7 @@ function loadData(){
     if(data.bilanUnites) window._bilanUnites = data.bilanUnites;
     if(data.weeklySnapshots) window._weeklySnapshots = data.weeklySnapshots;
     else if(data.lastWeekBilanSnapshot) window._weeklySnapshots = [data.lastWeekBilanSnapshot]; // migration ancien format
+    if(data.usageCount) usageCount = data.usageCount;
     if(data.calcDate) window._savedCalcDate = data.calcDate;
     if(data.recettes){ recettes = data.recettes; recetteNextId = data.recetteNextId || recettes.length+1; }
     // Bug 3 fix : utiliser _calc uniquement si la clé principale n'a pas de calcItems
@@ -1461,7 +1462,7 @@ function exportData(){
   };
   const calcDateEl2 = document.getElementById('calcDate');
   const calcDateVal2 = (calcDateEl2 && calcDateEl2.value) ? calcDateEl2.value : (window._savedCalcDate || '');
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, calcDate: calcDateVal2, activePeriod, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), tensions, tdeeParams, recettes, recetteNextId, weeklySnapshots: window._weeklySnapshots||[], exportDate: new Date().toISOString() };
+  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, calcDate: calcDateVal2, activePeriod, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), tensions, tdeeParams, recettes, recetteNextId, weeklySnapshots: window._weeklySnapshots||[], usageCount, exportDate: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1516,6 +1517,7 @@ function importData(event){
       if(data.bilanUnites) window._bilanUnites = data.bilanUnites;
       if(data.weeklySnapshots) window._weeklySnapshots = data.weeklySnapshots;
       else if(data.lastWeekBilanSnapshot) window._weeklySnapshots = [data.lastWeekBilanSnapshot];
+      if(data.usageCount) usageCount = data.usageCount;
       if(data.recettes){ recettes = data.recettes; recetteNextId = data.recetteNextId || recettes.length+1; }
       // Calcul auto ratios
       bilans.forEach(b => {
@@ -2255,37 +2257,73 @@ function renderCalcSelect(){ /* select hidden maintenu pour compat — non utili
 // État de la recherche
 var _calcSelectedItem = null; // { nom, kcal100, source: 'perso'|'ciqual' }
 var _calcSuggIdx = -1;
+var usageCount = {}; // { 'nom aliment': count } — persiste indépendamment des refs
+
+function incrementUsage(nom){
+  if(!nom) return;
+  usageCount[nom] = (usageCount[nom] || 0) + 1;
+}
 
 function searchCiqual(q){
   const box = document.getElementById('calcSuggestions');
   _calcSelectedItem = null;
   document.getElementById('calcSelected').textContent = '';
-  if(!q || q.length < 2){ box.style.display = 'none'; return; }
+
+  // Champ vide → afficher top 10 aliments les plus utilisés
+  if(!q || q.length < 2){
+    const topUsed = Object.entries(usageCount)
+      .sort(function(a,b){ return b[1]-a[1]; })
+      .slice(0,10)
+      .map(function(e){
+        const nom = e[0];
+        const ref = refs.find(function(r){ return r.nom === nom; });
+        if(ref) return {nom: ref.nom, kcal100: ref.kcal100, p: ref.p, g: ref.g, l: ref.l, f: ref.f, source: 'perso', usage: e[1]};
+        const ciq = CIQUAL.find(function(a){ return a.n === nom; });
+        if(ciq) return {nom: ciq.n, kcal100: ciq.k, p: ciq.p, g: ciq.g, l: ciq.l, f: ciq.f, source: 'ciqual', usage: e[1]};
+        return null;
+      })
+      .filter(Boolean);
+    if(!topUsed.length){ box.style.display='none'; return; }
+    box.innerHTML = '<div style="padding:5px 12px 3px;font-size:9px;color:rgba(255,255,255,0.2);text-transform:uppercase;letter-spacing:1px">Utilisés récemment</div>'
+      + topUsed.map(function(r,i){
+        const badge = r.source === 'perso'
+          ? '<span style="font-size:9px;background:rgba(249,115,22,0.2);color:rgba(249,115,22,0.8);padding:1px 5px;border-radius:4px;margin-right:4px">perso</span>'
+          : '<span style="font-size:9px;background:rgba(56,189,248,0.1);color:rgba(56,189,248,0.5);padding:1px 5px;border-radius:4px;margin-right:4px">ciqual</span>';
+        return '<div class="ciqual-item" data-idx="'+i+'" onclick="selectCalcItem('+i+')" style="padding:8px 12px;cursor:pointer;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.04)">'
+          +'<span>'+badge+r.nom+'</span>'
+          +'<span style="color:rgba(255,255,255,0.35);font-family:\'Space Mono\',monospace;font-size:11px;white-space:nowrap;margin-left:8px">'+r.kcal100+' kcal/100g</span>'
+          +'</div>';
+      }).join('');
+    box._results = topUsed;
+    box.style.display = 'block';
+    return;
+  }
 
   const ql = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
-  // Chercher d'abord dans les refs perso
+  // Chercher dans les refs perso
   const perso = refs.filter(function(r){
     return r.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(ql);
-  }).map(function(r){ return {nom: r.nom, kcal100: r.kcal100, p: r.p, g: r.g, l: r.l, f: r.f, source: 'perso'}; });
+  }).map(function(r){ return {nom: r.nom, kcal100: r.kcal100, p: r.p, g: r.g, l: r.l, f: r.f, source: 'perso', usage: usageCount[r.nom]||0}; });
 
-  // Puis dans CIQUAL avec tri par pertinence
+  // Puis dans CIQUAL
   var ciqualAll = CIQUAL.filter(function(a){
     return a.n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(ql);
   });
-  // Tri : exact en premier, commence par le mot en second, contient ailleurs en dernier
   ciqualAll.sort(function(a, b){
     var an = a.n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     var bn = b.n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     var aMatch = an === ql ? 0 : an.startsWith(ql) ? 1 : 2;
     var bMatch = bn === ql ? 0 : bn.startsWith(ql) ? 1 : 2;
-    // Score combiné : pertinence du nom + rang du groupe (brut=0 > simple=1 > céréales=2 > préparé=3)
-    var aScore = aMatch * 10 + (a.r || 2);
-    var bScore = bMatch * 10 + (b.r || 2);
+    // Boost usage : chaque utilisation vaut -0.5 point de score (favorise les habitués)
+    var aUsage = usageCount[a.n] || 0;
+    var bUsage = usageCount[b.n] || 0;
+    var aScore = aMatch * 10 + (a.r || 2) - Math.min(aUsage * 0.5, 4);
+    var bScore = bMatch * 10 + (b.r || 2) - Math.min(bUsage * 0.5, 4);
     if(aScore !== bScore) return aScore - bScore;
     return a.n.length - b.n.length;
   });
-  var ciqual = ciqualAll.slice(0, 30).map(function(a){ return {nom: a.n, kcal100: a.k, p: a.p, g: a.g, l: a.l, f: a.f, source: 'ciqual'}; });
+  var ciqual = ciqualAll.slice(0, 30).map(function(a){ return {nom: a.n, kcal100: a.k, p: a.p, g: a.g, l: a.l, f: a.f, source: 'ciqual', usage: usageCount[a.n]||0}; });
 
   const results = perso.concat(ciqual).slice(0, 40);
   _calcSuggIdx = -1;
@@ -2296,8 +2334,9 @@ function searchCiqual(q){
     const badge = r.source === 'perso'
       ? '<span style="font-size:9px;background:rgba(249,115,22,0.2);color:rgba(249,115,22,0.8);padding:1px 5px;border-radius:4px;margin-right:4px">perso</span>'
       : '<span style="font-size:9px;background:rgba(56,189,248,0.1);color:rgba(56,189,248,0.5);padding:1px 5px;border-radius:4px;margin-right:4px">ciqual</span>';
+    const usageBadge = r.usage >= 2 ? '<span style="font-size:9px;color:rgba(255,255,255,0.2);margin-left:4px">×'+r.usage+'</span>' : '';
     return '<div class="ciqual-item" data-idx="'+i+'" onclick="selectCalcItem('+i+')" style="padding:8px 12px;cursor:pointer;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.04)">'
-      + '<span>'+badge+r.nom+'</span>'
+      + '<span>'+badge+r.nom+usageBadge+'</span>'
       + '<span style="color:rgba(255,255,255,0.35);font-family:\'Space Mono\',monospace;font-size:11px;white-space:nowrap;margin-left:8px">'+r.kcal100+' kcal/100g</span>'
       + '</div>';
   }).join('');
@@ -2456,6 +2495,8 @@ function validerJournee(){
     days.sort((a,b)=>a.date.localeCompare(b.date));
   }
   calcItems=[];
+  // Incrémenter l'usage de chaque aliment validé
+  days[existing >= 0 ? existing : days.length-1].items.forEach(function(i){ incrementUsage(i.nom); });
   document.getElementById('calcNote').value='';
   refresh(); saveData();
   // Avancer la date au lendemain
@@ -5000,6 +5041,13 @@ async function initApp() {
     CIQUAL = [];
   }
   const hasData = loadData();
+  // Reconstruire usageCount depuis l'historique si vide (rétroactivité)
+  if(hasData && Object.keys(usageCount).length === 0){
+    days.forEach(function(d){
+      if(d.items) d.items.forEach(function(i){ incrementUsage(i.nom); });
+    });
+    saveData();
+  }
   syncObjectifDynamique();
   if(!hasData) days = [];
   refresh();
