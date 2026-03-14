@@ -4066,8 +4066,15 @@ function renderBilanHebdo(){
         'poivre','piment','gingembre','cardamome','fenugrec','safran','vanille',
         'épice','herbe','aromate','condiment','moutarde','câpre','cornichon',
         'levure','bouillon','extrait','poudre de','fécule','amidon','gélatine',
-        'agar','carraghénane','gomme de','vinaigre','sauce soja','nuoc'
+        'agar','carraghénane','gomme de','vinaigre','sauce soja','nuoc',
+        'raifort','wasabi','câpre','olive','pickles'
       ];
+
+      // Pour les fibres : exclure petits fruits et baies consommés en petites quantités
+      var EXCLUDE_FIBRES = macroKey === 'f' ? [
+        'cassis','groseille','myrtille','framboise','mûre','airelle','baie',
+        'sureau','églantier','argousier','pollen'
+      ] : [];
 
       // Plancher calorique : en dessous de 50 kcal/100g → extrait/bouillon inutilisable
       var KCAL_MIN = 50;
@@ -4080,6 +4087,7 @@ function renderBilanHebdo(){
           var nl = a.n.toLowerCase();
           if(EXCLUDE.some(function(e){ return nl.indexOf(e) !== -1; })) return false;
           if(EXCLUDE_HERBES.some(function(e){ return nl.indexOf(e) !== -1; })) return false;
+          if(EXCLUDE_FIBRES.some(function(e){ return nl.indexOf(e) !== -1; })) return false;
           return true;
         })
         .map(function(a){
@@ -4092,9 +4100,16 @@ function renderBilanHebdo(){
           // Bonus densité calorique raisonnable : favorise 80–350 kcal/100g
           var densBonus = (a.k >= 80 && a.k <= 350) ? 1.0 : (a.k < 80 ? a.k / 80 : 350 / a.k);
 
-          var score = ratioScore * naturBonus * densBonus;
-
+          // Bonus portion (fibres uniquement) : favorise les aliments consommés en 80g+
+          // légumineuses, légumes racines, céréales → portions naturelles > 100g
           var grams = Math.round((deficitG * 0.5) / (a[macroKey] / 100));
+          var portionBonus = 1.0;
+          if(macroKey === 'f'){
+            portionBonus = grams >= 100 ? 1.2 : grams >= 80 ? 1.0 : grams >= 50 ? 0.7 : 0.4;
+          }
+
+          var score = ratioScore * naturBonus * densBonus * portionBonus;
+
           var kcal  = Math.round(grams * a.k / 100);
           if(kcal > MAX_KCAL){ kcal = MAX_KCAL; grams = Math.round(MAX_KCAL / a.k * 100); }
           var macroApport = Math.round(grams * a[macroKey] / 100);
@@ -4104,10 +4119,42 @@ function renderBilanHebdo(){
         .sort(function(a, b){ return b.score - a.score; });
 
       var seen = [], results = [];
+
+      // Catégories sémantiques — max 1 résultat par catégorie
+      var CATEGORIES = {
+        'poisson maigre': ['tacaud','merlan','julienne','lingue','lieu','limande','sole','carrelet','plie','raie','cabillaud','églefin','haddock','perche','corb','saint-pierre','roussette','saumonette','grondin','bar ','loup ','dorade','pageot','rascasse','turbot','maï-maï','mahi','vivaneau','brochet','carpe','mulet','ombre'],
+        'poisson gras': ['saumon','thon','maquereau','sardine','hareng','anchois','truite','anguille','espadon','flétan'],
+        'crustacé': ['crevette','homard','langouste','langoustine','crabe','tourteau','araignée de mer','écrevisse'],
+        'mollusque': ['moule','huître','coquille','calmar','seiche','poulpe','bigorneau','bulot','coque','clam','praire','palourde'],
+        'volaille': ['poulet','dinde','pintade','canard','oie','caille','pigeon','faisan','chapon'],
+        'viande rouge': ['boeuf','veau','porc','agneau','mouton','cheval','chevreau','lapin'],
+        'gibier': ['sanglier','cerf','chevreuil','biche','lapin de garenne'],
+        'oeuf': ['oeuf'],
+        'légumineuse': ['lentille','pois chiche','haricot','fève','pois cassé','soja','edamame','flageolet','mungo'],
+        'produit laitier': ['fromage','ricotta','cottage','skyr','faisselle','mozzarella','parmesan','comté','emmental','gruyère','cheddar','gouda','camembert','brie','reblochon'],
+        'abat': ['foie','rognon','coeur','gésier','ris ','tripe','langue'],
+        'céréale': ['avoine','flocon','pain','seigle','épeautre','blé','sarrasin','millet','quinoa','riz'],
+        'fruit': ['pomme','poire','banane','orange','citron','pamplemousse','mangue','ananas','kiwi','raisin','figue','datte','pêche','abricot','prune','cerise','fraise','framb','melon','pastèque'],
+        'légume': ['brocoli','épinard','chou','haricot vert','courgette','aubergine','tomate','carotte','betterave','céleri','fenouil','poireau','oignon','ail','échalote','poivron','artichaut','asperge','navet','radis','salsifis','topinambour','panais','patate','pomme de terre','igname'],
+        'oléagineux': ['amande','noix','noisette','cajou','pistache','pécan','macadamia','cacahuète'],
+      };
+
+      function getCategory(nom){
+        var nl = nom.toLowerCase();
+        for(var cat in CATEGORIES){
+          var keys = CATEGORIES[cat];
+          for(var i=0;i<keys.length;i++){
+            if(nl.indexOf(keys[i]) !== -1) return cat;
+          }
+        }
+        return 'autre_'+nom.split(' ')[0].toLowerCase(); // une entrée par nom inconnu
+      }
+
+      var seenCats = {};
       for(var i = 0; i < scored.length && results.length < 5; i++){
         var s = scored[i];
-        var family = s.nom.split(',')[0].split(' ').slice(0,2).join(' ').toLowerCase();
-        if(seen.indexOf(family) === -1){ seen.push(family); results.push(s); }
+        var cat = getCategory(s.nom);
+        if(!seenCats[cat]){ seenCats[cat] = true; results.push(s); }
       }
       return results;
     }
