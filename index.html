@@ -1430,103 +1430,88 @@ function renderTension(){
     const poulsVals = tensions.map(function(t){ return t.pouls; });
     const hasPouls = poulsVals.some(function(v){ return v !== null; });
 
-    // Couleur des points selon la zone de la systolique
-    const pointColors = sysVals.map(function(s, i){
-      const z = tensionZone(s, diaVals[i]);
-      return z.color;
+    // Scatter plot : x=diastolique, y=systolique, couleur selon zone
+    const scatterData = tensions.map(function(t){
+      const z = tensionZone(t.sys, t.dia);
+      return { x: t.dia, y: t.sys, pouls: t.pouls, date: t.date, zone: z };
     });
 
-    // Surface entre sys et dia colorée selon zone
-    // On crée un dataset "aire" entre les deux courbes
-    const datasets = [
-      // Aire de remplissage entre sys et dia (couleur dynamique par point via segment)
-      { label:'_fill_top', data: sysVals, borderColor:'transparent', backgroundColor:'transparent',
-        pointRadius:0, borderWidth:0, tension:0.3, fill:'+1',
-        segment:{ backgroundColor: function(ctx){
-          const s = sysVals[ctx.p0DataIndex];
-          const d = diaVals[ctx.p0DataIndex];
-          if(!s || !d) return 'transparent';
-          const z = tensionZone(s, d);
-          if(z.label==='Hypotension')    return 'rgba(167,139,250,0.15)';
-          if(z.label==='Optimale')       return 'rgba(34,197,94,0.12)';
-          if(z.label==='Normale')        return 'rgba(163,230,53,0.10)';
-          if(z.label==='Normale haute')  return 'rgba(234,179,8,0.12)';
-          if(z.label==='Hypertension G1') return 'rgba(249,115,22,0.15)';
-          return 'rgba(239,68,68,0.18)';
-        }},
-        yAxisID:'y' },
-      // Systolique — points colorés selon zone
-      { label:'Systolique', data: sysVals,
-        borderColor:'rgba(239,68,68,0.85)',
-        backgroundColor: pointColors,
-        pointRadius:5, pointHoverRadius:7, pointBorderWidth:0,
-        borderWidth:2, tension:0.3, fill:false, yAxisID:'y' },
-      // Diastolique
-      { label:'Diastolique', data: diaVals,
-        borderColor:'rgba(56,189,248,0.85)',
-        backgroundColor:'rgba(56,189,248,0.9)',
-        pointRadius:4, pointHoverRadius:6, pointBorderWidth:0,
-        borderWidth:2, tension:0.3, fill:false, yAxisID:'y' },
-    ];
-    if(hasPouls) datasets.push({
-      label:'Pouls', data: poulsVals,
-      borderColor:'rgba(255,255,255,0.3)',
-      pointRadius:3, pointHoverRadius:5, borderWidth:1.5,
-      tension:0.3, fill:false, yAxisID:'y2'
-    });
+    // Un dataset par zone pour avoir des couleurs distinctes
+    const zoneGroups = {
+      'Hypotension':     { color:'#a78bfa', pts:[] },
+      'Optimale':        { color:'#22c55e', pts:[] },
+      'Normale':         { color:'#a3e635', pts:[] },
+      'Normale haute':   { color:'#eab308', pts:[] },
+      'Hypertension G1': { color:'rgba(249,115,22,0.9)', pts:[] },
+      'Hypertension G2': { color:'#ef4444', pts:[] },
+    };
+    scatterData.forEach(function(p){ if(zoneGroups[p.zone.label]) zoneGroups[p.zone.label].pts.push(p); });
 
-    // Lignes de séparation des zones (plus lisible que les fonds colorés)
+    const datasets = Object.entries(zoneGroups)
+      .filter(function(e){ return e[1].pts.length > 0; })
+      .map(function(e){
+        return {
+          label: e[0],
+          data: e[1].pts,
+          backgroundColor: e[1].color,
+          borderColor: 'rgba(0,0,0,0.3)',
+          borderWidth: 1,
+          pointRadius: 7,
+          pointHoverRadius: 9,
+        };
+      });
+
+    // Zones colorées en arrière-plan via annotations
     const zones = {
-      line_hypo: { type:'line', yMin:90, yMax:90, borderColor:'rgba(167,139,250,0.4)', borderWidth:1, borderDash:[4,3], label:{display:true, content:'Hypotension', color:'rgba(167,139,250,0.5)', font:{size:8}, position:'start'} },
-      line_opt:  { type:'line', yMin:120, yMax:120, borderColor:'rgba(34,197,94,0.35)', borderWidth:1, borderDash:[4,3], label:{display:true, content:'Optimale', color:'rgba(34,197,94,0.4)', font:{size:8}, position:'start'} },
-      line_nor:  { type:'line', yMin:130, yMax:130, borderColor:'rgba(163,230,53,0.3)', borderWidth:1, borderDash:[4,3], label:{display:true, content:'Normale', color:'rgba(163,230,53,0.35)', font:{size:8}, position:'start'} },
-      line_haut: { type:'line', yMin:140, yMax:140, borderColor:'rgba(234,179,8,0.35)', borderWidth:1, borderDash:[4,3], label:{display:true, content:'Normale haute', color:'rgba(234,179,8,0.4)', font:{size:8}, position:'start'} },
-      line_h1:   { type:'line', yMin:160, yMax:160, borderColor:'rgba(249,115,22,0.4)', borderWidth:1, borderDash:[4,3], label:{display:true, content:'HTA G1', color:'rgba(249,115,22,0.45)', font:{size:8}, position:'start'} },
+      zone_hypo: { type:'box', xMin:0,  xMax:200, yMin:0,   yMax:90,  backgroundColor:'rgba(167,139,250,0.07)', borderWidth:0, label:{display:true, content:'Hypotension',     color:'rgba(167,139,250,0.4)', font:{size:8}, position:{x:'start',y:'start'}} },
+      zone_opt:  { type:'box', xMin:0,  xMax:80,  yMin:90,  yMax:120, backgroundColor:'rgba(34,197,94,0.07)',   borderWidth:0, label:{display:true, content:'Optimale',        color:'rgba(34,197,94,0.35)',  font:{size:8}, position:{x:'start',y:'start'}} },
+      zone_nor:  { type:'box', xMin:0,  xMax:200, yMin:120, yMax:130, backgroundColor:'rgba(163,230,53,0.07)',  borderWidth:0, label:{display:true, content:'Normale',          color:'rgba(163,230,53,0.35)', font:{size:8}, position:{x:'start',y:'start'}} },
+      zone_haut: { type:'box', xMin:0,  xMax:200, yMin:130, yMax:140, backgroundColor:'rgba(234,179,8,0.08)',   borderWidth:0, label:{display:true, content:'Normale haute',    color:'rgba(234,179,8,0.35)',  font:{size:8}, position:{x:'start',y:'start'}} },
+      zone_h1:   { type:'box', xMin:0,  xMax:200, yMin:140, yMax:160, backgroundColor:'rgba(249,115,22,0.08)',  borderWidth:0, label:{display:true, content:'HTA G1',           color:'rgba(249,115,22,0.4)', font:{size:8}, position:{x:'start',y:'start'}} },
+      zone_h2:   { type:'box', xMin:0,  xMax:200, yMin:160, yMax:200, backgroundColor:'rgba(239,68,68,0.08)',   borderWidth:0, label:{display:true, content:'HTA G2',           color:'rgba(239,68,68,0.35)',  font:{size:8}, position:{x:'start',y:'start'}} },
     };
 
     charts['tension'] = new Chart(cvs.getContext('2d'), {
-      type:'line',
-      data:{ labels, datasets },
+      type:'scatter',
+      data:{ datasets },
       options:{
         responsive:true, maintainAspectRatio:false,
-        interaction:{ mode:'index', intersect:false },
         plugins:{
           annotation:{ annotations: zones },
           legend:{
             display:true,
-            labels:{
-              color:'rgba(255,255,255,0.3)', font:{size:10}, boxWidth:10,
-              filter: function(item){ return !item.text.startsWith('_'); }
-            }
+            labels:{ color:'rgba(255,255,255,0.35)', font:{size:10}, boxWidth:10 }
           },
           tooltip:{
             backgroundColor:'rgba(10,10,20,0.95)', borderColor:'rgba(249,115,22,0.3)', borderWidth:1,
-            titleColor:'rgba(255,255,255,0.6)', bodyColor:'rgba(255,255,255,0.55)',
-            filter: function(item){ return !item.dataset.label.startsWith('_'); },
+            titleColor:'rgba(255,255,255,0.7)', bodyColor:'rgba(255,255,255,0.55)',
             callbacks:{
-              afterBody: function(items){
-                const idx = items[0].dataIndex;
-                const t = tensions[idx];
-                const zone = tensionZone(t.sys, t.dia);
-                return ['Zone : '+zone.label];
+              title: function(items){
+                const p = items[0].raw;
+                return new Date(p.date+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+              },
+              label: function(item){
+                const p = item.raw;
+                const lines = ['Systolique : '+p.y+' mmHg', 'Diastolique : '+p.x+' mmHg'];
+                if(p.pouls) lines.push('Pouls : '+p.pouls+' bpm');
+                lines.push('Zone : '+p.zone.label);
+                return lines;
               }
             }
           }
         },
         scales:{
-          x:{ grid:{color:'rgba(255,255,255,0.03)'}, ticks:{color:'rgba(255,255,255,0.2)',font:{size:9},maxTicksLimit:12} },
-          y:{
-            min:60, max:180,
+          x:{
+            min:40, max:110,
             grid:{color:'rgba(255,255,255,0.04)'},
             ticks:{color:'rgba(255,255,255,0.25)',font:{size:9}},
-            title:{display:true,text:'mmHg',color:'rgba(255,255,255,0.2)',font:{size:9}}
+            title:{display:true, text:'Diastolique (mmHg)', color:'rgba(56,189,248,0.6)', font:{size:10}}
           },
-          y2:{
-            display: hasPouls,
-            position:'right', min:40, max:120,
-            grid:{drawOnChartArea:false},
-            ticks:{color:'rgba(255,255,255,0.15)',font:{size:9}},
-            title:{display:true,text:'bpm',color:'rgba(255,255,255,0.15)',font:{size:9}}
+          y:{
+            min:60, max:185,
+            grid:{color:'rgba(255,255,255,0.04)'},
+            ticks:{color:'rgba(255,255,255,0.25)',font:{size:9}},
+            title:{display:true, text:'Systolique (mmHg)', color:'rgba(239,68,68,0.6)', font:{size:10}}
           }
         }
       }
