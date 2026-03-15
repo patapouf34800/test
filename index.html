@@ -1270,13 +1270,15 @@ function computeStats(){
   const poidsHistory=days.map(d=>{ running-=(d.objectif-d.calories)/KCAL_PER_KG; return parseFloat(running.toFixed(2)); });
   const poidsHistoryByDate={};
   days.forEach((d,i)=>{ poidsHistoryByDate[d.date]=poidsHistory[i]; });
-  // Poids théorique étendu = théorique calories + déficit sport depuis 01/03
-  const VELO_BASE_DATE='2026-03-01';
+  // Poids théorique étendu = théorique calories + déficit sport
+  // La base date = date de la première session sport enregistrée (ou début des données)
+  const sportBaseDate = veloSessions.length
+    ? veloSessions.slice().sort((a,b)=>a.date.localeCompare(b.date))[0].date
+    : (days.length ? days[0].date : '1970-01-01');
   let veloKcalCumul=0;
   const poidsHistoryVeloByDate={};
   days.forEach((d,i)=>{
-    // Ajouter les kcal vélo de ce jour si >= base date
-    if(d.date>=VELO_BASE_DATE){
+    if(d.date>=sportBaseDate){
       const sessions=veloSessions.filter(v=>v.date===d.date);
       sessions.forEach(v=>{ veloKcalCumul+=veloKcal(v); });
     }
