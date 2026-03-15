@@ -149,6 +149,7 @@
   .card-blur:hover .card-value,.card-blur:hover .card-unit{filter:blur(0)}
   .pesee-blur{filter:blur(6px);transition:filter .3s ease}
   .day-row:hover .pesee-blur{filter:blur(0)}
+  @media(hover:none){.pesee-blur{filter:blur(0)} .card-blur .card-value,.card-blur .card-unit{filter:blur(0)}}
   .day-row.editing{background:rgba(249,115,22,0.06);border-color:rgba(249,115,22,0.3)}
   .day-row.editing input{background:rgba(255,255,255,0.07);border:1px solid rgba(249,115,22,0.4);color:#fff;border-radius:6px;padding:4px 8px;font-size:13px;font-family:inherit;outline:none}
   .day-row.editing input:focus{border-color:#f97316}
