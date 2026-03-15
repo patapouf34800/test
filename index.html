@@ -1060,6 +1060,7 @@
       <div id="tensionKpis" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px"></div>
       <!-- Graph -->
       <div style="position:relative;height:300px"><canvas id="tensionChart"></canvas></div>
+
     </div>
     <!-- Légende zones -->
     <div class="chart-card" style="margin-bottom:20px">
@@ -1499,12 +1500,24 @@ function renderTension(){
 
     // Zones colorées en arrière-plan via annotations
     const zones = {
-      zone_hypo: { type:'box', yMin:0,   yMax:90,  backgroundColor:'rgba(167,139,250,0.07)', borderWidth:0, label:{display:true, content:'Hypotension',    color:'rgba(167,139,250,0.4)', font:{size:8}, position:{x:'start',y:'start'}} },
-      zone_opt:  { type:'box', yMin:90,  yMax:120, backgroundColor:'rgba(34,197,94,0.07)',   borderWidth:0, label:{display:true, content:'Optimale',       color:'rgba(34,197,94,0.35)',  font:{size:8}, position:{x:'start',y:'start'}} },
-      zone_nor:  { type:'box', yMin:120, yMax:130, backgroundColor:'rgba(163,230,53,0.07)',  borderWidth:0, label:{display:true, content:'Normale',         color:'rgba(163,230,53,0.35)', font:{size:8}, position:{x:'start',y:'start'}} },
-      zone_haut: { type:'box', yMin:130, yMax:140, backgroundColor:'rgba(234,179,8,0.08)',   borderWidth:0, label:{display:true, content:'Normale haute',   color:'rgba(234,179,8,0.35)',  font:{size:8}, position:{x:'start',y:'start'}} },
-      zone_h1:   { type:'box', yMin:140, yMax:160, backgroundColor:'rgba(249,115,22,0.08)',  borderWidth:0, label:{display:true, content:'HTA G1',          color:'rgba(249,115,22,0.4)',  font:{size:8}, position:{x:'start',y:'start'}} },
-      zone_h2:   { type:'box', yMin:160, yMax:200, backgroundColor:'rgba(239,68,68,0.08)',   borderWidth:0, label:{display:true, content:'HTA G2',          color:'rgba(239,68,68,0.35)',  font:{size:8}, position:{x:'start',y:'start'}} },
+      // Zones 2D : chaque rectangle = combinaison sys+dia → couleur OMS réelle
+      // Hypotension : sys<90 OU dia<60
+      z_hypo_sys: { type:'box', xMin:40, xMax:110, yMin:40,  yMax:90,  backgroundColor:'rgba(167,139,250,0.08)', borderWidth:0 },
+      z_hypo_dia: { type:'box', xMin:40, xMax:60,  yMin:90,  yMax:200, backgroundColor:'rgba(167,139,250,0.08)', borderWidth:0, label:{display:true, content:'Hypotension', color:'rgba(167,139,250,0.45)', font:{size:8}, position:{x:'start',y:'start'}} },
+      // Optimale : sys<120 ET dia<80
+      z_opt:  { type:'box', xMin:60, xMax:80,  yMin:90,  yMax:120, backgroundColor:'rgba(34,197,94,0.08)',   borderWidth:0, label:{display:true, content:'Optimale',       color:'rgba(34,197,94,0.4)',   font:{size:8}, position:{x:'start',y:'start'}} },
+      // Normale : sys≤129 ET dia≤84 (hors optimale)
+      z_nor_a: { type:'box', xMin:80, xMax:85,  yMin:90,  yMax:130, backgroundColor:'rgba(163,230,53,0.08)', borderWidth:0 },
+      z_nor_b: { type:'box', xMin:60, xMax:85,  yMin:120, yMax:130, backgroundColor:'rgba(163,230,53,0.08)', borderWidth:0, label:{display:true, content:'Normale',         color:'rgba(163,230,53,0.4)', font:{size:8}, position:{x:'start',y:'start'}} },
+      // Normale haute : sys≤139 ET dia≤89 (hors précédents)
+      z_haut_a:{ type:'box', xMin:85, xMax:90,  yMin:90,  yMax:140, backgroundColor:'rgba(234,179,8,0.08)',  borderWidth:0 },
+      z_haut_b:{ type:'box', xMin:60, xMax:90,  yMin:130, yMax:140, backgroundColor:'rgba(234,179,8,0.08)',  borderWidth:0, label:{display:true, content:'Normale haute',   color:'rgba(234,179,8,0.4)',  font:{size:8}, position:{x:'start',y:'start'}} },
+      // HTA G1 : sys≤159 ET dia≤99
+      z_h1_a:  { type:'box', xMin:90, xMax:100, yMin:90,  yMax:160, backgroundColor:'rgba(249,115,22,0.09)', borderWidth:0 },
+      z_h1_b:  { type:'box', xMin:60, xMax:100, yMin:140, yMax:160, backgroundColor:'rgba(249,115,22,0.09)', borderWidth:0, label:{display:true, content:'HTA G1',          color:'rgba(249,115,22,0.45)',font:{size:8}, position:{x:'start',y:'start'}} },
+      // HTA G2 : sys≥160 OU dia≥100
+      z_h2_a:  { type:'box', xMin:100,xMax:110, yMin:90,  yMax:200, backgroundColor:'rgba(239,68,68,0.09)',  borderWidth:0 },
+      z_h2_b:  { type:'box', xMin:60, xMax:110, yMin:160, yMax:200, backgroundColor:'rgba(239,68,68,0.09)',  borderWidth:0, label:{display:true, content:'HTA G2',          color:'rgba(239,68,68,0.4)',  font:{size:8}, position:{x:'start',y:'start'}} },
     };
 
     charts['tension'] = new Chart(cvs.getContext('2d'), {
