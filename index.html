@@ -1184,8 +1184,10 @@ function computeStats(){
   const moyenneCalories=filtered.reduce((s,d)=>s+d.calories,0)/(filtered.length||1);
   const joursDeficit=deficits.filter(d=>d.deficit>0).length;
   const avgDailyDeficit=totalDeficit/(filtered.length||1);
+  // poidsHistory doit toujours couvrir TOUS les jours (pas filtered) pour
+  // que les index du graphique correspondent aux labels du graphique
   let running=poidsInit;
-  const poidsHistory=deficits.map(d=>{ running-=d.deficit/KCAL_PER_KG; return parseFloat(running.toFixed(2)); });
+  const poidsHistory=days.map(d=>{ running-=(d.objectif-d.calories)/KCAL_PER_KG; return parseFloat(running.toFixed(2)); });
   const nbProj=nbProjChoice;
 
   // Modele Hall (NIH) avec adaptation metabolique
