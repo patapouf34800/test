@@ -162,7 +162,18 @@
   .period-btn{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);border-radius:7px;padding:6px 12px;cursor:pointer;font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:1px;transition:all .2s}
   .period-btn:hover{color:rgba(255,255,255,0.7);border-color:rgba(255,255,255,0.2)}
   .period-btn.active{background:rgba(249,115,22,0.15);border-color:rgba(249,115,22,0.4);color:#f97316}
+  #aideContent h1{font-size:20px;color:#f97316;margin:0 0 16px;padding-bottom:8px;border-bottom:1px solid rgba(249,115,22,0.3)}
+  #aideContent h2{font-size:15px;color:#fff;margin:24px 0 8px;padding-left:10px;border-left:3px solid #f97316}
+  #aideContent h3{font-size:13px;color:rgba(255,255,255,0.7);margin:16px 0 6px}
+  #aideContent p{margin:0 0 10px;color:rgba(255,255,255,0.7)}
+  #aideContent ul,#aideContent ol{margin:0 0 10px;padding-left:20px;color:rgba(255,255,255,0.7)}
+  #aideContent li{margin-bottom:4px}
+  #aideContent strong{color:#fff}
+  #aideContent code{background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:3px;font-size:12px;color:#f97316}
+  #aideContent hr{border:none;border-top:1px solid rgba(255,255,255,0.08);margin:20px 0}
+  #aideContent a{color:#818cf8}
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 </head>
 <body>
 
@@ -208,6 +219,9 @@
     <button class="btn btn-secondary" onclick="exportDataChiffre()" style="padding:6px 10px;font-size:10px;text-align:center" title="Export chiffré par mot de passe">🔒 Chiffré</button>
     <label class="btn btn-secondary" style="padding:6px 10px;font-size:10px;cursor:pointer;text-align:center">⬆ Importer<input type="file" accept=".json" onchange="importData(event)" style="display:none"></label>
     <span id="saveIndicator" class="sidebar-save"></span>
+  </div>
+  <div style="padding:8px 12px;border-bottom:1px solid rgba(255,255,255,0.06)">
+    <button class="btn btn-secondary" onclick="openAide()" style="padding:6px 10px;font-size:10px;text-align:center;width:100%">❓ Aide</button>
   </div>
 
   <div class="sidebar-section">
@@ -5872,6 +5886,24 @@ function addRefFromCiqual(idx, btn){
 // Chargement CIQUAL depuis fichier externe, puis init
 var CIQUAL = [];
 
+
+// ── AIDE ────────────────────────────────────────────────────────
+function openAide(){
+  const modal = document.getElementById('aideModal');
+  const content = document.getElementById('aideContent');
+  modal.style.display = 'block';
+  closeMobileMenu();
+  fetch('aide.md')
+    .then(r => { if(!r.ok) throw new Error('Fichier aide.md introuvable'); return r.text(); })
+    .then(md => {
+      content.innerHTML = marked.parse(md);
+    })
+    .catch(e => {
+      content.innerHTML = '<p style="color:#ef4444">'+e.message+'</p>';
+    });
+}
+
+
 async function initApp() {
   try {
     const res = await fetch('ciqual.json');
@@ -5921,6 +5953,9 @@ async function initApp() {
   if(!hasData) days = [];
   refresh();
   window.addEventListener('beforeunload', saveData);
+  // Fermer modale aide au clic sur le fond
+  const am = document.getElementById('aideModal');
+  if(am) am.addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
   // Verrouillage auto à la fermeture de l'onglet
   window.addEventListener('beforeunload', () => { window._masterKey = null; });
   const _vd=document.getElementById('veloDate'); if(_vd) _vd.value=new Date().toISOString().split('T')[0];
@@ -5937,5 +5972,16 @@ if('serviceWorker' in navigator){
   });
 }
 </script>
+
+<!-- MODALE AIDE -->
+<div id="aideModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.7);overflow-y:auto">
+  <div style="max-width:720px;margin:40px auto;background:#0e0e1a;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:32px;position:relative;min-height:200px">
+    <button onclick="document.getElementById('aideModal').style.display='none'"
+      style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.05);border:none;color:rgba(255,255,255,0.5);font-size:20px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+    <div id="aideContent" style="color:rgba(255,255,255,0.8);font-size:14px;line-height:1.7;font-family:inherit">
+      <p style="color:rgba(255,255,255,0.3)">Chargement...</p>
+    </div>
+  </div>
+</div>
 </div></div></body>
 </html>
