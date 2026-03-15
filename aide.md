@@ -5,63 +5,57 @@
 Toutes vos données sont stockées **localement dans votre navigateur** (localStorage chiffré). Rien n'est envoyé sur un serveur.
 
 ### Mot de passe maître
-Au premier lancement, vous devez choisir un mot de passe maître. Il chiffre toutes vos données avec AES-256. **Si vous perdez ce mot de passe, vos données locales sont irrécupérables** — pensez à exporter régulièrement.
+Au premier lancement, vous choisissez un mot de passe maître qui chiffre toutes vos données avec AES-256 (PBKDF2 + AES-GCM). **Si vous perdez ce mot de passe, vos données locales sont irrécupérables** — exportez régulièrement.
 
 ### Export / Import
 - **Exporter** : sauvegarde un fichier JSON lisible
-- **🔒 Chiffré** : sauvegarde un fichier JSON chiffré (partageable avec mot de passe)
-- **Importer** : restaure depuis un fichier JSON (chiffré ou non)
+- **🔒 Chiffré** : sauvegarde un fichier JSON chiffré par mot de passe — partageable en toute sécurité
+- **Importer** : restaure depuis un fichier JSON (chiffré ou non). Si chiffré, le mot de passe est demandé
 
 ---
 
 ## 📊 Dashboard
 
-Vue d'ensemble de vos données sur la période sélectionnée (mois en cours, mois précédent, tout).
+Vue d'ensemble sur la période choisie (mois en cours, mois précédent, tout).
 
-Les KPIs affichés :
 - **Déficit total** : calories objectif − calories consommées
 - **Perte estimée** : déficit / 7700 kcal/kg
-- **Poids théorique** : poids initial − perte estimée (basé sur les déficits depuis le début)
-- **Dernière pesée** : votre dernier poids enregistré
+- **Poids théorique** : poids initial − perte calorique cumulée depuis le début
+- **Dernière pesée** : dernier poids enregistré
 - **Moy. calories** : moyenne journalière sur la période
-- **Jours en déficit** : nombre de jours sous l'objectif calorique
-- **Vélo (période)** : distance totale pédalée
+- **Jours en déficit** : jours sous l'objectif calorique
+- **Sport (période)** : distance totale sur les activités avec distance
 
 ---
 
 ## ⚖️ Poids
 
-Suivi de votre évolution pondérale avec :
-
-- **Courbe théorique** (orange) : progression calculée uniquement depuis les déficits caloriques
-- **Courbe théorique+vélo** (bleu pointillé) : idem en ajoutant les calories brûlées à vélo depuis le 01/03
+- **Courbe orange** : poids théorique basé sur les déficits caloriques depuis le début
+- **Courbe bleue pointillée** : poids théorique étendu incluant les calories brûlées en sport depuis le 01/03
 - **Modèle Hall** (violet) : projection réaliste avec adaptation métabolique (modèle NIH)
-- **Fourchettes optimiste/pessimiste** : variation de ±6-10% selon l'adhérence
-- **Pesées réelles** (points verts) : vos mesures réelles
+- **Fourchettes** optimiste/pessimiste : variation ±6–10% selon l'adhérence
+- **Points verts** : pesées réelles
 
 ### Enregistrer une pesée
-Saisissez la date et le poids mesuré. L'écart vs théorique s'affiche automatiquement. Une icône ⚠️ apparaît si la pesée dépasse le seuil théorique même en comptant le vélo.
+Date + poids. L'écart vs théorique s'affiche. Un ⚠️ rouge apparaît si la pesée dépasse le seuil théorique+sport.
 
-### Boutons de projection
-- **Actuel** : affiche uniquement l'historique, sans projection
-- **J+30 / J+90 / J+180** : projette l'évolution sur la durée choisie
+### Projections
+- **Actuel** : historique uniquement, sans projection
+- **J+30 / J+90 / J+180** : projection sur la durée choisie
 
 ---
 
 ## 🧮 Calculateur
 
-Recherche dans la base Ciqual (1 356 aliments) + vos références personnelles. Tapez au moins 2 lettres.
+Recherche dans 1 356 aliments Ciqual + vos références personnelles. Tapez au moins 2 lettres, saisissez le grammage, ajoutez à la liste. Le total calorique et les macros sont calculés automatiquement.
 
-Pour chaque aliment, saisissez le grammage et ajoutez-le à la liste du jour. Le total calorique et les macros sont calculés automatiquement.
-
-### Enregistrer la journée
-Une fois la liste complète, cliquez **Enregistrer** pour sauvegarder les calories du jour.
+Cliquez **Enregistrer** pour sauvegarder la journée.
 
 ---
 
 ## 📉 Déficit
 
-Graphique en barres de vos apports caloriques journaliers vs l'objectif. Filtrable par période.
+Graphique en barres des apports caloriques journaliers vs l'objectif, filtrable par période.
 
 ---
 
@@ -73,21 +67,19 @@ Suivi des macronutriments (protéines, glucides, lipides, fibres) par jour. Néc
 
 ## 📅 Bilan hebdo
 
-Récapitulatif semaine par semaine : calories moyennes, déficit, pesées de la semaine.
+Récapitulatif semaine par semaine : calories moyennes, déficit, pesées.
 
 ---
 
 ## 📚 Références
 
-Vos aliments personnalisés avec calories/100g et macros optionnelles. Ils apparaissent en priorité dans le Calculateur.
-
-Pour ajouter une référence : nom, calories/100g, puis optionnellement protéines, glucides, lipides, fibres.
+Vos aliments personnalisés avec calories/100g et macros optionnelles. Apparaissent en priorité dans le Calculateur.
 
 ---
 
 ## 🍲 Recettes
 
-Créez des recettes combinant plusieurs aliments. La recette est automatiquement ajoutée à vos références avec les macros calculées.
+Créez des recettes combinant plusieurs ingrédients. Les macros sont calculées automatiquement et la recette est ajoutée à vos références.
 
 ---
 
@@ -97,84 +89,89 @@ Explorateur de la base Ciqual avec filtres et tri par nutriment.
 
 ---
 
-## 🚴 Vélo
+## 🏃 Sport
 
-Enregistrez vos sessions : date, distance (km), durée (min). Les calories brûlées sont estimées via la formule MET × poids × durée.
+Enregistrez vos sessions sportives : date, type d'activité, distance (si applicable), durée.
 
-### Saisie vélo
-Formulaire rapide d'ajout de session.
+### Types d'activités disponibles
+| Activité | MET | Distance |
+|---|---|---|
+| 🚴 Vélo intérieur | 4 | ✓ |
+| 🚵 Vélo extérieur | 8 | ✓ |
+| 🏃 Course à pied | 8 | ✓ |
+| 🚶 Marche rapide | 4.5 | ✓ |
+| 🏊 Natation | 7 | — |
+| 🏋️ Musculation | 5 | — |
+| ⚡ Autre | libre | — |
+
+Les calories sont estimées via **MET × poids du jour × durée (h)**.
+
+Le panneau Sport affiche **un bloc de graphiques par type d'activité** présent dans vos données : distance/durée, vitesse moyenne (si applicable), dépense calorique.
 
 ---
 
 ## ⚠️ À surveiller
 
-Analyse automatique de votre dernier bilan sanguin. Les marqueurs hors norme sont affichés avec :
-- **Rouge** : marqueurs vraiment anormaux
+Analyse automatique du dernier bilan sanguin importé. Deux catégories :
+- **Rouge** : marqueurs vraiment hors norme
 - **Vert** : marqueurs atypiques mais expliqués par une condition chronique déclarée
 
 ### Conditions chroniques
-Cliquez sur "Conditions chroniques" (menu déroulant en bas) pour déclarer vos pathologies connues (bêta-thalassémie, hypothyroïdie, etc.). Les marqueurs concernés sont alors interprétés dans ce contexte.
+Menu déroulant en bas du panneau. Déclarez vos pathologies connues (bêta-thalassémie, hypothyroïdie, diabète...) pour que les marqueurs concernés soient interprétés dans ce contexte dans les bilans et rapports PDF.
 
 ---
 
 ## 🫀 Tension artérielle
 
-Enregistrez vos mesures : date, systolique, diastolique, pouls.
+Enregistrez vos mesures (systolique, diastolique, pouls). Zones OMS affichées :
 
-Les zones OMS sont affichées :
 - 🟢 **Optimale** : Sys < 120 et Dia < 80
 - 🟡 **Normale** : Sys 120–129 et Dia ≤ 84
 - 🟠 **Normale haute** : Sys 130–139 et Dia 85–89
 - 🔴 **Hypertension G1** : Sys 140–159 ou Dia 90–99
 - 🔴 **Hypertension G2** : Sys ≥ 160 ou Dia ≥ 100
 
-Une **alerte automatique** s'affiche si la moyenne de vos 3 dernières mesures dépasse la zone "Normale".
+Une **alerte automatique** s'affiche si la moyenne des 3 dernières mesures dépasse "Normale".
 
 ---
 
 ## 🩸 Bilans sanguins
 
-Importez vos bilans au format JSON. Chaque bilan est daté et contient vos marqueurs biologiques organisés par catégorie (hématologie, biochimie, lipides, vitamines, etc.).
-
-Les valeurs sont colorées selon leur statut (normal / hors norme) et comparées bilan à bilan.
+Importez vos bilans au format JSON. Les valeurs sont colorées selon leur statut et comparées bilan à bilan par catégorie (hématologie, biochimie, lipides, vitamines, hormones).
 
 ---
 
 ## 🔥 Besoin journalier (TDEE)
 
-Calcul de votre dépense énergétique totale via la formule Mifflin-St Jeor × coefficient d'activité.
-
-Renseignez sexe, âge, taille, poids et niveau d'activité. L'objectif calorique est recalculé automatiquement selon votre poids actuel.
+Calcul de votre dépense énergétique via la formule Mifflin-St Jeor × coefficient d'activité. L'objectif calorique est recalculé automatiquement selon votre poids actuel.
 
 ---
 
 ## 🔗 Corrélations
 
-Analyse la relation entre vos marqueurs sanguins et vos données quotidiennes (calories, déficit, poids). Utile pour identifier des tendances sur la durée.
+Analyse la relation entre vos marqueurs sanguins et vos données quotidiennes (calories, déficit, poids).
 
 ---
 
 ## 📄 Rapports PDF
 
-Deux types de rapports :
+### Bilan personnel (style sombre)
+KPIs poids, alimentation (déficit + déficit étendu avec sport), sport (distance, sorties, vitesse, calories), marqueurs sanguins clés, nutrition avec barres de progression vs cibles.
 
-### Bilan personnel
-Rapport sombre avec vos KPIs : poids, alimentation, vélo, marqueurs clés, nutrition.
-Personnalisable par période (30/90/180 jours ou tout l'historique) et par section.
-
-### Rapport médical
-Rapport clair destiné à votre médecin avec :
-- Vos conditions chroniques et leur impact sur la lecture des marqueurs
-- Les marqueurs hors norme avec interprétation
-- L'ensemble de vos bilans biologiques comparés bilan à bilan
-- Vos 5 dernières mesures de tension avec alerte si nécessaire
+### Rapport médical (style clair)
+Destiné à votre médecin :
+- Conditions chroniques avec description et marqueurs impactés
+- Marqueurs hors norme avec interprétation clinique
+- Marqueurs atypiques contextualisés par condition
+- Tous vos bilans biologiques comparés
+- 5 dernières mesures de tension avec alerte si nécessaire
 
 ---
 
-## 💡 Conseils d'utilisation
+## 💡 Conseils
 
-- **Pesez-vous le matin à jeun** pour des mesures cohérentes
-- **Enregistrez vos calories chaque jour** même approximativement — la tendance compte plus que la précision
-- **Exportez régulièrement** vos données chiffrées comme sauvegarde
-- Le poids théorique peut diverger de la réalité à cause de l'hydratation — c'est normal sur le court terme
-- Si votre pesée est au-dessus du théorique+vélo, c'est un signal à investiger côté alimentation
+- Pesez-vous **le matin à jeun** pour des mesures cohérentes
+- Enregistrez vos calories chaque jour, même approximativement — la tendance compte plus que la précision
+- **Exportez régulièrement** vos données (export chiffré recommandé comme sauvegarde)
+- Le poids théorique peut diverger de la réalité à cause de l'hydratation — c'est normal à court terme
+- Si votre pesée dépasse le théorique+sport ⚠️, investiguez côté alimentation
