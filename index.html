@@ -1756,9 +1756,11 @@ function renderChartPoids(s){
     const mouseX=e.clientX-rect.left;
     const area=chart.chartArea;
     if(mouseX<area.left||mouseX>area.right){crosshair.style.display='none';tooltip.style.display='none';return;}
-    const step=(area.right-area.left)/(totalPoints-1);
-    const idx=Math.max(0,Math.min(totalPoints-1,Math.round((mouseX-area.left)/step)));
-    const snapX=area.left+idx*step;
+    // Utilise l'échelle X réelle (tient compte du zoom/pan)
+    const xScale=chart.scales.x;
+    const rawIdx=xScale.getValueForPixel(mouseX);
+    const idx=Math.max(0,Math.min(totalPoints-1,Math.round(rawIdx)));
+    const snapX=xScale.getPixelForValue(idx);
     crosshair.style.display='block';
     crosshair.style.left=snapX+'px';
     crosshair.style.top=area.top+'px';
