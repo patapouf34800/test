@@ -3303,23 +3303,78 @@ function genPdfSante(){
     });
   });
 
-  if(horsNorme.length){
-    doc.setFillColor(...hexToRgb(c.lightbg)); doc.roundedRect(14, y, pageW-28, 10+horsNorme.length*8, 3, 3, 'F');
+  // Conditions chroniques connues — enrichies pour le médecin
+  if(_conditionsActives.length){
+    // Calculer la hauteur nécessaire
+    const condItems = _conditionsActives.map(id => CONDITIONS_CHRONIQUES.find(x=>x.id===id)).filter(Boolean);
+    const boxH = 12 + condItems.length * 18;
+    checkY(boxH);
+    doc.setFillColor(...hexToRgb('#e0f2fe'));
+    doc.roundedRect(14, y, pageW-28, boxH, 3, 3, 'F');
+    y += 7;
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...hexToRgb('#0369a1'));
+    doc.text('🏥 Conditions chroniques déclarées — contexte de lecture', 18, y); y += 8;
+    condItems.forEach(cc => {
+      doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(...hexToRgb(c.text));
+      doc.text('• ' + cc.label, 18, y); y += 5;
+      if(cc.description){
+        doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.muted));
+        const dlines = doc.splitTextToSize(cc.description, pageW-44);
+        doc.text(dlines, 22, y); y += dlines.length * 4;
+      }
+      if(cc.note){
+        doc.setFontSize(8); doc.setFont('helvetica','italic'); doc.setTextColor(...hexToRgb('#0369a1'));
+        const nlines = doc.splitTextToSize('→ ' + cc.note, pageW-44);
+        doc.text(nlines, 22, y); y += nlines.length * 4;
+      }
+      if(cc.marqueurs && cc.marqueurs.length){
+        doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.muted));
+        const mLabels = cc.marqueurs.map(k => MARQUEUR_LABELS[k]||k).join(', ');
+        const mlines = doc.splitTextToSize('Marqueurs concernés : ' + mLabels, pageW-44);
+        doc.text(mlines, 22, y); y += mlines.length * 4;
+      }
+      y += 3;
+    });
+    y += 4;
+  }
+
+  const marqueursConnus = getMarqueursConnus();
+  const horsNormeVrais = horsNorme.filter(({key})=>!marqueursConnus.has(key));
+  const horsNormeContext = horsNorme.filter(({key})=>marqueursConnus.has(key));
+
+  if(horsNormeVrais.length){
+    doc.setFillColor(...hexToRgb(c.lightbg)); doc.roundedRect(14, y, pageW-28, 10+horsNormeVrais.length*8, 3, 3, 'F');
     y+=7;
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...hexToRgb(c.accent));
     doc.text('⚠ Marqueurs hors norme (dernier bilan)', 18, y); y+=7;
-    horsNorme.forEach(({key,m,statut})=>{
+    horsNormeVrais.forEach(({key,m,statut})=>{
       const u = getUnite(key); const label = MARQUEUR_LABELS[key]||key;
       const col = statut==='haut'?c.danger:c.info;
       doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.text));
-      doc.text(`• ${label}`, 18, y);
+      doc.text('• '+label, 18, y);
       doc.setTextColor(...hexToRgb(col)); doc.setFont('helvetica','bold');
-      doc.text(`${m.valeur} ${u}  (réf : ${m.refMin!=null?m.refMin:''}${m.refMin!==null&&m.refMax!==null?' – ':''}${m.refMax!=null?m.refMax:''} ${u})`, 75, y);
+      doc.text(m.valeur+' '+u+'  (réf : '+(m.refMin!=null?m.refMin:'')+(m.refMin!==null&&m.refMax!==null?' – ':'')+( m.refMax!=null?m.refMax:'')+' '+u+')', 75, y);
       const info = MARQUEUR_INFO[key];
       if(info){ const interp = statut==='haut'?info.haut:info.bas; if(interp){ doc.setFont('helvetica','italic'); doc.setTextColor(...hexToRgb(c.muted)); doc.setFontSize(8); const lines = doc.splitTextToSize(interp, pageW-110); doc.text(lines, 18, y+4); y+=4*lines.length; } }
       y+=7;
     });
-    y+=6;
+    y+=4;
+  }
+
+  if(horsNormeContext.length){
+    doc.setFillColor(...hexToRgb('#f0fdf4')); doc.roundedRect(14, y, pageW-28, 10+horsNormeContext.length*10, 3, 3, 'F');
+    y+=7;
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...hexToRgb('#16a34a'));
+    doc.text('ℹ Marqueurs atypiques liés à une condition connue', 18, y); y+=7;
+    horsNormeContext.forEach(({key,m,statut})=>{
+      const u = getUnite(key); const label = MARQUEUR_LABELS[key]||key;
+      doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.text));
+      doc.text('• '+label+' : '+m.valeur+' '+u, 20, y);
+      const note = getNoteCondition(key);
+      if(note){ doc.setFont('helvetica','italic'); doc.setTextColor(...hexToRgb(c.muted)); doc.setFontSize(8); const lines = doc.splitTextToSize(note, pageW-40); doc.text(lines, 22, y+4); y+=4*lines.length; }
+      y+=7;
+    });
+    y+=4;
   }
 
   // Sections par catégorie
@@ -3457,9 +3512,13 @@ function genPdfBilan(){
     const moyKcal = Math.round(periodeDays.reduce((s,d)=>s+d.calories,0)/periodeDays.length);
     const joursDef = periodeDays.filter(d=>((d.objectif||getObjectif())-d.calories)>0).length;
     const bw = (pageW-28-12)/3;
-    kpiBox('Déficit total', Math.round(totalDef), 'kcal', totalDef>0?'ok':'danger', 14, bw, y);
-    kpiBox('Moy. quotidienne', moyKcal, 'kcal/j', 'accent', 14+bw+6, bw, y);
-    kpiBox('Jours en déficit', joursDef+'/'+periodeDays.length, '', 'ok', 14+bw*2+12, bw, y);
+    const veloKcalPeriode = veloSessions.filter(s=>!cutoff||new Date(s.date)>=cutoff).reduce((s,v)=>s+veloKcal(v),0);
+    const totalDefEtendu = totalDef + veloKcalPeriode;
+    const bw2 = (pageW-28-18)/4;
+    kpiBox('Déficit total', Math.round(totalDef), 'kcal', totalDef>0?'ok':'danger', 14, bw2, y);
+    kpiBox('Moy. quotidienne', moyKcal, 'kcal/j', 'accent', 14+bw2+6, bw2, y);
+    kpiBox('Jours en déficit', joursDef+'/'+periodeDays.length, '', 'ok', 14+bw2*2+12, bw2, y);
+    kpiBox('Déficit+vélo', Math.round(totalDefEtendu), 'kcal', 'ok', 14+bw2*3+18, bw2, y);
     y+=30;
   }
 
@@ -3473,10 +3532,12 @@ function genPdfBilan(){
       doc.text('VÉLO & SPORT', 18, y+5); y+=11;
       const totalKm = veloP.reduce((s,v)=>s+v.distance,0);
       const moyVit = veloP.filter(v=>v.duree>0).reduce((s,v,_,a)=>s+v.distance/(v.duree/60)/a.length,0);
-      const bw = (pageW-28-12)/3;
+      const totalKcalVelo = veloP.reduce((s,v)=>s+veloKcal(v),0);
+      const bw = (pageW-28-18)/4;
       kpiBox('Distance totale', totalKm.toFixed(0), 'km', 'ok', 14, bw, y);
       kpiBox('Sorties', veloP.length, '', 'accent', 14+bw+6, bw, y);
       kpiBox('Vitesse moyenne', moyVit.toFixed(1), 'km/h', 'ok', 14+bw*2+12, bw, y);
+      kpiBox('Calories brûlées', Math.round(totalKcalVelo), 'kcal', 'ok', 14+bw*3+18, bw, y);
       y+=30;
     }
   }
@@ -3499,6 +3560,70 @@ function genPdfBilan(){
       xi++; if(xi%4===0){ rowY+=26; checkY(26); }
     });
     y = rowY+26;
+  }
+
+  // MACROS & NUTRITION
+  const daysWithMacros = periodeDays.filter(d=>d.p!=null||d.g!=null||d.l!=null||d.f!=null);
+  if(daysWithMacros.length){
+    checkY(36);
+    doc.setFillColor(249,115,22); doc.rect(14,y,pageW-28,7,'F');
+    doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+    doc.text('NUTRITION — MOYENNES ('+daysWithMacros.length+' jours tracés)', 18, y+5); y+=11;
+    const avgP = parseFloat((daysWithMacros.reduce((s,d)=>s+(d.p||0),0)/daysWithMacros.length).toFixed(1));
+    const avgG = parseFloat((daysWithMacros.reduce((s,d)=>s+(d.g||0),0)/daysWithMacros.length).toFixed(1));
+    const avgL = parseFloat((daysWithMacros.reduce((s,d)=>s+(d.l||0),0)/daysWithMacros.length).toFixed(1));
+    const avgF = parseFloat((daysWithMacros.reduce((s,d)=>s+(d.f||0),0)/daysWithMacros.length).toFixed(1));
+    // Cibles (depuis dernier jour tracé avec cibles)
+    const lastWithCible = [...daysWithMacros].reverse().find(d=>d.cibles);
+    const cProtMin = lastWithCible?.cibles?.protMin || null;
+    const cLip = lastWithCible?.cibles?.lip || null;
+    const cFibres = lastWithCible?.cibles?.fibres || null;
+    const bw = (pageW-28-18)/4;
+    function macroBox(label, val, cible, unit, col, xi){
+      const x = 14 + xi*(bw+6);
+      doc.setFillColor(14,14,26); doc.roundedRect(x, y, bw, 28, 2, 2, 'F');
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,180);
+      doc.text(label.toUpperCase(), x+3, y+6);
+      const ok = cible ? val >= cible : true;
+      const rgb = ok ? [34,197,94] : [250,204,21];
+      doc.setTextColor(...rgb); doc.setFontSize(13); doc.setFont('helvetica','bold');
+      doc.text(String(val), x+3, y+17);
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,180);
+      doc.text(unit, x+3, y+22);
+      if(cible){ doc.text('cible : '+cible+unit, x+3, y+26.5); }
+    }
+    macroBox('Protéines', avgP, cProtMin, 'g', null, 0);
+    macroBox('Glucides', avgG, null, 'g', null, 1);
+    macroBox('Lipides', avgL, cLip, 'g', null, 2);
+    macroBox('Fibres', avgF, cFibres, 'g', null, 3);
+    y+=32;
+
+    // Conseils rapides
+    checkY(16);
+    const conseils = [];
+    if(cProtMin && avgP < cProtMin) conseils.push('⚠ Protéines insuffisantes ('+avgP+'g/j vs cible '+cProtMin+'g) — augmenter viandes, légumineuses, œufs.');
+    if(cLip && avgL < cLip) conseils.push('⚠ Lipides trop bas ('+avgL+'g/j vs min '+cLip+'g) — ajouter huile d\'olive, noix, poisson gras.');
+    if(cFibres && avgF < cFibres) conseils.push('⚠ Fibres insuffisantes ('+avgF+'g/j vs cible '+cFibres+'g) — plus de légumes, légumineuses, céréales complètes.');
+    if(conseils.length){
+      doc.setFontSize(8); doc.setFont('helvetica','italic'); doc.setTextColor(250,204,21);
+      conseils.forEach(c=>{ const lines=doc.splitTextToSize(c,pageW-30); doc.text(lines,16,y); y+=5*lines.length; });
+      y+=4;
+    }
+  }
+
+  // CALORIES VÉLO
+  if(inclVelo && veloSessions.length){
+    const veloP2 = cutoff ? veloSessions.filter(s=>new Date(s.date)>=cutoff) : veloSessions;
+    if(veloP2.length){
+      checkY(22);
+      const totalKcalVelo = veloP2.reduce((s,v)=>s+veloKcal(v),0);
+      const avgKcalVelo = Math.round(totalKcalVelo/veloP2.length);
+      doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,180);
+      doc.text('Calories brûlées vélo (période) :', 14, y);
+      doc.setTextColor(34,197,94); doc.setFont('helvetica','bold');
+      doc.text(Math.round(totalKcalVelo)+' kcal total  —  moy. '+avgKcalVelo+' kcal/sortie', 80, y);
+      y+=8;
+    }
   }
 
   // Footer
