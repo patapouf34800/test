@@ -248,8 +248,8 @@
 
   <div class="sidebar-section">
     <div class="sidebar-section-label">Sport</div>
-    <button class="sidebar-tab" onclick="showTab('velo',this)">🚴 Vélo</button>
-    <button class="sidebar-tab" onclick="showTab('saisievelo',this)">➕ Saisie vélo</button>
+    <button class="sidebar-tab" onclick="showTab('velo',this)">🏃 Sport</button>
+    <button class="sidebar-tab" onclick="showTab('saisievelo',this)">➕ Saisie sport</button>
   </div>
 
   <div class="sidebar-section">
@@ -1165,22 +1165,32 @@
   <!-- SAISIE VELO -->
   <div id="saisievelo" class="panel">
     <div class="chart-card">
-      <div class="chart-title">Ajouter une session</div>
+      <div class="chart-title">Ajouter une session sportive</div>
       <div class="form-row">
         <div class="form-group" style="max-width:180px">
           <label>Date</label>
           <input type="date" id="veloDate">
         </div>
-        <div class="form-group" style="max-width:140px">
+        <div class="form-group" style="max-width:180px">
+          <label>Activité</label>
+          <select id="veloType" onchange="updateVeloMET()" style="width:100%">
+          </select>
+        </div>
+        <div class="form-group" style="max-width:100px" id="veloDistGroup">
           <label>Distance (km)</label>
           <input type="number" id="veloDistance" placeholder="7.5" step="0.1" min="0">
         </div>
-        <div class="form-group" style="max-width:140px">
+        <div class="form-group" style="max-width:120px">
           <label>Durée (min)</label>
           <input type="number" id="veloDuree" placeholder="20" step="1" min="0">
         </div>
+        <div class="form-group" style="max-width:80px" id="veloMetGroup">
+          <label>MET</label>
+          <input type="number" id="veloMetCustom" placeholder="5" step="0.5" min="1" max="20" style="width:100%">
+        </div>
         <button class="btn btn-green" onclick="addVelo()" style="margin-top:22px">+ Ajouter</button>
       </div>
+      <div id="veloMetInfo" style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px"></div>
     </div>
     <div class="chart-card" style="margin-top:20px">
       <div class="chart-title" id="veloListTitle">Sessions enregistrées</div>
@@ -2930,13 +2940,39 @@ function getFilteredDeficit(){
   return days;
 }
 
+
+function initVeloForm(){
+  const sel = document.getElementById('veloType');
+  if(!sel) return;
+  sel.innerHTML = ACTIVITES.map(a =>
+    '<option value="'+a.id+'">'+a.icon+' '+a.label+'</option>'
+  ).join('');
+  updateVeloMET();
+}
+
+function updateVeloMET(){
+  const sel = document.getElementById('veloType');
+  if(!sel) return;
+  const act = getActivite(sel.value);
+  const distGroup = document.getElementById('veloDistGroup');
+  const metGroup = document.getElementById('veloMetGroup');
+  const metInfo = document.getElementById('veloMetInfo');
+  if(distGroup) distGroup.style.display = act.hasDist ? '' : 'none';
+  if(metGroup) metGroup.style.display = act.id==='autre' ? '' : 'none';
+  if(metInfo) metInfo.textContent = act.id!=='autre' ? 'MET '+act.met+' — ~'+Math.round(act.met * 80 * (60/60))+' kcal/h pour 80 kg' : '';
+}
+
 function addVelo(){
   const date=document.getElementById('veloDate').value;
   const dist=parseFloat(document.getElementById('veloDistance').value);
   const dur=parseFloat(document.getElementById('veloDuree').value);
   if(!date||isNaN(dist)||isNaN(dur)||dist<=0||dur<=0){alert('Merci de remplir tous les champs.');return;}
   const label=new Date(date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-  veloSessions.push({date,label,distance:dist,duree:dur});
+  const typeEl = document.getElementById('veloType');
+  const typeVal = typeEl ? typeEl.value : 'velo_interieur';
+  const metCustomEl = document.getElementById('veloMetCustom');
+  const metCustom = (typeVal==='autre' && metCustomEl) ? parseFloat(metCustomEl.value)||5 : null;
+  veloSessions.push({date,label,distance:dist,duree:dur,type:typeVal,metCustom});
   veloSessions.sort((a,b)=>a.date.localeCompare(b.date));
   document.getElementById('veloDistance').value='';
   document.getElementById('veloDuree').value='';
@@ -4609,9 +4645,12 @@ function renderVelo(){
     listEl.innerHTML=veloSessions.slice().reverse().map((v,ri)=>{
       const idx=veloSessions.length-1-ri;
       const kcal=veloKcal(v);
+      const act=getActivite(v.type||'velo_interieur');
       const poids=getPoidsAvantDate(v.date);
+      const distStr = act.hasDist && v.distance ? v.distance+' km' : '—';
       return '<div class="day-row"><span class="day-date">'+v.label+'</span>'
-        +'<span style="color:#38bdf8;font-family:\'Space Mono\',monospace;font-size:13px;min-width:65px">'+v.distance+' km</span>'
+        +'<span style="font-size:11px;color:rgba(255,255,255,0.4);min-width:130px">'+act.icon+' '+act.label+'</span>'
+        +'<span style="color:#38bdf8;font-family:\'Space Mono\',monospace;font-size:13px;min-width:65px">'+distStr+'</span>'
         +'<span style="color:#f97316;font-family:\'Space Mono\',monospace;font-size:13px;min-width:65px">'+v.duree+' min</span>'
         +'<span style="color:#4ade80;font-family:\'Space Mono\',monospace;font-size:12px;min-width:75px">~'+kcal+' kcal</span>'
         +'<span style="color:rgba(255,255,255,0.2);font-size:11px;min-width:55px">'+poids+'kg</span>'
@@ -4620,7 +4659,16 @@ function renderVelo(){
   }
 }
 
-const VELO_MET = 4;
+const ACTIVITES = [
+  { id:'velo_interieur', label:'Vélo intérieur',   icon:'🚴', met:4,   hasDist:true  },
+  { id:'velo_exterieur', label:'Vélo extérieur',   icon:'🚵', met:8,   hasDist:true  },
+  { id:'course',         label:'Course à pied',    icon:'🏃', met:8,   hasDist:true  },
+  { id:'marche',         label:'Marche rapide',    icon:'🚶', met:4.5, hasDist:true  },
+  { id:'natation',       label:'Natation',         icon:'🏊', met:7,   hasDist:false },
+  { id:'musculation',    label:'Musculation',      icon:'🏋️', met:5,   hasDist:false },
+  { id:'autre',          label:'Autre',            icon:'⚡', met:5,   hasDist:false },
+];
+function getActivite(id){ return ACTIVITES.find(a=>a.id===id) || ACTIVITES[0]; }
 
 function getPoidsAvantDate(dateStr){
   // Retourne la dernière pesée réelle enregistrée avant ou à dateStr, sinon poids paramètre
@@ -4631,7 +4679,9 @@ function getPoidsAvantDate(dateStr){
 
 function veloKcal(session){
   const poids = getPoidsAvantDate(session.date);
-  return Math.round(VELO_MET * poids * (session.duree / 60));
+  const act = getActivite(session.type || 'velo_interieur');
+  const met = (session.type==='autre' && session.metCustom) ? session.metCustom : act.met;
+  return Math.round(met * poids * (session.duree / 60));
 }
 
 function setPeriod(period, btn){
@@ -5953,6 +6003,7 @@ async function initApp() {
   if(!hasData) days = [];
   refresh();
   window.addEventListener('beforeunload', saveData);
+  initVeloForm();
   // Fermer modale aide au clic sur le fond
   const am = document.getElementById('aideModal');
   if(am) am.addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
