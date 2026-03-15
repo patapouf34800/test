@@ -1502,8 +1502,8 @@ function renderTension(){
     const zones = {
       // Zones 2D : chaque rectangle = combinaison sys+dia → couleur OMS réelle
       // Hypotension : sys<90 OU dia<60
-      z_hypo_sys: { type:'box', xMin:50, xMax:110, yMin:50,  yMax:90,  backgroundColor:'rgba(167,139,250,0.08)', borderWidth:0 },
-      z_hypo_dia: { type:'box', xMin:50, xMax:60,  yMin:90,  yMax:200, backgroundColor:'rgba(167,139,250,0.08)', borderWidth:0, label:{display:true, content:'Hypotension', color:'rgba(167,139,250,0.45)', font:{size:8}, position:{x:'start',y:'start'}} },
+      z_hypo_sys: { type:'box', xMin:55, xMax:110, yMin:50,  yMax:90,  backgroundColor:'rgba(167,139,250,0.08)', borderWidth:0 },
+      z_hypo_dia: { type:'box', xMin:55, xMax:60,  yMin:90,  yMax:200, backgroundColor:'rgba(167,139,250,0.08)', borderWidth:0, label:{display:true, content:'Hypotension', color:'rgba(167,139,250,0.45)', font:{size:8}, position:{x:'start',y:'start'}} },
       // Optimale : sys<120 ET dia<80
       z_opt:  { type:'box', xMin:60, xMax:80,  yMin:90,  yMax:120, backgroundColor:'rgba(34,197,94,0.08)',   borderWidth:0, label:{display:true, content:'Optimale',       color:'rgba(34,197,94,0.4)',   font:{size:8}, position:{x:'start',y:'start'}} },
       // Normale : sys≤129 ET dia≤84 (hors optimale)
@@ -1551,7 +1551,7 @@ function renderTension(){
         },
         scales:{
           x:{
-            min:50, max:110,
+            min:55, max:110,
             grid:{color:'rgba(255,255,255,0.04)'},
             ticks:{color:'rgba(255,255,255,0.25)',font:{size:9}},
             title:{display:true, text:'Diastolique (mmHg)', color:'rgba(56,189,248,0.6)', font:{size:10}}
