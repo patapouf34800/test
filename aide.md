@@ -1,5 +1,21 @@
 # Mon Suivi Santé — Guide d'utilisation
 
+## 🚀 Premiers pas — Configuration initiale
+
+Avant toute chose, rendez-vous dans **🔥 Besoin journalier** (sidebar) et renseignez vos paramètres personnels :
+
+- **Sexe, âge, taille** — nécessaires pour le calcul du métabolisme de base (formule Mifflin-St Jeor)
+- **Poids de départ** — point d'ancrage de toute la courbe théorique
+- **Niveau d'activité** — coefficient multiplicateur du TDEE
+- **Objectif calorique** — calculé automatiquement depuis votre TDEE, ajustable
+
+Ces valeurs sont la base de **tous les calculs de l'application** : poids théorique, déficit, projections. Sans elles, les chiffres affichés n'ont pas de sens.
+
+> 💡 Le poids de départ se renseigne dans le champ **Poids (kg)** en bas du panneau Besoin journalier. L'objectif calorique se met à jour automatiquement à chaque nouvelle pesée enregistrée.
+
+---
+
+
 ## 🔐 Sécurité & données
 
 Toutes vos données sont stockées **localement dans votre navigateur** (localStorage chiffré). Rien n'est envoyé sur un serveur.
