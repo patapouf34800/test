@@ -867,15 +867,18 @@
   <!-- À SURVEILLER -->
   <div id="sante_surveiller" class="panel">
     <div class="chart-card">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-        <div class="chart-title" style="margin-bottom:0">🏥 Mes conditions chroniques</div>
-        <span style="font-size:11px;color:rgba(255,255,255,0.2)">Les marqueurs concernés passent en "connu" dans À surveiller</span>
-      </div>
-      <div id="conditionsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px"></div>
-    </div>
-    <div class="chart-card">
       <div class="chart-title">⚠️ À surveiller</div>
       <div id="sante_surveiller_content"><p class="empty-msg">Aucun bilan importé.</p></div>
+    </div>
+    <div class="chart-card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none" onclick="toggleConditionsPanel()">
+        <div class="chart-title" style="margin-bottom:0">🏥 Conditions chroniques</div>
+        <span id="conditionsPanelArrow" style="font-size:13px;color:rgba(255,255,255,0.3);transition:transform 0.2s">▼</span>
+      </div>
+      <div id="conditionsPanelBody" style="display:none;margin-top:12px">
+        <div style="font-size:11px;color:rgba(255,255,255,0.2);margin-bottom:10px">Les marqueurs concernés passent en "connu" dans À surveiller</div>
+        <div id="conditionsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px"></div>
+      </div>
     </div>
   </div>
 
@@ -3239,6 +3242,28 @@ function renderDocuments(){
   }).join('');
 }
 
+
+// Normalise les caractères accentués pour jsPDF (Helvetica ne supporte pas l'UTF-8 étendu)
+function pdfStr(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/[àâä]/g, 'a').replace(/[ÀÂÄÁ]/g, 'A')
+    .replace(/[éèêë]/g, 'e').replace(/[ÉÈÊË]/g, 'E')
+    .replace(/[îï]/g, 'i').replace(/[ÎÏ]/g, 'I')
+    .replace(/[ôö]/g, 'o').replace(/[ÔÖ]/g, 'O')
+    .replace(/[ùûü]/g, 'u').replace(/[ÙÛÜ]/g, 'U')
+    .replace(/[ç]/g, 'c').replace(/[Ç]/g, 'C')
+    .replace(/[ñ]/g, 'n').replace(/[Ñ]/g, 'N')
+    .replace(/[æ]/g, 'ae').replace(/[Æ]/g, 'AE')
+    .replace(/[œ]/g, 'oe').replace(/[Œ]/g, 'OE')
+    .replace(/[–—]/g, '-')
+    .replace(/['']/g, "'")
+    .replace(/[""]/g, '"')
+    .replace(/[⚠️🏥ℹ→•·]/g, s => ({
+      '⚠': '!', '⚠️': '!', '🏥': '', 'ℹ': 'i', '→': '->', '•': '-', '·': '-'
+    }[s] || ''));
+}
+
 function getPdfColors(){ return { bg:'#ffffff', text:'#1a1a2e', muted:'#666680', accent:'#e85d04', ok:'#16a34a', warn:'#d97706', danger:'#dc2626', info:'#0369a1', border:'#e5e7eb', lightbg:'#f8f9fa' }; }
 
 function pdfHeader(doc, c, title, subtitle, pageW){
@@ -3253,8 +3278,8 @@ function pdfHeader(doc, c, title, subtitle, pageW){
 function pdfFooter(doc, c, pageNum, pageW, pageH){
   doc.setDrawColor(c.border); doc.line(14, pageH-12, pageW-14, pageH-12);
   doc.setFontSize(8); doc.setTextColor(c.muted); doc.setFont('helvetica','normal');
-  doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}), 14, pageH-6);
-  doc.text('Page ' + pageNum, pageW-14, pageH-6, {align:'right'});
+  doc.text(pdfStr('Généré le ' + new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'})), 14, pageH-6);
+  doc.text(pdfStr('Page ' + pageNum), pageW-14, pageH-6, {align:'right'});
 }
 
 function statutColor(val, refMin, refMax, c){
@@ -3290,8 +3315,8 @@ function genPdfSante(){
     doc.text(nom, 14, y); y+=8;
   }
   doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.muted));
-  if(medecin){ doc.text('À l\'attention de : ' + medecin, 14, y); y+=6; }
-  doc.text(selectedBilans.length + ' bilan(s) analysé(s)', 14, y); y+=14;
+  if(medecin){ doc.text(pdfStr('À l\'attention de : ' + medecin), 14, y); y+=6; }
+  doc.text(pdfStr(selectedBilans.length + ' bilan(s) analysé(s)'), 14, y); y+=14;
 
   // Résumé À surveiller (dernier bilan)
   const lastB = selectedBilans[selectedBilans.length-1];
@@ -3313,19 +3338,19 @@ function genPdfSante(){
     doc.roundedRect(14, y, pageW-28, boxH, 3, 3, 'F');
     y += 7;
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...hexToRgb('#0369a1'));
-    doc.text('🏥 Conditions chroniques déclarées — contexte de lecture', 18, y); y += 8;
+    doc.text(pdfStr('🏥 Conditions chroniques déclarées — contexte de lecture'), 18, y); y += 8;
     condItems.forEach(cc => {
       doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(...hexToRgb(c.text));
-      doc.text('• ' + cc.label, 18, y); y += 5;
+      doc.text(pdfStr('• ' + cc.label), 18, y); y += 5;
       if(cc.description){
         doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.muted));
         const dlines = doc.splitTextToSize(cc.description, pageW-44);
-        doc.text(dlines, 22, y); y += dlines.length * 4;
+        doc.text(dlines.map(pdfStr), 22, y); y += dlines.length * 4;
       }
       if(cc.note){
         doc.setFontSize(8); doc.setFont('helvetica','italic'); doc.setTextColor(...hexToRgb('#0369a1'));
         const nlines = doc.splitTextToSize('→ ' + cc.note, pageW-44);
-        doc.text(nlines, 22, y); y += nlines.length * 4;
+        doc.text(nlines.map(pdfStr), 22, y); y += nlines.length * 4;
       }
       if(cc.marqueurs && cc.marqueurs.length){
         doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.muted));
@@ -3346,16 +3371,16 @@ function genPdfSante(){
     doc.setFillColor(...hexToRgb(c.lightbg)); doc.roundedRect(14, y, pageW-28, 10+horsNormeVrais.length*8, 3, 3, 'F');
     y+=7;
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...hexToRgb(c.accent));
-    doc.text('⚠ Marqueurs hors norme (dernier bilan)', 18, y); y+=7;
+    doc.text(pdfStr('⚠ Marqueurs hors norme (dernier bilan)'), 18, y); y+=7;
     horsNormeVrais.forEach(({key,m,statut})=>{
       const u = getUnite(key); const label = MARQUEUR_LABELS[key]||key;
       const col = statut==='haut'?c.danger:c.info;
       doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.text));
-      doc.text('• '+label, 18, y);
+      doc.text(pdfStr('• '+label), 18, y);
       doc.setTextColor(...hexToRgb(col)); doc.setFont('helvetica','bold');
-      doc.text(m.valeur+' '+u+'  (réf : '+(m.refMin!=null?m.refMin:'')+(m.refMin!==null&&m.refMax!==null?' – ':'')+( m.refMax!=null?m.refMax:'')+' '+u+')', 75, y);
+      doc.text(pdfStr(m.valeur+' '+u+'  (réf : '+(m.refMin!=null?m.refMin:'')+(m.refMin!==null&&m.refMax!==null?' – ':'')+( m.refMax!=null?m.refMax:'')+' '+u+')'), 75, y);
       const info = MARQUEUR_INFO[key];
-      if(info){ const interp = statut==='haut'?info.haut:info.bas; if(interp){ doc.setFont('helvetica','italic'); doc.setTextColor(...hexToRgb(c.muted)); doc.setFontSize(8); const lines = doc.splitTextToSize(interp, pageW-110); doc.text(lines, 18, y+4); y+=4*lines.length; } }
+      if(info){ const interp = statut==='haut'?info.haut:info.bas; if(interp){ doc.setFont('helvetica','italic'); doc.setTextColor(...hexToRgb(c.muted)); doc.setFontSize(8); const lines = doc.splitTextToSize(interp, pageW-110); doc.text(lines.map(pdfStr), 18, y+4); y+=4*lines.length; } }
       y+=7;
     });
     y+=4;
@@ -3365,13 +3390,13 @@ function genPdfSante(){
     doc.setFillColor(...hexToRgb('#f0fdf4')); doc.roundedRect(14, y, pageW-28, 10+horsNormeContext.length*10, 3, 3, 'F');
     y+=7;
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...hexToRgb('#16a34a'));
-    doc.text('ℹ Marqueurs atypiques liés à une condition connue', 18, y); y+=7;
+    doc.text(pdfStr('ℹ Marqueurs atypiques liés à une condition connue'), 18, y); y+=7;
     horsNormeContext.forEach(({key,m,statut})=>{
       const u = getUnite(key); const label = MARQUEUR_LABELS[key]||key;
       doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.text));
-      doc.text('• '+label+' : '+m.valeur+' '+u, 20, y);
+      doc.text(pdfStr('• '+label+' : '+m.valeur+' '+u), 20, y);
       const note = getNoteCondition(key);
-      if(note){ doc.setFont('helvetica','italic'); doc.setTextColor(...hexToRgb(c.muted)); doc.setFontSize(8); const lines = doc.splitTextToSize(note, pageW-40); doc.text(lines, 22, y+4); y+=4*lines.length; }
+      if(note){ doc.setFont('helvetica','italic'); doc.setTextColor(...hexToRgb(c.muted)); doc.setFontSize(8); const lines = doc.splitTextToSize(note, pageW-40); doc.text(lines.map(pdfStr), 22, y+4); y+=4*lines.length; }
       y+=7;
     });
     y+=4;
@@ -3389,7 +3414,7 @@ function genPdfSante(){
     // En-tête section
     doc.setFillColor(...hexToRgb(c.accent)); doc.rect(14, y, pageW-28, 8, 'F');
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-    doc.text(catLabel.toUpperCase(), 18, y+5.5); y+=12;
+    doc.text(pdfStr(catLabel.toUpperCase()), 18, y+5.5); y+=12;
 
     // Tableau marqueurs
     Object.entries(marqueurs).forEach(([key, data])=>{
@@ -3402,7 +3427,7 @@ function genPdfSante(){
       // Ligne zébrée
       if(Object.keys(marqueurs).indexOf(key)%2===0){ doc.setFillColor(248,249,250); doc.rect(14,y-4,pageW-28,8,'F'); }
       doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...hexToRgb(c.text));
-      doc.text(label, 18, y);
+      doc.text(pdfStr(label), 18, y);
       // Valeurs par bilan
       data.vals.forEach((entry,i)=>{
         const bDate = new Date(entry.date).toLocaleDateString('fr-FR',{month:'2-digit',year:'2-digit'});
@@ -3410,7 +3435,7 @@ function genPdfSante(){
         const col = statutColor(entry.val,data.refMin,data.refMax,c);
         doc.setTextColor(...hexToRgb(col));
         doc.setFont('helvetica','bold'); doc.setFontSize(9);
-        doc.text(`${entry.val}`, xOff, y);
+        doc.text(pdfStr(`${entry.val}`), xOff, y);
         // Unité en petit à droite de la valeur
         if(u){
           const valW = doc.getTextWidth(`${entry.val}`);
@@ -3422,7 +3447,7 @@ function genPdfSante(){
         doc.setFontSize(9);
       });
       doc.setTextColor(...hexToRgb(c.muted)); doc.setFont('helvetica','normal'); doc.setFontSize(8);
-      doc.text(`réf : ${refStr} ${u}`, pageW-14, y, {align:'right'});
+      doc.text(pdfStr(`réf : ${refStr} ${u}`), pageW-14, y, {align:'right'});
       y+=9;
     });
     y+=4;
@@ -3457,9 +3482,9 @@ function genPdfBilan(){
   // Header orange
   doc.setFillColor(249,115,22); doc.rect(0,0,pageW,16,'F');
   doc.setTextColor(255,255,255); doc.setFontSize(12); doc.setFont('helvetica','bold');
-  doc.text('MON SUIVI SANTÉ — BILAN PERSONNEL', 14, 11);
+  doc.text(pdfStr('MON SUIVI SANTÉ — BILAN PERSONNEL'), 14, 11);
   doc.setFontSize(9); doc.setFont('helvetica','normal');
-  doc.text(new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}), pageW-14, 11, {align:'right'});
+  doc.text(pdfStr(new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'})), pageW-14, 11, {align:'right'});
   y=26;
 
   const cutoff = periode===999 ? null : new Date(); 
@@ -3469,7 +3494,7 @@ function genPdfBilan(){
   // Période
   doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(255,255,255,0.4);
   const periodeLabel = periode===999?'Tout l\'historique':`${periode} derniers jours`;
-  doc.setTextColor(249,115,22); doc.text(`Période : ${periodeLabel}`, 14, y); y+=10;
+  doc.setTextColor(249,115,22); doc.text(pdfStr(`Période : ${periodeLabel}`), 14, y); y+=10;
 
   function kpiBox(label, value, unit, col, x, bw, yy){
     doc.setFillColor(14,14,26); doc.roundedRect(x, yy, bw, 22, 2, 2, 'F');
@@ -3491,7 +3516,7 @@ function genPdfBilan(){
     checkY(36);
     doc.setFillColor(249,115,22); doc.rect(14,y,pageW-28,7,'F');
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-    doc.text('POIDS & COMPOSITION', 18, y+5); y+=11;
+    doc.text(pdfStr('POIDS & COMPOSITION'), 18, y+5); y+=11;
     const lastP = pesees[pesees.length-1];
     const firstP = pesees[0];
     const diff = lastP.val - firstP.val;
@@ -3507,7 +3532,7 @@ function genPdfBilan(){
     checkY(36);
     doc.setFillColor(249,115,22); doc.rect(14,y,pageW-28,7,'F');
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-    doc.text('ALIMENTATION', 18, y+5); y+=11;
+    doc.text(pdfStr('ALIMENTATION'), 18, y+5); y+=11;
     const totalDef = periodeDays.reduce((s,d)=>s+((d.objectif||getObjectif())-d.calories),0);
     const moyKcal = Math.round(periodeDays.reduce((s,d)=>s+d.calories,0)/periodeDays.length);
     const joursDef = periodeDays.filter(d=>((d.objectif||getObjectif())-d.calories)>0).length;
@@ -3529,7 +3554,7 @@ function genPdfBilan(){
     if(veloP.length){
       doc.setFillColor(249,115,22); doc.rect(14,y,pageW-28,7,'F');
       doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-      doc.text('VÉLO & SPORT', 18, y+5); y+=11;
+      doc.text(pdfStr('VÉLO & SPORT'), 18, y+5); y+=11;
       const totalKm = veloP.reduce((s,v)=>s+v.distance,0);
       const moyVit = veloP.filter(v=>v.duree>0).reduce((s,v,_,a)=>s+v.distance/(v.duree/60)/a.length,0);
       const totalKcalVelo = veloP.reduce((s,v)=>s+veloKcal(v),0);
@@ -3547,7 +3572,7 @@ function genPdfBilan(){
     checkY(16);
     doc.setFillColor(249,115,22); doc.rect(14,y,pageW-28,7,'F');
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-    doc.text('MARQUEURS SANGUINS CLÉS', 18, y+5); y+=11;
+    doc.text(pdfStr('MARQUEURS SANGUINS CLÉS'), 18, y+5); y+=11;
     const clés = ['vitamine_D','cholesterol_total','HDL','LDL','ferritine','HbA1c','TSH','CRP'];
     const lastB = bilans[bilans.length-1];
     const bw2 = (pageW-28-10)/4; let xi=0; let rowY=y;
@@ -3568,7 +3593,7 @@ function genPdfBilan(){
     checkY(36);
     doc.setFillColor(249,115,22); doc.rect(14,y,pageW-28,7,'F');
     doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-    doc.text('NUTRITION — MOYENNES ('+daysWithMacros.length+' jours tracés)', 18, y+5); y+=11;
+    doc.text(pdfStr('NUTRITION — MOYENNES ('+daysWithMacros.length+' jours tracés)'), 18, y+5); y+=11;
     const avgP = parseFloat((daysWithMacros.reduce((s,d)=>s+(d.p||0),0)/daysWithMacros.length).toFixed(1));
     const avgG = parseFloat((daysWithMacros.reduce((s,d)=>s+(d.g||0),0)/daysWithMacros.length).toFixed(1));
     const avgL = parseFloat((daysWithMacros.reduce((s,d)=>s+(d.l||0),0)/daysWithMacros.length).toFixed(1));
@@ -3590,7 +3615,7 @@ function genPdfBilan(){
       doc.text(String(val), x+3, y+17);
       doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,180);
       doc.text(unit, x+3, y+22);
-      if(cible){ doc.text('cible : '+cible+unit, x+3, y+26.5); }
+      if(cible){ doc.text(pdfStr('cible : '+cible+unit), x+3, y+26.5); }
     }
     macroBox('Protéines', avgP, cProtMin, 'g', null, 0);
     macroBox('Glucides', avgG, null, 'g', null, 1);
@@ -3606,7 +3631,7 @@ function genPdfBilan(){
     if(cFibres && avgF < cFibres) conseils.push('⚠ Fibres insuffisantes ('+avgF+'g/j vs cible '+cFibres+'g) — plus de légumes, légumineuses, céréales complètes.');
     if(conseils.length){
       doc.setFontSize(8); doc.setFont('helvetica','italic'); doc.setTextColor(250,204,21);
-      conseils.forEach(c=>{ const lines=doc.splitTextToSize(c,pageW-30); doc.text(lines,16,y); y+=5*lines.length; });
+      conseils.forEach(c=>{ const lines=doc.splitTextToSize(c,pageW-30); doc.text(lines.map(pdfStr),16,y); y+=5*lines.length; });
       y+=4;
     }
   }
@@ -3619,9 +3644,9 @@ function genPdfBilan(){
       const totalKcalVelo = veloP2.reduce((s,v)=>s+veloKcal(v),0);
       const avgKcalVelo = Math.round(totalKcalVelo/veloP2.length);
       doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,180);
-      doc.text('Calories brûlées vélo (période) :', 14, y);
+      doc.text(pdfStr('Calories brûlées vélo (période) :'), 14, y);
       doc.setTextColor(34,197,94); doc.setFont('helvetica','bold');
-      doc.text(Math.round(totalKcalVelo)+' kcal total  —  moy. '+avgKcalVelo+' kcal/sortie', 80, y);
+      doc.text(pdfStr(Math.round(totalKcalVelo)+' kcal total  —  moy. '+avgKcalVelo+' kcal/sortie'), 80, y);
       y+=8;
     }
   }
@@ -3629,8 +3654,8 @@ function genPdfBilan(){
   // Footer
   doc.setFillColor(14,14,26); doc.rect(0,pageH-14,pageW,14,'F');
   doc.setFontSize(8); doc.setTextColor(100,100,120); doc.setFont('helvetica','normal');
-  doc.text('MON SUIVI SANTÉ — Rapport personnel confidentiel', 14, pageH-5);
-  doc.text('Page '+pageNum, pageW-14, pageH-5, {align:'right'});
+  doc.text(pdfStr('MON SUIVI SANTÉ — Rapport personnel confidentiel'), 14, pageH-5);
+  doc.text(pdfStr('Page '+pageNum), pageW-14, pageH-5, {align:'right'});
 
   doc.save('bilan_perso_' + new Date().toLocaleDateString('fr-FR').replace(/\//g,'-') + '.pdf');
 }
@@ -4000,6 +4025,15 @@ function toggleCondition(id){
   saveData();
   renderConditionsGrid();
   renderSurveiller();
+}
+
+function toggleConditionsPanel(){
+  const body = document.getElementById('conditionsPanelBody');
+  const arrow = document.getElementById('conditionsPanelArrow');
+  if(!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  if(arrow) arrow.style.transform = open ? 'rotate(180deg)' : '';
 }
 
 function renderConditionsGrid(){
