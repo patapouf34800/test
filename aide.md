@@ -85,6 +85,19 @@ Suivi des macronutriments (protéines, glucides, lipides, fibres) par jour. Néc
 
 Récapitulatif semaine par semaine : calories moyennes, déficit, pesées.
 
+La semaine va du **samedi au vendredi**. Le bilan est pensé pour être consulté le vendredi soir ou le week-end.
+
+### Analyse automatique après 7 jours
+Dès que vous avez au moins **7 jours de données enregistrées**, le bilan hebdo génère des **propositions personnalisées** pour améliorer vos chiffres :
+
+- ⚠️ **Protéines insuffisantes** : si votre moyenne est sous la cible — suggestions d'aliments (viandes, légumineuses, œufs)
+- ⚠️ **Lipides trop bas** : si vous êtes sous le minimum recommandé — huile d'olive, noix, poisson gras
+- ⚠️ **Fibres insuffisantes** : si vous êtes sous 25g/j — légumes, légumineuses, céréales complètes
+- 📈 **Glucides au-dessus du budget** : avec les aliments les plus contributeurs à réduire en priorité
+- ✓ **Bonne semaine** : si tous les seuils sont respectés
+
+> Ces seuils sont calculés depuis vos cibles nutritionnelles (configurables dans l'onglet Nutriments).
+
 ---
 
 ## 📚 Références
