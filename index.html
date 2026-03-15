@@ -1500,24 +1500,25 @@ function renderTension(){
 
     // Zones colorées en arrière-plan via annotations
     const zones = {
-      // Zones 2D : chaque rectangle = combinaison sys+dia → couleur OMS réelle
-      // Hypotension : sys<90 OU dia<60
-      z_hypo_sys: { type:'box', xMin:55, xMax:110, yMin:50,  yMax:90,  backgroundColor:'rgba(167,139,250,0.08)', borderWidth:0 },
-      z_hypo_dia: { type:'box', xMin:55, xMax:60,  yMin:90,  yMax:200, backgroundColor:'rgba(167,139,250,0.08)', borderWidth:0, label:{display:true, content:'Hypotension', color:'rgba(167,139,250,0.45)', font:{size:8}, position:{x:'start',y:'start'}} },
-      // Optimale : sys<120 ET dia<80
-      z_opt:  { type:'box', xMin:60, xMax:80,  yMin:90,  yMax:120, backgroundColor:'rgba(34,197,94,0.08)',   borderWidth:0, label:{display:true, content:'Optimale',       color:'rgba(34,197,94,0.4)',   font:{size:8}, position:{x:'start',y:'start'}} },
-      // Normale : sys≤129 ET dia≤84 (hors optimale)
-      z_nor_a: { type:'box', xMin:80, xMax:85,  yMin:90,  yMax:130, backgroundColor:'rgba(163,230,53,0.08)', borderWidth:0 },
-      z_nor_b: { type:'box', xMin:60, xMax:85,  yMin:120, yMax:130, backgroundColor:'rgba(163,230,53,0.08)', borderWidth:0, label:{display:true, content:'Normale',         color:'rgba(163,230,53,0.4)', font:{size:8}, position:{x:'start',y:'start'}} },
-      // Normale haute : sys≤139 ET dia≤89 (hors précédents)
-      z_haut_a:{ type:'box', xMin:85, xMax:90,  yMin:90,  yMax:140, backgroundColor:'rgba(234,179,8,0.08)',  borderWidth:0 },
-      z_haut_b:{ type:'box', xMin:60, xMax:90,  yMin:130, yMax:140, backgroundColor:'rgba(234,179,8,0.08)',  borderWidth:0, label:{display:true, content:'Normale haute',   color:'rgba(234,179,8,0.4)',  font:{size:8}, position:{x:'start',y:'start'}} },
-      // HTA G1 : sys≤159 ET dia≤99
-      z_h1_a:  { type:'box', xMin:90, xMax:100, yMin:90,  yMax:160, backgroundColor:'rgba(249,115,22,0.09)', borderWidth:0 },
-      z_h1_b:  { type:'box', xMin:60, xMax:100, yMin:140, yMax:160, backgroundColor:'rgba(249,115,22,0.09)', borderWidth:0, label:{display:true, content:'HTA G1',          color:'rgba(249,115,22,0.45)',font:{size:8}, position:{x:'start',y:'start'}} },
+      // Zones 2D OMS sans labels — la légende est en bas
+      // Ordre : du plus sévère au moins sévère (les zones légères écrasent les sévères)
       // HTA G2 : sys≥160 OU dia≥100
-      z_h2_a:  { type:'box', xMin:100,xMax:110, yMin:90,  yMax:200, backgroundColor:'rgba(239,68,68,0.09)',  borderWidth:0 },
-      z_h2_b:  { type:'box', xMin:60, xMax:110, yMin:160, yMax:200, backgroundColor:'rgba(239,68,68,0.09)',  borderWidth:0, label:{display:true, content:'HTA G2',          color:'rgba(239,68,68,0.4)',  font:{size:8}, position:{x:'start',y:'start'}} },
+      z_h2_d: { type:'box', xMin:100, xMax:110, yMin:80, yMax:200, backgroundColor:'rgba(239,68,68,0.10)',  borderWidth:0 },
+      z_h2_s: { type:'box', xMin:55,  xMax:110, yMin:160,yMax:200, backgroundColor:'rgba(239,68,68,0.10)',  borderWidth:0 },
+      // HTA G1 : sys 140-159 ET dia≤99 / dia 90-99 ET sys≤159
+      z_h1_d: { type:'box', xMin:90,  xMax:100, yMin:80, yMax:160, backgroundColor:'rgba(249,115,22,0.10)', borderWidth:0 },
+      z_h1_s: { type:'box', xMin:55,  xMax:100, yMin:140,yMax:160, backgroundColor:'rgba(249,115,22,0.10)', borderWidth:0 },
+      // Normale haute : sys 130-139 ET dia≤89 / dia 85-89 ET sys≤139
+      z_nh_d: { type:'box', xMin:85,  xMax:90,  yMin:80, yMax:140, backgroundColor:'rgba(234,179,8,0.10)',  borderWidth:0 },
+      z_nh_s: { type:'box', xMin:55,  xMax:90,  yMin:130,yMax:140, backgroundColor:'rgba(234,179,8,0.10)',  borderWidth:0 },
+      // Normale : sys 120-129 ET dia≤84 / dia 80-84 ET sys≤129
+      z_nr_d: { type:'box', xMin:80,  xMax:85,  yMin:80, yMax:130, backgroundColor:'rgba(163,230,53,0.10)', borderWidth:0 },
+      z_nr_s: { type:'box', xMin:55,  xMax:85,  yMin:120,yMax:130, backgroundColor:'rgba(163,230,53,0.10)', borderWidth:0 },
+      // Optimale : sys<120 ET dia<80
+      z_opt:  { type:'box', xMin:55,  xMax:80,  yMin:80, yMax:120, backgroundColor:'rgba(34,197,94,0.10)',  borderWidth:0 },
+      // Hypotension : sys<90 OU dia<60
+      z_hy_s: { type:'box', xMin:55,  xMax:110, yMin:80, yMax:90,  backgroundColor:'rgba(167,139,250,0.10)',borderWidth:0 },
+      z_hy_d: { type:'box', xMin:55,  xMax:60,  yMin:90, yMax:200, backgroundColor:'rgba(167,139,250,0.10)',borderWidth:0 },
     };
 
     charts['tension'] = new Chart(cvs.getContext('2d'), {
@@ -1557,7 +1558,7 @@ function renderTension(){
             title:{display:true, text:'Diastolique (mmHg)', color:'rgba(56,189,248,0.6)', font:{size:10}}
           },
           y:{
-            min:60, max:185,
+            min:80, max:185,
             grid:{color:'rgba(255,255,255,0.04)'},
             ticks:{color:'rgba(255,255,255,0.25)',font:{size:9}},
             title:{display:true, text:'Systolique (mmHg)', color:'rgba(239,68,68,0.6)', font:{size:10}}
