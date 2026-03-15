@@ -1227,6 +1227,30 @@ function defClass(def){ return def===0?'yellow':def>0?'green':'red'; }
 function defSign(def){ return def===0?'±':def>0?'−':'+'; }
 function getObjectif(){ return parseInt(document.getElementById('objectifInput').value)||2200; }
 
+const ACTIVITES = [
+  { id:'velo_interieur', label:'Vélo intérieur',   icon:'🚴', met:4,   hasDist:true  },
+  { id:'velo_exterieur', label:'Vélo extérieur',   icon:'🚵', met:8,   hasDist:true  },
+  { id:'course',         label:'Course à pied',    icon:'🏃', met:8,   hasDist:true  },
+  { id:'marche',         label:'Marche rapide',    icon:'🚶', met:4.5, hasDist:true  },
+  { id:'natation',       label:'Natation',         icon:'🏊', met:7,   hasDist:false },
+  { id:'musculation',    label:'Musculation',      icon:'🏋️', met:5,   hasDist:false },
+  { id:'autre',          label:'Autre',            icon:'⚡', met:5,   hasDist:false },
+];
+function getActivite(id){ return ACTIVITES.find(a=>a.id===id) || ACTIVITES[0]; }
+
+function getPoidsAvantDate(dateStr){
+  const avant = pesees.filter(function(p){ return p.date <= dateStr; });
+  if(avant.length) return avant[avant.length-1].val;
+  return getPoids();
+}
+
+function veloKcal(session){
+  const poids = getPoidsAvantDate(session.date);
+  const act = getActivite(session.type || 'velo_interieur');
+  const met = (session.type==='autre' && session.metCustom) ? session.metCustom : act.met;
+  return Math.round(met * poids * (session.duree / 60));
+}
+
 function computeStats(){
   const obj=getObjectif(), poidsInit=getPoids();
   // Ne pas écraser l'objectif des jours passés — chaque jour garde celui en vigueur au moment de la saisie
