@@ -85,8 +85,6 @@ Suivi des macronutriments (protéines, glucides, lipides, fibres) par jour. Néc
 
 Récapitulatif semaine par semaine : calories moyennes, déficit, pesées.
 
-La semaine va du **samedi au vendredi**. Le bilan est pensé pour être consulté le vendredi soir ou le week-end.
-
 ### Analyse automatique après 7 jours
 Dès que vous avez au moins **7 jours de données enregistrées**, le bilan hebdo génère des **propositions personnalisées** pour améliorer vos chiffres :
 
