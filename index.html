@@ -57,7 +57,32 @@
   .tab{display:none}
 
   .content{padding:24px 28px;max-width:1100px;margin:0 auto}
-  @media(max-width:640px){.sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap}.main-content{margin-left:0}}
+  @media(max-width:768px){
+    /* Barre mobile en haut */
+    .mobile-topbar{display:flex !important}
+    /* Sidebar cachée par défaut, slide depuis la gauche */
+    .sidebar{transform:translateX(-100%);transition:transform 0.25s ease;z-index:200;width:260px;min-width:260px}
+    .sidebar.mobile-open{transform:translateX(0)}
+    /* Overlay sombre derrière le menu */
+    .mobile-overlay{display:block !important}
+    /* Contenu plein écran */
+    .main-content{margin-left:0;padding-top:56px}
+    .content{padding:16px 14px}
+    /* Inputs ne zooment pas sur iOS */
+    input[type=number],input[type=date],input[type=text],select{font-size:16px !important}
+    /* KPIs en 2 colonnes */
+    .kpi-grid{grid-template-columns:repeat(2,1fr) !important}
+    /* Sidebar tabs plus grands pour le touch */
+    .sidebar-tab{padding:12px 18px;font-size:11px}
+    /* Chart cards full width */
+    .chart-card{padding:16px 14px}
+  }
+  /* Éléments mobiles cachés sur desktop */
+  .mobile-topbar{display:none;position:fixed;top:0;left:0;right:0;height:56px;background:#08080f;border-bottom:1px solid rgba(255,255,255,0.08);z-index:150;align-items:center;padding:0 16px;gap:12px}
+  .mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:190;backdrop-filter:blur(2px)}
+  .hamburger{background:none;border:none;cursor:pointer;padding:8px;color:rgba(255,255,255,0.7);font-size:22px;line-height:1;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+  .mobile-title{font-family:'Space Mono',monospace;font-size:13px;color:#fff;font-weight:700;flex:1}
+  .mobile-title span{color:#f97316}
   .panel{display:none}.panel.active{display:flex;flex-direction:column;gap:20px}
 
   .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
@@ -165,7 +190,15 @@
 
 <div class="app-layout">
 
-<nav class="sidebar">
+<!-- Barre mobile -->
+<div class="mobile-topbar" id="mobileTopbar">
+  <button class="hamburger" onclick="toggleMobileMenu()" aria-label="Menu">☰</button>
+  <div class="mobile-title">MON SUIVI <span>SANTÉ</span></div>
+</div>
+<!-- Overlay -->
+<div class="mobile-overlay" id="mobileOverlay" onclick="closeMobileMenu()"></div>
+
+<nav class="sidebar" id="mainSidebar">
   <div class="sidebar-logo">
     <h1>MON SUIVI<span> SANTÉ</span></h1>
     <p class="subtitle">SUIVI PERSONNEL</p>
@@ -1324,11 +1357,22 @@ function renderTension(){
     const avgSys = Math.round(tensions.reduce(function(a,t){ return a+t.sys; },0)/tensions.length);
     const avgDia = Math.round(tensions.reduce(function(a,t){ return a+t.dia; },0)/tensions.length);
     const avgZone = tensionZone(avgSys, avgDia);
+    // Alerte moyenne 3 dernières mesures
+    const last3 = tensions.slice(-3);
+    const avg3Sys = Math.round(last3.reduce(function(a,t){ return a+t.sys; },0)/last3.length);
+    const avg3Dia = Math.round(last3.reduce(function(a,t){ return a+t.dia; },0)/last3.length);
+    const avg3Zone = tensionZone(avg3Sys, avg3Dia);
+    const isAlert = avg3Zone.label !== 'Optimale' && avg3Zone.label !== 'Normale';
+    const alertHtml = (tensions.length >= 3 && isAlert)
+      ? '<div style="width:100%;margin-top:8px;padding:8px 14px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-left:3px solid #ef4444;border-radius:6px;font-size:12px;color:#ef4444">'+
+        '⚠️ Moyenne des 3 dernières mesures : <strong>'+avg3Sys+'/'+avg3Dia+' mmHg</strong> — <strong>'+avg3Zone.label+'</strong></div>'
+      : '';
     kpiEl.innerHTML =
       '<div class="kpi-box" style="min-width:120px"><div class="kpi-label">DERNIÈRE</div><div class="kpi-value" style="color:'+zone.color+'">'+last.sys+'/'+last.dia+'</div><div style="font-size:10px;color:'+zone.color+';opacity:0.7;margin-top:2px">'+zone.label+'</div></div>' +
       '<div class="kpi-box" style="min-width:120px"><div class="kpi-label">MOYENNE</div><div class="kpi-value" style="color:'+avgZone.color+'">'+avgSys+'/'+avgDia+'</div><div style="font-size:10px;color:'+avgZone.color+';opacity:0.7;margin-top:2px">'+avgZone.label+'</div></div>' +
       '<div class="kpi-box" style="min-width:80px"><div class="kpi-label">MESURES</div><div class="kpi-value">'+tensions.length+'</div></div>' +
-      (last.pouls ? '<div class="kpi-box" style="min-width:100px"><div class="kpi-label">DERNIER POULS</div><div class="kpi-value">'+last.pouls+' <span style="font-size:12px;font-weight:normal;color:rgba(255,255,255,0.3)">bpm</span></div></div>' : '');
+      (last.pouls ? '<div class="kpi-box" style="min-width:100px"><div class="kpi-label">DERNIER POULS</div><div class="kpi-value">'+last.pouls+' <span style="font-size:12px;font-weight:normal;color:rgba(255,255,255,0.3)">bpm</span></div></div>' : '') +
+      alertHtml;
   } else if(kpiEl) kpiEl.innerHTML = '';
 
   // Chart
@@ -3517,6 +3561,80 @@ function genPdfSante(){
     });
     y+=4;
   });
+
+  // ── Tension artérielle ──────────────────────────────────────────
+  if(tensions && tensions.length){
+    const last5 = tensions.slice(-5).reverse();
+    const last3 = tensions.slice(-3);
+
+    // Alerte si moyenne des 3 dernières > "Normale"
+    const avgSys3 = Math.round(last3.reduce((s,t)=>s+t.sys,0)/last3.length);
+    const avgDia3 = Math.round(last3.reduce((s,t)=>s+t.dia,0)/last3.length);
+    const avgZone = tensionZone(avgSys3, avgDia3);
+    const isAlert = avgZone.label !== 'Optimale' && avgZone.label !== 'Normale';
+
+    const boxH = 14 + last5.length*8 + (isAlert ? 16 : 0) + 6;
+    checkY(boxH);
+
+    // Couleur du bloc selon alerte
+    const blockBg = isAlert ? [255,240,240] : [240,248,255];
+    const blockBorder = isAlert ? RED : BLUE;
+
+    doc.setFillColor(...blockBg); doc.roundedRect(14,y,pageW-28,boxH,3,3,'F');
+    doc.setDrawColor(...blockBorder); doc.setLineWidth(0.8); doc.line(14,y,14,y+boxH); doc.setLineWidth(0.1);
+    y+=6;
+
+    // Titre
+    doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(...blockBorder);
+    doc.text(pdfStr('Tension arterielle - 5 dernieres mesures'), 18, y); y+=7;
+
+    // Alerte moyenne 3 dernières
+    if(isAlert){
+      doc.setFillColor(...RED); doc.roundedRect(18, y, pageW-36, 10, 2,2,'F');
+      doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...WHITE);
+      doc.text(pdfStr('! Alerte : moyenne 3 dernières mesures '+avgSys3+'/'+avgDia3+' mmHg — '+avgZone.label), 22, y+6.5);
+      y+=13;
+    }
+
+    // Entêtes tableau
+    doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(...MUTED);
+    doc.text('DATE',   18, y);
+    doc.text('SYS',    80, y);
+    doc.text('DIA',   105, y);
+    doc.text('POULS', 130, y);
+    doc.text('ZONE',  155, y);
+    y+=5;
+    doc.setDrawColor(...MUTED); doc.setLineWidth(0.2); doc.line(18,y,pageW-18,y); doc.setLineWidth(0.1);
+    y+=3;
+
+    // Lignes
+    last5.forEach((t,i)=>{
+      const zone = tensionZone(t.sys, t.dia);
+      const zoneRgb = zone.label==='Optimale'?GREEN : zone.label==='Normale'?[100,180,60] : zone.label==='Normale haute'?YELLOW_FG : RED;
+      if(i%2===0){ doc.setFillColor(248,250,255); doc.rect(18,y-3,pageW-36,7,'F'); }
+      const dateStr = new Date(t.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+      doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...DARK);
+      doc.text(pdfStr(dateStr), 18, y);
+      doc.setFont('helvetica','bold'); doc.setTextColor(...RED);
+      doc.text(String(t.sys), 80, y);
+      doc.setTextColor(...BLUE);
+      doc.text(String(t.dia), 105, y);
+      doc.setTextColor(...DARK); doc.setFont('helvetica','normal');
+      if(t.pouls) doc.text(String(t.pouls), 130, y);
+      doc.setTextColor(...zoneRgb); doc.setFont('helvetica','bold');
+      doc.text(pdfStr(zone.label), 155, y);
+      y+=7;
+    });
+
+    // Moyenne générale
+    const avgSysAll = Math.round(tensions.reduce((s,t)=>s+t.sys,0)/tensions.length);
+    const avgDiaAll = Math.round(tensions.reduce((s,t)=>s+t.dia,0)/tensions.length);
+    const avgZoneAll = tensionZone(avgSysAll, avgDiaAll);
+    y+=2;
+    doc.setFontSize(7.5); doc.setFont('helvetica','italic'); doc.setTextColor(...MUTED);
+    doc.text(pdfStr('Moyenne generale ('+tensions.length+' mesures) : '+avgSysAll+'/'+avgDiaAll+' mmHg — '+avgZoneAll.label), 18, y);
+    y+=8;
+  }
 
   doc.save('rapport_sante_' + new Date().toLocaleDateString('fr-FR').replace(/\//g,'-') + '.pdf');
 }
