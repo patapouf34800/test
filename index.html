@@ -1507,25 +1507,43 @@ function renderTension(){
 
     // Zones colorées en arrière-plan via annotations
     const zones = {
-      // Zones 2D OMS sans labels — la légende est en bas
-      // Ordre : du plus sévère au moins sévère (les zones légères écrasent les sévères)
-      // HTA G2 : sys≥160 OU dia≥100
-      z_h2_d: { type:'box', xMin:100, xMax:110, yMin:80, yMax:200, backgroundColor:'rgba(239,68,68,0.10)',  borderWidth:0 },
-      z_h2_s: { type:'box', xMin:55,  xMax:110, yMin:160,yMax:200, backgroundColor:'rgba(239,68,68,0.10)',  borderWidth:0 },
-      // HTA G1 : sys 140-159 ET dia≤99 / dia 90-99 ET sys≤159
-      z_h1_d: { type:'box', xMin:90,  xMax:100, yMin:80, yMax:160, backgroundColor:'rgba(249,115,22,0.10)', borderWidth:0 },
-      z_h1_s: { type:'box', xMin:55,  xMax:100, yMin:140,yMax:160, backgroundColor:'rgba(249,115,22,0.10)', borderWidth:0 },
-      // Normale haute : sys 130-139 ET dia≤89 / dia 85-89 ET sys≤139
-      z_nh_d: { type:'box', xMin:85,  xMax:90,  yMin:80, yMax:140, backgroundColor:'rgba(234,179,8,0.10)',  borderWidth:0 },
-      z_nh_s: { type:'box', xMin:55,  xMax:90,  yMin:130,yMax:140, backgroundColor:'rgba(234,179,8,0.10)',  borderWidth:0 },
-      // Normale : sys 120-129 ET dia≤84 / dia 80-84 ET sys≤129
-      z_nr_d: { type:'box', xMin:80,  xMax:85,  yMin:80, yMax:130, backgroundColor:'rgba(163,230,53,0.10)', borderWidth:0 },
-      z_nr_s: { type:'box', xMin:55,  xMax:85,  yMin:120,yMax:130, backgroundColor:'rgba(163,230,53,0.10)', borderWidth:0 },
-      // Optimale : sys<120 ET dia<80
-      z_opt:  { type:'box', xMin:55,  xMax:80,  yMin:80, yMax:120, backgroundColor:'rgba(34,197,94,0.10)',  borderWidth:0 },
-      // Hypotension : sys<90 OU dia<60
-      z_hy_s: { type:'box', xMin:55,  xMax:110, yMin:80, yMax:90,  backgroundColor:'rgba(167,139,250,0.10)',borderWidth:0 },
-      z_hy_d: { type:'box', xMin:55,  xMax:60,  yMin:90, yMax:200, backgroundColor:'rgba(167,139,250,0.10)',borderWidth:0 },
+      // Grille 2D non-chevauchante — une couleur par rectangle
+      z_00: { type:'box', xMin:55, xMax:60, yMin:80, yMax:90, backgroundColor:'rgba(167,139,250,0.15)', borderWidth:0 },
+      z_01: { type:'box', xMin:60, xMax:80, yMin:80, yMax:90, backgroundColor:'rgba(167,139,250,0.15)', borderWidth:0 },
+      z_02: { type:'box', xMin:80, xMax:85, yMin:80, yMax:90, backgroundColor:'rgba(167,139,250,0.15)', borderWidth:0 },
+      z_03: { type:'box', xMin:85, xMax:90, yMin:80, yMax:90, backgroundColor:'rgba(167,139,250,0.15)', borderWidth:0 },
+      z_04: { type:'box', xMin:90, xMax:100, yMin:80, yMax:90, backgroundColor:'rgba(167,139,250,0.15)', borderWidth:0 },
+      z_05: { type:'box', xMin:100, xMax:110, yMin:80, yMax:90, backgroundColor:'rgba(167,139,250,0.15)', borderWidth:0 },
+      z_06: { type:'box', xMin:55, xMax:60, yMin:90, yMax:120, backgroundColor:'rgba(167,139,250,0.15)', borderWidth:0 },
+      z_07: { type:'box', xMin:60, xMax:80, yMin:90, yMax:120, backgroundColor:'rgba(34,197,94,0.15)', borderWidth:0 },
+      z_08: { type:'box', xMin:80, xMax:85, yMin:90, yMax:120, backgroundColor:'rgba(163,230,53,0.15)', borderWidth:0 },
+      z_09: { type:'box', xMin:85, xMax:90, yMin:90, yMax:120, backgroundColor:'rgba(234,179,8,0.15)', borderWidth:0 },
+      z_10: { type:'box', xMin:90, xMax:100, yMin:90, yMax:120, backgroundColor:'rgba(249,115,22,0.15)', borderWidth:0 },
+      z_11: { type:'box', xMin:100, xMax:110, yMin:90, yMax:120, backgroundColor:'rgba(239,68,68,0.15)', borderWidth:0 },
+      z_12: { type:'box', xMin:55, xMax:60, yMin:120, yMax:130, backgroundColor:'rgba(167,139,250,0.15)', borderWidth:0 },
+      z_13: { type:'box', xMin:60, xMax:80, yMin:120, yMax:130, backgroundColor:'rgba(163,230,53,0.15)', borderWidth:0 },
+      z_14: { type:'box', xMin:80, xMax:85, yMin:120, yMax:130, backgroundColor:'rgba(163,230,53,0.15)', borderWidth:0 },
+      z_15: { type:'box', xMin:85, xMax:90, yMin:120, yMax:130, backgroundColor:'rgba(234,179,8,0.15)', borderWidth:0 },
+      z_16: { type:'box', xMin:90, xMax:100, yMin:120, yMax:130, backgroundColor:'rgba(249,115,22,0.15)', borderWidth:0 },
+      z_17: { type:'box', xMin:100, xMax:110, yMin:120, yMax:130, backgroundColor:'rgba(239,68,68,0.15)', borderWidth:0 },
+      z_18: { type:'box', xMin:55, xMax:60, yMin:130, yMax:140, backgroundColor:'rgba(167,139,250,0.15)', borderWidth:0 },
+      z_19: { type:'box', xMin:60, xMax:80, yMin:130, yMax:140, backgroundColor:'rgba(234,179,8,0.15)', borderWidth:0 },
+      z_20: { type:'box', xMin:80, xMax:85, yMin:130, yMax:140, backgroundColor:'rgba(234,179,8,0.15)', borderWidth:0 },
+      z_21: { type:'box', xMin:85, xMax:90, yMin:130, yMax:140, backgroundColor:'rgba(234,179,8,0.15)', borderWidth:0 },
+      z_22: { type:'box', xMin:90, xMax:100, yMin:130, yMax:140, backgroundColor:'rgba(249,115,22,0.15)', borderWidth:0 },
+      z_23: { type:'box', xMin:100, xMax:110, yMin:130, yMax:140, backgroundColor:'rgba(239,68,68,0.15)', borderWidth:0 },
+      z_24: { type:'box', xMin:55, xMax:60, yMin:140, yMax:160, backgroundColor:'rgba(167,139,250,0.15)', borderWidth:0 },
+      z_25: { type:'box', xMin:60, xMax:80, yMin:140, yMax:160, backgroundColor:'rgba(249,115,22,0.15)', borderWidth:0 },
+      z_26: { type:'box', xMin:80, xMax:85, yMin:140, yMax:160, backgroundColor:'rgba(249,115,22,0.15)', borderWidth:0 },
+      z_27: { type:'box', xMin:85, xMax:90, yMin:140, yMax:160, backgroundColor:'rgba(249,115,22,0.15)', borderWidth:0 },
+      z_28: { type:'box', xMin:90, xMax:100, yMin:140, yMax:160, backgroundColor:'rgba(249,115,22,0.15)', borderWidth:0 },
+      z_29: { type:'box', xMin:100, xMax:110, yMin:140, yMax:160, backgroundColor:'rgba(239,68,68,0.15)', borderWidth:0 },
+      z_30: { type:'box', xMin:55, xMax:60, yMin:160, yMax:185, backgroundColor:'rgba(167,139,250,0.15)', borderWidth:0 },
+      z_31: { type:'box', xMin:60, xMax:80, yMin:160, yMax:185, backgroundColor:'rgba(239,68,68,0.15)', borderWidth:0 },
+      z_32: { type:'box', xMin:80, xMax:85, yMin:160, yMax:185, backgroundColor:'rgba(239,68,68,0.15)', borderWidth:0 },
+      z_33: { type:'box', xMin:85, xMax:90, yMin:160, yMax:185, backgroundColor:'rgba(239,68,68,0.15)', borderWidth:0 },
+      z_34: { type:'box', xMin:90, xMax:100, yMin:160, yMax:185, backgroundColor:'rgba(239,68,68,0.15)', borderWidth:0 },
+      z_35: { type:'box', xMin:100, xMax:110, yMin:160, yMax:185, backgroundColor:'rgba(239,68,68,0.15)', borderWidth:0 },
     };
 
     charts['tension'] = new Chart(cvs.getContext('2d'), {
