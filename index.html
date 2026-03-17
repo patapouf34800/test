@@ -1133,12 +1133,12 @@
         <div class="chart-title" style="margin-bottom:0">📈 Évolution des macros</div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <div style="display:flex;gap:4px" id="macroTrendPeriodBtns">
-            <button class="period-btn macro-trend-period active" onclick="setMacroTrendPeriod(30,this)">30j</button>
+            <button class="period-btn macro-trend-period" onclick="setMacroTrendPeriod(30,this)">30j</button>
             <button class="period-btn macro-trend-period" onclick="setMacroTrendPeriod(60,this)">60j</button>
             <button class="period-btn macro-trend-period" onclick="setMacroTrendPeriod(90,this)">90j</button>
-            <button class="period-btn macro-trend-period" onclick="setMacroTrendPeriod(0,this)">Tout</button>
+            <button class="period-btn macro-trend-period active" onclick="setMacroTrendPeriod(0,this)">Tout</button>
           </div>
-          <button class="period-btn" id="btnMoyGliss" onclick="toggleMoyGliss(this)" style="border-color:rgba(255,255,255,0.2)">Moy. 7j ○</button>
+          <button class="period-btn" id="btnMoyGliss" onclick="toggleMoyGliss(this)" style="border-color:rgba(255,255,255,0.4);color:rgba(255,255,255,0.7)">Points ○</button>
         </div>
       </div>
       <canvas id="chartMacroTrend" height="110"></canvas>
@@ -1147,8 +1147,11 @@
         <span style="display:flex;align-items:center;gap:5px"><span style="width:18px;height:3px;background:#38bdf8;display:inline-block;border-radius:2px"></span>Glucides</span>
         <span style="display:flex;align-items:center;gap:5px"><span style="width:18px;height:3px;background:#a78bfa;display:inline-block;border-radius:2px"></span>Lipides</span>
         <span style="display:flex;align-items:center;gap:5px"><span style="width:18px;height:3px;background:#4ade80;display:inline-block;border-radius:2px"></span>Fibres</span>
-        <span style="display:flex;align-items:center;gap:5px;color:rgba(255,255,255,0.35)" id="legendMoyGliss" style="display:none">
-          <span style="width:18px;height:2px;border-top:2px dashed rgba(255,255,255,0.35);display:inline-block"></span>Moy. 7j
+        <span style="display:flex;align-items:center;gap:5px;color:rgba(255,255,255,0.35)" id="legendMoyGliss">
+          <span style="width:18px;height:2px;border-top:2px dashed rgba(255,255,255,0.35);display:inline-block"></span>Moy. 7j (courbes)
+        </span>
+        <span style="display:flex;align-items:center;gap:5px;color:rgba(255,255,255,0.35)" id="legendPoints" style="display:none">
+          <span style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.3);display:inline-block"></span>Points journaliers
         </span>
       </div>
     </div>
@@ -5102,8 +5105,8 @@ var _bilanHebdoOffset = 0; // 0 = semaine courante, -1 = semaine précédente, e
 // avec données macro, le second aux 7 suivants, etc.
 
 var _nutriPeriod = 'all';
-var _macroTrendDays = 30;   // 0 = tout
-var _macroTrendMoy  = false; // afficher les moyennes glissantes 7j
+var _macroTrendDays = 0;     // 0 = tout (défaut)
+var _macroTrendMoy  = true;  // moyennes glissantes affichées par défaut
 
 function getNutriDaysWithMacros(){
   // Retourne les jours triés chronologiquement ayant au moins un macro renseigné
@@ -5673,11 +5676,12 @@ function setMacroTrendPeriod(n, btn){
 
 function toggleMoyGliss(btn){
   _macroTrendMoy = !_macroTrendMoy;
-  btn.textContent = 'Moy. 7j ' + (_macroTrendMoy ? '●' : '○');
+  // _macroTrendMoy = true → on affiche les points bruts en plus
+  btn.textContent = 'Points ' + (_macroTrendMoy ? '●' : '○');
   btn.style.borderColor = _macroTrendMoy ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)';
   btn.style.color = _macroTrendMoy ? 'rgba(255,255,255,0.7)' : '';
-  const leg = document.getElementById('legendMoyGliss');
-  if(leg) leg.style.display = _macroTrendMoy ? 'flex' : 'none';
+  const legPoints = document.getElementById('legendPoints');
+  if(legPoints) legPoints.style.display = _macroTrendMoy ? 'flex' : 'none';
   renderMacroTrend();
 }
 
@@ -5711,19 +5715,21 @@ function renderMacroTrend(){
   const fData  = src.map(function(d){ return d.f != null ? d.f : null; });
 
   const WIN = 7;
+  // Moyennes glissantes — toujours affichées, courbes lisses et épaisses
   const datasets = [
-    { label:'Protéines (g)', data:pData, borderColor:'#f97316', backgroundColor:'rgba(249,115,22,0.07)',  fill:false, tension:0.3, pointRadius:2, borderWidth:2, spanGaps:true },
-    { label:'Glucides (g)',  data:gData, borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,0.07)',  fill:false, tension:0.3, pointRadius:2, borderWidth:2, spanGaps:true },
-    { label:'Lipides (g)',   data:lData, borderColor:'#a78bfa', backgroundColor:'rgba(167,139,250,0.07)', fill:false, tension:0.3, pointRadius:2, borderWidth:2, spanGaps:true },
-    { label:'Fibres (g)',    data:fData, borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,0.07)',  fill:false, tension:0.3, pointRadius:2, borderWidth:2, spanGaps:true },
+    { label:'Moy. Prot',   data:movingAvgMacro(pData,WIN), borderColor:'#f97316', backgroundColor:'rgba(249,115,22,0.07)',  fill:false, tension:0.4, pointRadius:0, borderWidth:2.5, spanGaps:true },
+    { label:'Moy. Gluc',   data:movingAvgMacro(gData,WIN), borderColor:'#38bdf8', backgroundColor:'rgba(56,189,248,0.07)',  fill:false, tension:0.4, pointRadius:0, borderWidth:2.5, spanGaps:true },
+    { label:'Moy. Lip',    data:movingAvgMacro(lData,WIN), borderColor:'#a78bfa', backgroundColor:'rgba(167,139,250,0.07)', fill:false, tension:0.4, pointRadius:0, borderWidth:2.5, spanGaps:true },
+    { label:'Moy. Fibres', data:movingAvgMacro(fData,WIN), borderColor:'#4ade80', backgroundColor:'rgba(74,222,128,0.07)',  fill:false, tension:0.4, pointRadius:0, borderWidth:2.5, spanGaps:true },
   ];
 
+  // Points bruts — conditionnels (bouton Points ●)
   if(_macroTrendMoy){
-    const ms = { fill:false, tension:0.4, pointRadius:0, borderWidth:2, borderDash:[5,4], spanGaps:true };
-    datasets.push(Object.assign({ label:'Moy. Prot',   data:movingAvgMacro(pData,WIN), borderColor:'rgba(249,115,22,0.55)'  }, ms));
-    datasets.push(Object.assign({ label:'Moy. Gluc',   data:movingAvgMacro(gData,WIN), borderColor:'rgba(56,189,248,0.55)'  }, ms));
-    datasets.push(Object.assign({ label:'Moy. Lip',    data:movingAvgMacro(lData,WIN), borderColor:'rgba(167,139,250,0.55)' }, ms));
-    datasets.push(Object.assign({ label:'Moy. Fibres', data:movingAvgMacro(fData,WIN), borderColor:'rgba(74,222,128,0.55)'  }, ms));
+    const ps = { fill:false, tension:0, borderWidth:0, spanGaps:false, showLine:false };
+    datasets.push(Object.assign({ label:'Protéines (g)', data:pData, pointRadius:2.5, pointBackgroundColor:'rgba(249,115,22,0.5)',  borderColor:'transparent' }, ps));
+    datasets.push(Object.assign({ label:'Glucides (g)',  data:gData, pointRadius:2.5, pointBackgroundColor:'rgba(56,189,248,0.5)',  borderColor:'transparent' }, ps));
+    datasets.push(Object.assign({ label:'Lipides (g)',   data:lData, pointRadius:2.5, pointBackgroundColor:'rgba(167,139,250,0.5)', borderColor:'transparent' }, ps));
+    datasets.push(Object.assign({ label:'Fibres (g)',    data:fData, pointRadius:2.5, pointBackgroundColor:'rgba(74,222,128,0.5)',  borderColor:'transparent' }, ps));
   }
 
   const c = getNutriCibles();
@@ -5738,13 +5744,13 @@ function renderMacroTrend(){
           mode:'index', intersect:false,
           backgroundColor:'rgba(10,10,20,0.95)', titleColor:'#f97316', bodyColor:'#fff',
           borderColor:'rgba(249,115,22,0.3)', borderWidth:1,
-          filter: function(item){ return !item.dataset.label.startsWith('Moy.'); },
+          filter: function(item){ return item.dataset.label.startsWith('Moy.'); },
           callbacks: {
             title: function(items){ return src[items[0].dataIndex].label; },
             label: function(item){
               if(item.raw == null) return null;
-              const names = {'Protéines (g)':'Prot','Glucides (g)':'Gluc','Lipides (g)':'Lip','Fibres (g)':'Fib'};
-              return ' ' + (names[item.dataset.label]||item.dataset.label) + ' : ' + item.raw + 'g';
+              const names = {'Moy. Prot':'Prot','Moy. Gluc':'Gluc','Moy. Lip':'Lip','Moy. Fibres':'Fib'};
+              return ' ' + (names[item.dataset.label]||item.dataset.label) + ' : ' + item.raw + 'g (moy. 7j)';
             }
           }
         },
