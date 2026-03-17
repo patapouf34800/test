@@ -3023,7 +3023,15 @@ function updateCalcItemGrams(i, rawVal){
   renderCalcItems(); saveData();
 }
 
-function clearCalc(){ if(!confirm('Vider tous les aliments de la liste ?')) return; calcItems=[]; renderCalcItems(); saveData(); }
+function clearCalc(){
+  if(!confirm('Vider tous les aliments de la liste ?')) return;
+  calcItems = [];
+  if(_editingDayIndex !== null){
+    _editingDayIndex = null;
+    updateEditModeBanner();
+  }
+  renderCalcItems(); saveData();
+}
 
 function validerJournee(){
   const total=calcItems.reduce((s,i)=>s+i.kcal,0);
@@ -5951,7 +5959,7 @@ function deleteDay(i){ if(!confirm('Supprimer l\'entrée du '+days[i].label+' ?'
 function clearAll(){ if(confirm('Effacer toutes les données ?')){ days=[]; refresh(); saveData(); } }
 
 /* ── REMISES À ZÉRO ── */
-function resetCategorie(cat){
+function resetCategorie(cat, btn){
   const labels = {
     repas:    'les repas, macros et pesées de poids',
     sport:    'toutes les sessions sportives',
@@ -5990,7 +5998,6 @@ function resetCategorie(cat){
   refresh(); saveData();
 
   // Feedback
-  const btn = event.target;
   const orig = btn.textContent;
   btn.textContent = '✓ Effacé';
   btn.style.color = '#22c55e';
@@ -6021,6 +6028,18 @@ function resetTotal(){
   _conditionsActives = [];
   window._savedCalcDate = null;
   const cd = document.getElementById('calcDate'); if(cd) cd.value = '';
+
+  // Remettre les paramètres TDEE à leurs valeurs par défaut
+  const se = document.getElementById('tdeeSexe');       if(se) se.value = 'homme';
+  const ae = document.getElementById('tdeeAge');        if(ae) ae.value = '30';
+  const te = document.getElementById('tdeeTaille');     if(te) te.value = '175';
+  const ac = document.getElementById('tdeeActivite');   if(ac) ac.value = '1.2';
+  const pi = document.getElementById('poidsInput');     if(pi) pi.value = '75';
+  const tp = document.getElementById('tdeePoids');      if(tp) tp.value = '75';
+  const oi = document.getElementById('objectifInput');  if(oi) oi.value = '2200';
+
+  // Sortir du mode édition s'il était actif
+  _editingDayIndex = null;
 
   refresh(); saveData();
   alert('✓ Toutes les données ont été effacées.');
@@ -6197,7 +6216,7 @@ function calcTDEE(){
         <div style="font-size:13px;color:rgba(255,255,255,0.6)">${sc.poids_sem > 0 ? '+' : ''}${sc.poids_sem} kg/sem</div>
         <div style="font-size:12px;color:rgba(255,255,255,0.3)">${perdMois > 0 ? '+' : ''}${perdMois} kg/mois → ${poidsResultat} kg</div>
       </div>
-      <button class="btn btn-secondary" onclick="applyObjectif(${sc.kcal})" style="font-size:11px;padding:6px 12px;white-space:nowrap">Utiliser comme objectif</button>
+      <button class="btn btn-secondary" onclick="applyObjectif(${sc.kcal}, this)" style="font-size:11px;padding:6px 12px;white-space:nowrap">Utiliser comme objectif</button>
     </div>`;
   }).join('');
 
@@ -6212,11 +6231,10 @@ function calcTDEE(){
     <div>⚡ <strong style="color:rgba(255,255,255,0.7)">TDEE</strong> = ${mb} × ${activite} = <strong style="color:#f97316">${tdee} kcal/j</strong></div>`;
 }
 
-function applyObjectif(kcal){
+function applyObjectif(kcal, btn){
   document.getElementById('objectifInput').value = kcal;
   refresh();
   // Flash confirmation
-  const btn = event.target;
   const orig = btn.textContent;
   btn.textContent = '✓ Appliqué !';
   btn.style.color = '#22c55e';
@@ -6497,7 +6515,7 @@ if('serviceWorker' in navigator){
           <div style="font-size:13px;font-weight:500;margin-bottom:3px">🍽️ Repas & pesées</div>
           <div style="font-size:11px;color:rgba(255,255,255,0.3)">Historique journalier des calories, items et macros · Pesées de poids</div>
         </div>
-        <button onclick="resetCategorie('repas')" class="btn btn-secondary" style="border-color:rgba(239,68,68,0.35);color:#ef4444;background:rgba(239,68,68,0.07);white-space:nowrap">🗑 Effacer</button>
+        <button onclick="resetCategorie('repas', this)" class="btn btn-secondary" style="border-color:rgba(239,68,68,0.35);color:#ef4444;background:rgba(239,68,68,0.07);white-space:nowrap">🗑 Effacer</button>
       </div>
 
       <!-- Sport -->
@@ -6506,7 +6524,7 @@ if('serviceWorker' in navigator){
           <div style="font-size:13px;font-weight:500;margin-bottom:3px">🏃 Sport</div>
           <div style="font-size:11px;color:rgba(255,255,255,0.3)">Toutes les sessions sportives enregistrées</div>
         </div>
-        <button onclick="resetCategorie('sport')" class="btn btn-secondary" style="border-color:rgba(239,68,68,0.35);color:#ef4444;background:rgba(239,68,68,0.07);white-space:nowrap">🗑 Effacer</button>
+        <button onclick="resetCategorie('sport', this)" class="btn btn-secondary" style="border-color:rgba(239,68,68,0.35);color:#ef4444;background:rgba(239,68,68,0.07);white-space:nowrap">🗑 Effacer</button>
       </div>
 
       <!-- Santé -->
@@ -6515,7 +6533,7 @@ if('serviceWorker' in navigator){
           <div style="font-size:13px;font-weight:500;margin-bottom:3px">🩺 Santé</div>
           <div style="font-size:11px;color:rgba(255,255,255,0.3)">Bilans sanguins · Tension artérielle · Snapshots hebdo</div>
         </div>
-        <button onclick="resetCategorie('sante')" class="btn btn-secondary" style="border-color:rgba(239,68,68,0.35);color:#ef4444;background:rgba(239,68,68,0.07);white-space:nowrap">🗑 Effacer</button>
+        <button onclick="resetCategorie('sante', this)" class="btn btn-secondary" style="border-color:rgba(239,68,68,0.35);color:#ef4444;background:rgba(239,68,68,0.07);white-space:nowrap">🗑 Effacer</button>
       </div>
 
       <!-- Aliments -->
@@ -6524,7 +6542,7 @@ if('serviceWorker' in navigator){
           <div style="font-size:13px;font-weight:500;margin-bottom:3px">📚 Aliments</div>
           <div style="font-size:11px;color:rgba(255,255,255,0.3)">Références personnelles · Recettes · Historique d'usage</div>
         </div>
-        <button onclick="resetCategorie('aliments')" class="btn btn-secondary" style="border-color:rgba(239,68,68,0.35);color:#ef4444;background:rgba(239,68,68,0.07);white-space:nowrap">🗑 Effacer</button>
+        <button onclick="resetCategorie('aliments', this)" class="btn btn-secondary" style="border-color:rgba(239,68,68,0.35);color:#ef4444;background:rgba(239,68,68,0.07);white-space:nowrap">🗑 Effacer</button>
       </div>
 
     </div>
