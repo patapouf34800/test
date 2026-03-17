@@ -1030,6 +1030,9 @@
           <button class="btn btn-secondary" onclick="exportBilans()" style="font-size:11px;padding:6px 14px">⬇ Exporter bilans</button>
         </div>
       </div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 14px;margin-bottom:16px;line-height:1.6">
+        ⚠️ <strong style="color:rgba(255,255,255,0.35)">Avertissement</strong> — Cette application n'est pas un outil médical. Les valeurs affichées sont une représentation visuelle de vos données personnelles et ne constituent en aucun cas un diagnostic, un avis médical ou un suivi clinique. Consultez toujours un professionnel de santé pour l'interprétation de vos résultats biologiques.
+      </div>
       <div id="bilansList"></div>
     </div>
     <div class="chart-card" id="bilanDetailCard" style="display:none">
@@ -4628,7 +4631,7 @@ const CONDITIONS_CHRONIQUES = [
     id: 'insuffisance_renale_chronique',
     label: 'Insuffisance rénale chronique',
     description: 'Réduction progressive de la filtration rénale.',
-    marqueurs: ['creatinine','eGFR_CKD_EPI','potassium'],
+    marqueurs: ['creatinine','eGFR_CKD_EPI','eGFR_MDRD','potassium'],
     note: 'Valeurs attendues hors normes standard — suivi néphrologue.'
   },
   {
@@ -4658,6 +4661,34 @@ const CONDITIONS_CHRONIQUES = [
     description: 'Anomalie bénigne du métabolisme de la bilirubine.',
     marqueurs: ['GOT_AST','GPT_ALT'],
     note: 'Légère élévation enzymatique bénigne et constitutionnelle.'
+  },
+  {
+    id: 'maladie_inflammatoire_chronique',
+    label: 'Maladie inflammatoire chronique',
+    description: 'Pathologie entraînant une inflammation systémique persistante (Crohn, polyarthrite rhumatoïde, lupus, MICI…)',
+    marqueurs: ['CRP','sedimentation','leucocytes'],
+    note: 'Élévation attendue des marqueurs inflammatoires — à surveiller en tendance, pas en valeur absolue.'
+  },
+  {
+    id: 'hypertriglyceridemie_familiale',
+    label: 'Hypertriglycéridémie familiale',
+    description: 'Élévation génétique des triglycérides indépendante du mode de vie.',
+    marqueurs: ['triglycerides','VLDL'],
+    note: 'Valeurs élevées d\'origine génétique — suivi lipidique adapté.'
+  },
+  {
+    id: 'myopathie_statines',
+    label: 'Myopathie connue / traitement aux statines',
+    description: 'Atteinte musculaire chronique ou effet secondaire musculaire d\'un traitement aux statines.',
+    marqueurs: ['CK_CPK'],
+    note: 'CK/CPK élevé attendu — surveiller uniquement les élévations importantes (>5× normale).'
+  },
+  {
+    id: 'carence_vitD_supplementee',
+    label: 'Carence en vitamine D (supplémentation en cours)',
+    description: 'Taux bas de vitamine D en cours de correction par supplémentation.',
+    marqueurs: ['vitamine_D'],
+    note: 'Valeur en cours de remontée sous traitement — réévaluer à distance de la supplémentation.'
   },
 ];
 
