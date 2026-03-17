@@ -3334,7 +3334,8 @@ function updateVeloMET(){
   const metInfo = document.getElementById('veloMetInfo');
   if(distGroup) distGroup.style.display = act.hasDist ? '' : 'none';
   if(metGroup) metGroup.style.display = act.id==='autre' ? '' : 'none';
-  if(metInfo) metInfo.textContent = act.id!=='autre' ? 'MET '+act.met+' — ~'+Math.round(act.met * 80 * (60/60))+' kcal/h pour 80 kg' : '';
+  const poidsRef = pesees.length ? pesees[pesees.length-1].val : getPoids();
+  if(metInfo) metInfo.textContent = act.id!=='autre' ? 'MET '+act.met+' — ~'+Math.round(act.met * poidsRef)+' kcal/h pour '+poidsRef+' kg' : '';
 }
 
 function addVelo(){
@@ -5526,11 +5527,26 @@ function renderBilanHebdo(){
         return 'autre_'+nom.split(' ')[0].toLowerCase();
       }
 
+      // Regrouper les candidats par catégorie (dans l'ordre de score)
+      var catBuckets = {};
+      for(var i = 0; i < scored.length; i++){
+        var cat = getCategoryRotated(scored[i].nom);
+        if(!catBuckets[cat]) catBuckets[cat] = [];
+        catBuckets[cat].push(scored[i]);
+      }
+
+      // Pour chaque catégorie, on prend le Nième meilleur selon _weekRotation
+      // semaine 0 → index 0, semaine 1 → index 1, semaine 2 → index 2
       var seenCats = {};
       for(var i = 0; i < scored.length && results.length < 5; i++){
         var s = scored[i];
         var cat = getCategoryRotated(s.nom);
-        if(!seenCats[cat]){ seenCats[cat] = true; results.push(s); }
+        if(!seenCats[cat]){
+          seenCats[cat] = true;
+          var bucket = catBuckets[cat];
+          var pickIdx = Math.min(_weekRotation, bucket.length - 1);
+          results.push(bucket[pickIdx]);
+        }
       }
       return results;
     }
