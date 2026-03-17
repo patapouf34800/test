@@ -3689,6 +3689,7 @@ function renderCorrGrid(){
       Object.entries(cat).forEach(function(km){
         var k=km[0], m=km[1];
         if(!marqueurs[k]) marqueurs[k]={vals:[],refMin:m.refMin,refMax:m.refMax};
+        else { marqueurs[k].refMin=m.refMin; marqueurs[k].refMax=m.refMax; } // bilan le plus récent impose ses normes
         marqueurs[k].vals.push({date:b.date, val:m.valeur});
       });
     });
@@ -3977,6 +3978,7 @@ function genPdfSante(){
       const cat=b.marqueurs[catKey]; if(!cat) return;
       Object.entries(cat).forEach(([k,m])=>{
         if(!marqueurs[k]) marqueurs[k]={vals:[],refMin:m.refMin,refMax:m.refMax};
+        else { marqueurs[k].refMin=m.refMin; marqueurs[k].refMax=m.refMax; } // bilan le plus récent impose ses normes
         marqueurs[k].vals.push({date:b.date,val:m.valeur});
       });
     });
@@ -4921,6 +4923,20 @@ function exportBilans(){
 }
 
 /* ── SAISIE MANUELLE BILAN ── */
+// alt: { unite, facteur } — facteur = valeur_alt × facteur = valeur_stockée
+const BILAN_CONVERSIONS = {
+  hemoglobine:      { unite:'g/dL',   facteur:10      }, // g/dL → g/L
+  creatinine:       { unite:'mg/dL',  facteur:88.4    }, // mg/dL → µmol/L
+  glucose:          { unite:'mmol/L', facteur:18.0    }, // mmol/L → mg/dL
+  cholesterol_total:{ unite:'mmol/L', facteur:38.67   }, // mmol/L → mg/dL
+  HDL:              { unite:'mmol/L', facteur:38.67   },
+  LDL:              { unite:'mmol/L', facteur:38.67   },
+  VLDL:             { unite:'mmol/L', facteur:38.67   },
+  triglycerides:    { unite:'mmol/L', facteur:88.57   }, // mmol/L → mg/dL
+  fer:              { unite:'µmol/L', facteur:5.585   }, // µmol/L → µg/dL
+  vitamine_D:       { unite:'µg/L',   facteur:2.496   }, // µg/L (=ng/mL) → nmol/L
+};
+
 const BILAN_REFS = {
   hematologie: {
     hematies:         { label:'Hématies',       unite:'T/L',   refMin:4.2,  refMax:5.8  },
@@ -4980,6 +4996,20 @@ const BILAN_CAT_LABELS = {
 };
 
 var _bilanSaisieMode = null; // null | 'create' | id (edit)
+var _bilanUniteAlt = {}; // { key: true } si unité alternative active
+
+function toggleBilanUnite(key){
+  const conv = BILAN_CONVERSIONS[key];
+  if(!conv) return;
+  _bilanUniteAlt[key] = !_bilanUniteAlt[key];
+  const isAlt = _bilanUniteAlt[key];
+  const ref = Object.values(BILAN_REFS).reduce(function(found, cat){ return found || cat[key]; }, null);
+  const lbl = document.getElementById('bs_ulbl_'+key);
+  const btn = document.getElementById('bs_toggle_'+key);
+  if(lbl) lbl.textContent = isAlt ? conv.unite : ref.unite;
+  if(btn) btn.style.color = isAlt ? '#f97316' : 'rgba(255,255,255,0.4)';
+  if(btn) btn.style.borderColor = isAlt ? 'rgba(249,115,22,0.4)' : 'rgba(255,255,255,0.1)';
+}
 
 function toggleSaisieBilan(editId){
   const card = document.getElementById('bilanSaisieCard');
@@ -4988,6 +5018,7 @@ function toggleSaisieBilan(editId){
     card.style.display = 'none'; _bilanSaisieMode = null; return;
   }
   _bilanSaisieMode = editId || 'create';
+  _bilanUniteAlt = {}; // reset toggles unité
   const titre = document.getElementById('bilanSaisieTitre');
   // Pré-remplir si édition
   if(editId){
@@ -5024,7 +5055,16 @@ function renderSaisieForm(existingBilan){
         existMax = m.refMax !== null ? m.refMax : existMax;
       }
       html += '<div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px">';
-      html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px">'+ref.label+' <span style="color:rgba(255,255,255,0.25)">'+ref.unite+'</span></div>';
+      const conv = BILAN_CONVERSIONS[key];
+      const uniteLabel = conv
+        ? ref.unite + ' <span id="bs_unitlbl_'+key+'" style="color:rgba(255,255,255,0.25)"></span>'
+        : ref.unite;
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+      html += '<span style="font-size:11px;color:rgba(255,255,255,0.5)">'+ref.label+' <span style="color:rgba(255,255,255,0.25)" id="bs_ulbl_'+key+'">'+ref.unite+'</span></span>';
+      if(conv){
+        html += '<button type="button" id="bs_toggle_'+key+'" onclick="toggleBilanUnite(\''+key+'\')" style="font-size:9px;font-family:\'Space Mono\',monospace;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);border-radius:4px;padding:2px 6px;cursor:pointer">'+ref.unite+' / '+conv.unite+'</button>';
+      }
+      html += '</div>';
       html += '<div style="display:flex;gap:6px;align-items:center">';
       html += '<input type="number" id="bs_val_'+key+'" placeholder="valeur" value="'+existVal+'" step="any" style="flex:2;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:6px;padding:5px 8px;font-size:13px;font-family:inherit;outline:none">';
       html += '<span style="font-size:10px;color:rgba(255,255,255,0.2)">réf</span>';
@@ -5074,15 +5114,26 @@ function validerSaisieBilan(){
       if(isNaN(val)) return; // champ vide = ignoré
       // Bloquer les valeurs négatives
       if(val < 0){ alertes.push(refs[key].label + ' : valeur négative ('+val+') — ignorée'); return; }
-      // Alerte si valeur aberrante
-      if(SEUILS_MAX[key] !== undefined && val > SEUILS_MAX[key]){
-        alertes.push(refs[key].label + ' : ' + val + ' ' + refs[key].unite + ' — valeur inhabituellement élevée, vérifiez (max attendu ~' + SEUILS_MAX[key] + ')');
-      }
+      // Convertir si unité alternative active
+      const conv = BILAN_CONVERSIONS[key];
       const minEl = document.getElementById('bs_min_'+key);
       const maxEl = document.getElementById('bs_max_'+key);
-      const refMin = minEl && minEl.value !== '' ? parseFloat(minEl.value.replace(',','.')) : null;
-      const refMax = maxEl && maxEl.value !== '' ? parseFloat(maxEl.value.replace(',','.')) : null;
-      catData[key] = { valeur: val, refMin: refMin, refMax: refMax };
+      let valConv = val;
+      let refMinConv = minEl && minEl.value !== '' ? parseFloat(minEl.value.replace(',','.')) : null;
+      let refMaxConv = maxEl && maxEl.value !== '' ? parseFloat(maxEl.value.replace(',','.')) : null;
+      if(conv && _bilanUniteAlt[key]){
+        const f = conv.facteur;
+        valConv = Math.round(val * f * 1000) / 1000;
+        if(refMinConv !== null) refMinConv = Math.round(refMinConv * f * 100) / 100;
+        if(refMaxConv !== null) refMaxConv = Math.round(refMaxConv * f * 100) / 100;
+      }
+      // Alerte si valeur aberrante (après conversion)
+      if(SEUILS_MAX[key] !== undefined && valConv > SEUILS_MAX[key]){
+        alertes.push(refs[key].label + ' : ' + valConv + ' ' + refs[key].unite + ' — valeur inhabituellement élevée, vérifiez (max attendu ~' + SEUILS_MAX[key] + ')');
+      }
+      const refMin = refMinConv;
+      const refMax = refMaxConv;
+      catData[key] = { valeur: valConv, refMin: refMin, refMax: refMax };
       totalSaisi++;
     });
     if(Object.keys(catData).length > 0) marqueurs[catKey] = catData;
