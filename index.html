@@ -735,7 +735,7 @@
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
         <div>
           <div class="chart-title" style="margin-bottom:2px">🔬 Données macro CIQUAL</div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.25)">Parcourez les 3 264 aliments avec filtres sur les valeurs nutritionnelles pour 100g</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.25)">Parcourez les 1 356 aliments avec filtres sur les valeurs nutritionnelles pour 100g</div>
         </div>
       </div>
 
@@ -4277,7 +4277,7 @@ function genPdfBilan(){
         doc.setFillColor(...col); doc.roundedRect(x+4, y+30, Math.max(2,barW*pct), barH, 1,1,'F');
       }
     }
-    macroBox('Proteines', avgP, cProtMin, 0);
+    macroBox('Protéines', avgP, cProtMin, 0);
     macroBox('Glucides',  avgG, null,     1);
     macroBox('Lipides',   avgL, cLip,     2);
     macroBox('Fibres',    avgF, cFibres,  3);
@@ -4285,9 +4285,9 @@ function genPdfBilan(){
 
     // Alertes
     const conseils = [];
-    if(cProtMin && avgP < cProtMin) conseils.push('Proteines insuffisantes ('+avgP+'g/j vs cible '+cProtMin+'g) - augmenter viandes, legumineuses, oeufs.');
+    if(cProtMin && avgP < cProtMin) conseils.push('Protéines insuffisantes ('+avgP+'g/j vs cible '+cProtMin+'g) - augmenter viandes, légumineuses, œufs.');
     if(cLip     && avgL < cLip)     conseils.push('Lipides trop bas ('+avgL+'g/j vs min '+cLip+'g) - huile d\'olive, noix, poisson gras.');
-    if(cFibres  && avgF < cFibres)  conseils.push('Fibres insuffisantes ('+avgF+'g/j vs cible '+cFibres+'g) - legumes, legumineuses, cereales completes.');
+    if(cFibres  && avgF < cFibres)  conseils.push('Fibres insuffisantes ('+avgF+'g/j vs cible '+cFibres+'g) - légumes, légumineuses, céréales complètes.');
     if(conseils.length){
       checkY(6+conseils.length*10);
       // Fond alerte
@@ -6829,7 +6829,7 @@ function renderCiqualExplorer(){
   const f = getCiqualFilters();
   const hasFilter = f.nom || [f.kcalMin,f.kcalMax,f.protMin,f.protMax,f.glucMin,f.glucMax,f.lipMin,f.lipMax,f.fibMin,f.fibMax].some(v=>v!==null);
 
-  // Si aucun filtre, ne rien afficher (évite de lister 3264 lignes)
+  // Si aucun filtre, ne rien afficher (évite de lister 1356 lignes)
   if(!hasFilter){
     document.getElementById('ciqualExplorerCount').textContent = 'Renseignez au moins un filtre pour afficher les résultats.';
     document.getElementById('ciqualExplorerResults').innerHTML = '';
