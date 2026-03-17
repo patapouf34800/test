@@ -476,7 +476,7 @@
       <div class="form-row" style="align-items:center">
         <div class="form-group" style="max-width:200px">
           <label>Date</label>
-          <input type="date" id="calcDate" onchange="saveData()">
+          <input type="date" id="calcDate" onchange="renderCalcItems();saveData()">
         </div>
         <div class="form-group" style="flex:2;min-width:200px">
           <label>Note (optionnel)</label>
@@ -490,11 +490,26 @@
     </div>
 
     <div class="chart-card">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
         <div class="chart-title" style="margin-bottom:0" id="saisieTitle">Données enregistrées</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-        
           <button class="btn btn-secondary" onclick="clearAll()" style="border-color:rgba(239,68,68,0.3);color:#ef4444;background:rgba(239,68,68,0.08);font-size:11px;padding:6px 12px">🗑 Effacer tout</button>
+        </div>
+      </div>
+      <!-- Barre filtre + tri -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <div style="position:relative;flex:1;min-width:160px">
+          <input type="text" id="saisieSearch" placeholder="Rechercher par date ou note…" autocomplete="off"
+            oninput="_saisieFilter=this.value.trim().toLowerCase();renderSaisieList(computeStats())"
+            style="width:100%;padding-right:28px">
+          <button id="saisieClearSearch" onclick="_saisieFilter='';document.getElementById('saisieSearch').value='';renderSaisieList(computeStats())"
+            style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;font-size:16px;line-height:1;padding:0">×</button>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <button class="period-btn saisie-sort-btn active" data-sort="date-desc" onclick="setSaisieSort('date-desc',this)" title="Plus récent en premier">Date ↓</button>
+          <button class="period-btn saisie-sort-btn" data-sort="date-asc"  onclick="setSaisieSort('date-asc',this)"  title="Plus ancien en premier">Date ↑</button>
+          <button class="period-btn saisie-sort-btn" data-sort="cal-desc"  onclick="setSaisieSort('cal-desc',this)"  title="Plus calorique en premier">Kcal ↓</button>
+          <button class="period-btn saisie-sort-btn" data-sort="cal-asc"   onclick="setSaisieSort('cal-asc',this)"   title="Moins calorique en premier">Kcal ↑</button>
         </div>
       </div>
       <div class="day-list" id="saisieList"></div>
@@ -1218,6 +1233,8 @@ const KCAL_PER_KG = 7700;
 let days = [];
 let charts = {};
 var _editingDayIndex = null; // Mode édition journée dans le calculateur
+var _saisieFilter = '';       // Filtre texte sur la liste des journées
+var _saisieSort   = 'date-desc'; // Tri actif : date-desc | date-asc | cal-desc | cal-asc
 let refs = [
   { id:1, nom:'Riz jasmin cuit', kcal100:130 },
   { id:2, nom:'Poulet grillé', kcal100:165 },
@@ -2309,27 +2326,70 @@ function renderChartPoids(s){
   canvas.addEventListener('mouseleave',function(){crosshair.style.display='none';tooltip.style.display='none';});
 }
 
+function setSaisieSort(key, btn){
+  _saisieSort = key;
+  document.querySelectorAll('.saisie-sort-btn').forEach(b => b.classList.toggle('active', b.dataset.sort === key));
+  renderSaisieList(computeStats());
+}
+
 function renderSaisieList(s){
-  document.getElementById('saisieTitle').textContent=`Données enregistrées (${days.length} jours)`;
-  const el=document.getElementById('saisieList');
-  if(!days.length){el.innerHTML='<p class="empty-msg">Aucune donnée. Utilisez le Calculateur journée ou saisissez manuellement.</p>';return;}
-  const reversed = days.slice().reverse();
-  const showAll = el.dataset.showAll === '1';
-  const visible = showAll ? reversed : reversed.slice(0, 7);
-  el.innerHTML = visible.map((d,ri)=>{
-    const i = days.length-1-ri, def=d.objectif-d.calories;
+  const el = document.getElementById('saisieList');
+
+  // Mettre à jour le titre
+  document.getElementById('saisieTitle').textContent = `Données enregistrées (${days.length} jour${days.length>1?'s':''})`;
+
+  // Bouton × de la recherche
+  const clearBtn = document.getElementById('saisieClearSearch');
+  if(clearBtn) clearBtn.style.display = _saisieFilter ? 'block' : 'none';
+
+  if(!days.length){
+    el.innerHTML = '<p class="empty-msg">Aucune donnée. Utilisez le Calculateur journée ou saisissez manuellement.</p>';
+    return;
+  }
+
+  // 1. Filtrer
+  let filtered = days.map((d, i) => ({ d, i })); // garder l'index original pour editDay/deleteDay
+  if(_saisieFilter){
+    const q = _saisieFilter;
+    filtered = filtered.filter(({ d }) =>
+      d.label.toLowerCase().includes(q) ||
+      d.date.includes(q) ||
+      (d.note && d.note.toLowerCase().includes(q))
+    );
+  }
+
+  // 2. Trier
+  if(_saisieSort === 'date-desc')     filtered.sort((a,b) => b.d.date.localeCompare(a.d.date));
+  else if(_saisieSort === 'date-asc') filtered.sort((a,b) => a.d.date.localeCompare(b.d.date));
+  else if(_saisieSort === 'cal-desc') filtered.sort((a,b) => b.d.calories - a.d.calories);
+  else if(_saisieSort === 'cal-asc')  filtered.sort((a,b) => a.d.calories - b.d.calories);
+
+  // 3. Pagination : 7 par défaut, tout si filtre actif ou showAll
+  const showAll = el.dataset.showAll === '1' || !!_saisieFilter;
+  const visible = showAll ? filtered : filtered.slice(0, 7);
+
+  if(!filtered.length){
+    el.innerHTML = '<p class="empty-msg">Aucun jour ne correspond à cette recherche.</p>';
+    return;
+  }
+
+  el.innerHTML = visible.map(({ d, i }) => {
+    const def = d.objectif - d.calories;
     return `<div class="day-row" id="saisie-row-${i}"${d.note?' title="'+d.note+'"':''}>
       <span class="day-date">${d.label}</span>
       <div class="day-bar-wrap"><div class="day-bar" style="width:${Math.min(100,d.calories/d.objectif*100)}%;background:${defColor(def)}"></div></div>
       <span class="day-cal">${d.calories.toLocaleString('fr-FR')} kcal</span>
       <span class="day-def ${defClass(def)}">${defSign(def)}${Math.abs(Math.round(def)).toLocaleString('fr-FR')} kcal</span>
       ${d.note?'<span style="font-size:13px;opacity:0.5">📝</span>':''}
-      <button class="day-edit-btn" onclick="editDay(${i})" title="${d.items && d.items.length ? 'Modifier les repas ('+d.items.length+' aliment'+(d.items.length>1?'s':'')+')' : 'Modifier les calories'}${d.items && d.items.length ? '' : ''}">${d.items && d.items.length ? '🍽️' : '✏️'}</button>
+      <button class="day-edit-btn" onclick="editDay(${i})" title="${d.items && d.items.length ? 'Modifier les repas ('+d.items.length+' aliment'+(d.items.length>1?'s':'')+')' : 'Modifier les calories'}">${d.items && d.items.length ? '🍽️' : '✏️'}</button>
       <button class="day-del" onclick="deleteDay(${i})">×</button>
     </div>`;
-  }).join('') + (days.length > 7 ? `<div style="text-align:center;margin-top:10px">
-    <button class="btn btn-secondary" style="font-size:11px;padding:5px 14px" onclick="this.closest('#saisieList, [id=saisieList]').dataset.showAll=this.closest('[id]').dataset.showAll==='1'?'0':'1';renderSaisieList(computeStats())">
-      ${showAll ? '▲ Réduire' : '▼ Voir les '+days.length+' jours'}
+  }).join('') + (!showAll && filtered.length > 7 ? `<div style="text-align:center;margin-top:10px">
+    <button class="btn btn-secondary" style="font-size:11px;padding:5px 14px" onclick="document.getElementById('saisieList').dataset.showAll='1';renderSaisieList(computeStats())">
+      ▼ Voir les ${filtered.length} jours
+    </button></div>` : showAll && !_saisieFilter && filtered.length > 7 ? `<div style="text-align:center;margin-top:10px">
+    <button class="btn btn-secondary" style="font-size:11px;padding:5px 14px" onclick="document.getElementById('saisieList').dataset.showAll='0';renderSaisieList(computeStats())">
+      ▲ Réduire
     </button></div>` : '');
 }
 
@@ -2982,7 +3042,9 @@ function renderCalcItems(){
   }
   const total=calcItems.reduce((s,i)=>s+i.kcal,0);
   document.getElementById('calcTotalVal').textContent=total.toLocaleString('fr-FR')+' kcal';
-  const obj=getObjectif(), diff=obj-total;
+  const calcDateVal = document.getElementById('calcDate').value;
+  const obj = calcDateVal ? getObjectifPourDate(calcDateVal) : getObjectif();
+  const diff=obj-total;
   const vs=document.getElementById('calcVsObjectif');
   if(total===0){vs.textContent='';document.getElementById('calcMacroTotals').style.display='none';return;}
   vs.innerHTML=diff>=0
