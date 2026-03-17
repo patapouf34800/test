@@ -5528,6 +5528,16 @@ function renderBilanHebdo(){
       return results;
     }
 
+    // Rotation modulo 3 basée sur le numéro de semaine ISO du bloc
+    var _weekRotation = (function(){
+      var d = new Date(samStr + 'T00:00:00');
+      d.setHours(0,0,0,0);
+      d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7)); // jeudi de la semaine ISO
+      var jan4 = new Date(d.getFullYear(), 0, 4);
+      var weekNum = 1 + Math.round(((d - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+      return weekNum % 3;
+    })();
+
     function freqLabel(deficitG, seuilG){
       var ratio = deficitG / seuilG;
       if(ratio < 0.15) return '2×/semaine';
@@ -5539,7 +5549,10 @@ function renderBilanHebdo(){
     function blocCorrecteur(titre, color, bgColor, deficitG, seuilG, correctors, macroLabel){
       var freq   = freqLabel(deficitG, seuilG);
       var nbAlim = freq === '2×/semaine' ? 2 : freq === '3×/semaine' ? 3 : freq === '4×/semaine' ? 4 : 5;
-      var liste  = correctors.slice(0, nbAlim);
+      // Rotation : décale la sélection de 0, 1 ou 2 positions selon la semaine (modulo 3)
+      // On tourne dans la liste des candidats sans dépasser les bornes
+      var offset = correctors.length > nbAlim ? _weekRotation % (correctors.length - nbAlim + 1) : 0;
+      var liste  = correctors.slice(offset, offset + nbAlim);
       var itemsHtml = liste.map(function(a){
         return '<div style="display:flex;align-items:baseline;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04)">'
           +'<div style="font-size:13px;color:rgba(255,255,255,0.8);flex:1">'+a.nom+'</div>'
