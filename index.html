@@ -776,7 +776,7 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.07)">
         <div class="form-group">
           <label>Poids initial (kg)</label>
-          <input type="number" id="poidsInput" value="75" step="0.1" oninput="refresh()" style="width:100%">
+          <input type="number" id="poidsInput" value="75" step="0.1" oninput="syncPoidsInitial();refresh();saveData()" style="width:100%">
         </div>
         <div class="form-group">
           <label>Objectif kcal/j <span style="color:rgba(249,115,22,0.6);font-size:9px;text-transform:none;letter-spacing:0">(TDEE maintien · calculé auto)</span></label>
@@ -6126,6 +6126,17 @@ function getObjectifPourDate(dateStr){
   }
   // Sinon poids initial (poidsInput)
   return getTDEEMaintienPourPoids(getPoids());
+}
+
+function syncPoidsInitial(){
+  // Si aucune pesée, le poids initial est la seule source de vérité :
+  // mettre à jour tdeePoids et recalculer l'objectif
+  if(pesees.length === 0){
+    const val = getPoids();
+    const tp = document.getElementById('tdeePoids');
+    if(tp) tp.value = val;
+    syncObjectifDynamique();
+  }
 }
 
 function syncObjectifDynamique(){
