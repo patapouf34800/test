@@ -2942,11 +2942,11 @@ function addCalcItem(){
   const ratio = grams / 100;
   const kcal = Math.round(_calcSelectedItem.kcal100 * ratio);
   const ref = refs.find(function(r){ return r.nom === _calcSelectedItem.nom; });
-  const item = { refId: ref ? ref.id : null, nom: _calcSelectedItem.nom, grams: grams, kcal: kcal };
-  if(_calcSelectedItem.p != null) item.p = Math.round(_calcSelectedItem.p * ratio * 10) / 10;
-  if(_calcSelectedItem.g != null) item.g = Math.round(_calcSelectedItem.g * ratio * 10) / 10;
-  if(_calcSelectedItem.l != null) item.l = Math.round(_calcSelectedItem.l * ratio * 10) / 10;
-  if(_calcSelectedItem.f != null) item.f = Math.round(_calcSelectedItem.f * ratio * 10) / 10;
+  const item = { refId: ref ? ref.id : null, nom: _calcSelectedItem.nom, grams: grams, kcal: kcal, kcal100: _calcSelectedItem.kcal100 };
+  if(_calcSelectedItem.p != null){ item.p = Math.round(_calcSelectedItem.p * ratio * 10) / 10; item.p100 = _calcSelectedItem.p; }
+  if(_calcSelectedItem.g != null){ item.g = Math.round(_calcSelectedItem.g * ratio * 10) / 10; item.g100 = _calcSelectedItem.g; }
+  if(_calcSelectedItem.l != null){ item.l = Math.round(_calcSelectedItem.l * ratio * 10) / 10; item.l100 = _calcSelectedItem.l; }
+  if(_calcSelectedItem.f != null){ item.f = Math.round(_calcSelectedItem.f * ratio * 10) / 10; item.f100 = _calcSelectedItem.f; }
   calcItems.push(item);
   document.getElementById('calcGrams').value = '';
   document.getElementById('calcSearch').value = '';
@@ -2965,8 +2965,17 @@ function renderCalcItems(){
     el.innerHTML=calcItems.map((item,i)=>`
       <div class="calc-row">
         <span class="calc-food">${item.nom}</span>
-        <span class="calc-grammage">${item.grams} g</span>
-        <span class="calc-kcal">${item.kcal.toLocaleString('fr-FR')} kcal</span>
+        <label style="display:flex;align-items:center;gap:4px;cursor:text">
+          <input type="number" class="calc-grams-input" value="${item.grams}" min="1" step="1"
+            style="width:62px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:6px;padding:3px 7px;font-size:13px;font-family:'Space Mono',monospace;text-align:right;outline:none;transition:border-color .15s"
+            onfocus="this.style.borderColor='#f97316'"
+            onblur="this.style.borderColor='rgba(255,255,255,0.12)';updateCalcItemGrams(${i},this.value)"
+            onkeydown="if(event.key==='Enter'){this.blur();} if(event.key==='Escape'){this.value=${item.grams};this.blur();}"
+            onclick="event.stopPropagation();this.select()"
+          >
+          <span style="font-size:12px;color:rgba(255,255,255,0.3)">g</span>
+        </label>
+        <span class="calc-kcal" id="calc-kcal-${i}">${item.kcal.toLocaleString('fr-FR')} kcal</span>
         <button class="calc-del" onclick="removeCalcItem(${i})">×</button>
       </div>`).join('');
   }
@@ -2993,6 +3002,23 @@ function renderCalcItems(){
 }
 
 function removeCalcItem(i){ if(!confirm('Retirer "'+calcItems[i].nom+'" de la liste ?')) return; calcItems.splice(i,1); renderCalcItems(); saveData(); }
+
+function updateCalcItemGrams(i, rawVal){
+  const grams = parseFloat(rawVal);
+  if(!grams || grams <= 0 || isNaN(grams)) { renderCalcItems(); return; }
+  const item = calcItems[i];
+  if(item.grams === grams) return;
+  const ratio = grams / 100;
+  const kcal100 = item.kcal100 != null ? item.kcal100 : (item.grams > 0 ? item.kcal / item.grams * 100 : 0);
+  if(item.kcal100 == null) item.kcal100 = kcal100;
+  item.grams = grams;
+  item.kcal = Math.round(kcal100 * ratio);
+  if(item.p100 != null) item.p = Math.round(item.p100 * ratio * 10) / 10;
+  if(item.g100 != null) item.g = Math.round(item.g100 * ratio * 10) / 10;
+  if(item.l100 != null) item.l = Math.round(item.l100 * ratio * 10) / 10;
+  if(item.f100 != null) item.f = Math.round(item.f100 * ratio * 10) / 10;
+  renderCalcItems(); saveData();
+}
 
 function clearCalc(){ if(!confirm('Vider tous les aliments de la liste ?')) return; calcItems=[]; renderCalcItems(); saveData(); }
 
@@ -5820,7 +5846,16 @@ function editDay(i){
     }
     // Charger les items de la journée dans calcItems
     // Les données sont auto-suffisantes (nom, grams, kcal, macros stockés)
-    calcItems = d.items.map(function(item){ return Object.assign({}, item); });
+    // On backfille kcal100 et macro100 si absent (items anciens)
+    calcItems = d.items.map(function(item){
+      const it = Object.assign({}, item);
+      if(it.kcal100 == null && it.grams > 0) it.kcal100 = it.kcal / it.grams * 100;
+      if(it.p100 == null && it.p != null && it.grams > 0) it.p100 = it.p / it.grams * 100;
+      if(it.g100 == null && it.g != null && it.grams > 0) it.g100 = it.g / it.grams * 100;
+      if(it.l100 == null && it.l != null && it.grams > 0) it.l100 = it.l / it.grams * 100;
+      if(it.f100 == null && it.f != null && it.grams > 0) it.f100 = it.f / it.grams * 100;
+      return it;
+    });
     _editingDayIndex = i;
     // Aller sur le calculateur avec la date de la journée
     document.getElementById('calcDate').value = d.date;
