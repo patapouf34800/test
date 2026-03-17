@@ -1474,6 +1474,10 @@ function addTension(){
   const dia = parseInt(document.getElementById('tensionDia').value);
   const pouls = parseInt(document.getElementById('tensionPouls').value) || null;
   if(!date || isNaN(sys) || isNaN(dia)){ alert('Date, systolique et diastolique requis.'); return; }
+  if(sys < 50 || sys > 300){ alert('⚠️ Systolique invalide ('+sys+' mmHg). Valeur attendue entre 50 et 300.'); return; }
+  if(dia < 30 || dia > 200){ alert('⚠️ Diastolique invalide ('+dia+' mmHg). Valeur attendue entre 30 et 200.'); return; }
+  if(dia >= sys){ alert('⚠️ La diastolique ('+dia+') doit être inférieure à la systolique ('+sys+').'); return; }
+  if(pouls !== null && (pouls < 20 || pouls > 300)){ alert('⚠️ Pouls invalide ('+pouls+' bpm). Valeur attendue entre 20 et 300.'); return; }
   const yearT = parseInt(date.split('-')[0]);
   if(yearT < 2000 || yearT > 2099){ alert('⚠️ Année invalide ('+yearT+'). Merci de saisir une date entre 2000 et 2099.'); return; }
   // Remplacer si même date
@@ -1928,6 +1932,7 @@ async function loadData(){
     if(data.recettes) { recettes = data.recettes; recetteNextId = data.recetteNextId || recettes.length + 1; }
     try {
       let calcRaw = localStorage.getItem(STORAGE_KEY_ENC+'_calc');
+      if (calcRaw && window._masterKey) {
         calcRaw = await decryptFromStorage(calcRaw);
       } else {
         calcRaw = localStorage.getItem(STORAGE_KEY+'_calc');
@@ -2108,6 +2113,8 @@ function importData(event){
       if(data.conditionsActives) _conditionsActives = data.conditionsActives;
       if(data.objectifPoids) _objectifPoids = data.objectifPoids;
       if(data.recettes) { recettes = data.recettes; recetteNextId = data.recetteNextId || recettes.length + 1; }
+      bilans.forEach(b => {
+        const lip = b.marqueurs && b.marqueurs.bilan_lipidique;
         if(lip && lip.HDL && lip.cholesterol_total && !lip.ratio_CHOL_HDL){
           const hdl = lip.HDL.valeur, chol = lip.cholesterol_total.valeur;
           if(hdl > 0) lip.ratio_CHOL_HDL = { valeur: Math.round(chol/hdl*100)/100, refMin: null, refMax: 5.0, note: 'Calculé automatiquement : Chol/HDL' };
@@ -2665,6 +2672,7 @@ function addRecetteIng(){
   if(!_recetteSelectedItem){ alert('Sélectionnez d\'abord un ingrédient dans la liste.'); return; }
   const grams = parseFloat(document.getElementById('recetteIngGrams').value);
   if(!grams||grams<=0){ alert('Renseignez une quantité valide.'); return; }
+  if(grams > 5000){ alert('⚠️ Quantité inhabituellement élevée ('+grams+'g). Merci de vérifier.'); return; }
   _recetteIngItems.push({ nom:_recetteSelectedItem.nom, kcal100:_recetteSelectedItem.kcal100, p:_recetteSelectedItem.p??null, g:_recetteSelectedItem.g??null, l:_recetteSelectedItem.l??null, f:_recetteSelectedItem.f??null, grams:grams });
   _recetteSelectedItem = null;
   document.getElementById('recetteIngSearch').value = '';
@@ -2681,7 +2689,9 @@ function addRecetteIngManuel(){
   const kcal = parseFloat(document.getElementById('recetteManuelKcal').value);
   if(!nom){ alert('Donnez un nom à l\'ingrédient.'); return; }
   if(!grams||grams<=0){ alert('Renseignez une quantité valide.'); return; }
+  if(grams > 5000){ alert('⚠️ Quantité inhabituellement élevée ('+grams+'g). Merci de vérifier.'); return; }
   if(!kcal||kcal<0){ alert('Renseignez les kcal/100g.'); return; }
+  if(kcal > 1000){ alert('⚠️ Valeur calorique inhabituellement élevée ('+kcal+' kcal/100g). Merci de vérifier.'); return; }
   const p = parseFloat(document.getElementById('recetteManuelP').value);
   const g = parseFloat(document.getElementById('recetteManuelG').value);
   const l = parseFloat(document.getElementById('recetteManuelL').value);
@@ -3066,6 +3076,7 @@ function addCalcItem(){
   if(!_calcSelectedItem){ alert('Choisissez un aliment dans la liste.'); return; }
   const grams = parseFloat(document.getElementById('calcGrams').value);
   if(!grams || grams <= 0){ alert('Indiquez une quantité en grammes.'); return; }
+  if(grams > 5000){ alert('⚠️ Quantité inhabituellement élevée ('+grams+'g). Merci de vérifier.'); return; }
   const ratio = grams / 100;
   const kcal = Math.round(_calcSelectedItem.kcal100 * ratio);
   const ref = refs.find(function(r){ return r.nom === _calcSelectedItem.nom; });
