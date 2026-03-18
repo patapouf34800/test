@@ -1693,10 +1693,10 @@ function renderTension(){
         '⚠️ Moyenne des 3 dernières mesures : <strong>'+avg3Sys+'/'+avg3Dia+' mmHg</strong> — <strong>'+avg3Zone.label+'</strong></div>'
       : '';
     kpiEl.innerHTML =
-      '<div class="kpi-box" style="min-width:120px"><div class="kpi-label">DERNIÈRE</div><div class="kpi-value" style="color:'+zone.color+'">'+last.sys+'/'+last.dia+'</div><div style="font-size:10px;color:'+zone.color+';opacity:0.7;margin-top:2px">'+zone.label+'</div></div>' +
-      '<div class="kpi-box" style="min-width:120px"><div class="kpi-label">'+avgLabel+'</div><div class="kpi-value" style="color:'+avgZone.color+'">'+avgSys+'/'+avgDia+'</div><div style="font-size:10px;color:'+avgZone.color+';opacity:0.7;margin-top:2px">'+avgZone.label+'</div></div>' +
-      '<div class="kpi-box" style="min-width:80px"><div class="kpi-label">MESURES</div><div class="kpi-value">'+tensions.length+'</div></div>' +
-      (last.pouls ? '<div class="kpi-box" style="min-width:100px"><div class="kpi-label">DERNIER POULS</div><div class="kpi-value">'+last.pouls+' <span style="font-size:12px;font-weight:normal;color:rgba(255,255,255,0.3)">bpm</span></div></div>' : '') +
+      '<div class="kpi-box" style="min-width:120px;text-align:center"><div class="kpi-label">DERNIÈRE</div><div class="kpi-value" style="color:'+zone.color+'">'+last.sys+'/'+last.dia+'</div><div style="font-size:10px;color:'+zone.color+';opacity:0.7;margin-top:2px">'+zone.label+'</div></div>' +
+      '<div class="kpi-box" style="min-width:120px;text-align:center"><div class="kpi-label">'+avgLabel+'</div><div class="kpi-value" style="color:'+avgZone.color+'">'+avgSys+'/'+avgDia+'</div><div style="font-size:10px;color:'+avgZone.color+';opacity:0.7;margin-top:2px">'+avgZone.label+'</div></div>' +
+      '<div class="kpi-box" style="min-width:80px;text-align:center"><div class="kpi-label">MESURES</div><div class="kpi-value">'+tensions.length+'</div></div>' +
+      (last.pouls ? '<div class="kpi-box" style="min-width:100px;text-align:center"><div class="kpi-label">DERNIER POULS</div><div class="kpi-value">'+last.pouls+' <span style="font-size:12px;font-weight:normal;color:rgba(255,255,255,0.3)">bpm</span></div></div>' : '') +
       alertHtml;
   } else if(kpiEl) kpiEl.innerHTML = '';
 
