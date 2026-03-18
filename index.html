@@ -1132,7 +1132,7 @@
       </div>
       <!-- Saisie -->
       <div style="font-size:11px;color:rgba(255,255,255,0.3);background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 14px;margin-bottom:16px;line-height:1.6">
-        💡 <strong style="color:rgba(255,255,255,0.45)">Recommandation ESH/OMS</strong> — Prenez 2 mesures espacées d'au moins 5 minutes au repos. La valeur enregistrée est la moyenne des deux.
+        💡 <strong style="color:rgba(255,255,255,0.45)">Recommandation ESH 2023</strong> — Prenez 2 mesures espacées d'au moins 2 minutes au repos. La valeur enregistrée est la moyenne des deux.
       </div>
       <div style="margin-bottom:16px">
         <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:6px">DATE</div>
@@ -1145,21 +1145,32 @@
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <div>
               <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px">SYS (mmHg)</div>
-              <input type="number" id="tensionSys1" min="60" max="250" placeholder="120" style="width:80px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px" oninput="updateTensionMoy()">
+              <input type="number" id="tensionSys1" min="60" max="250" placeholder="120" style="width:80px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px" oninput="updateTensionMoy();startTensionTimer()">
             </div>
             <div>
               <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px">DIA (mmHg)</div>
-              <input type="number" id="tensionDia1" min="40" max="150" placeholder="80" style="width:80px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px" oninput="updateTensionMoy()">
+              <input type="number" id="tensionDia1" min="40" max="150" placeholder="80" style="width:80px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px" oninput="updateTensionMoy();startTensionTimer()">
             </div>
             <div>
               <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px">POULS (bpm)</div>
               <input type="number" id="tensionPouls1" min="20" max="300" placeholder="65" style="width:70px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;padding:7px 10px;border-radius:6px;font-size:13px" oninput="updateTensionMoy()">
             </div>
           </div>
+          <!-- Timer 2 min -->
+          <div id="tensionTimer" style="display:none;margin-top:12px;background:rgba(129,140,248,0.08);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:8px 12px;align-items:center;gap:10px">
+            <svg viewBox="0 0 36 36" style="width:32px;height:32px;flex-shrink:0;transform:rotate(-90deg)">
+              <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="3"/>
+              <circle id="tensionTimerCircle" cx="18" cy="18" r="15" fill="none" stroke="#818cf8" stroke-width="3" stroke-dasharray="94.2 94.2" stroke-dashoffset="0" stroke-linecap="round"/>
+            </svg>
+            <div>
+              <div id="tensionTimerLabel" style="font-family:'Space Mono',monospace;font-size:13px;font-weight:700;color:#818cf8"></div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-top:1px">Patientez avant la 2e mesure</div>
+            </div>
+          </div>
         </div>
         <!-- Mesure 2 -->
         <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px">
-          <div style="font-size:11px;color:rgba(255,255,255,0.4);font-family:'Space Mono',monospace;letter-spacing:1px;margin-bottom:12px">MESURE 2 <span style="font-size:9px;color:rgba(255,255,255,0.2)">(après 5 min)</span></div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);font-family:'Space Mono',monospace;letter-spacing:1px;margin-bottom:12px">MESURE 2 <span style="font-size:9px;color:rgba(255,255,255,0.2)">(après 2 min)</span></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <div>
               <div style="font-size:10px;color:rgba(255,255,255,0.3);margin-bottom:4px">SYS (mmHg)</div>
@@ -1529,6 +1540,58 @@ function tensionZone(sys, dia){
   return { label:'Hypertension G2', color:'#ef4444' };
 }
 
+var _tensionTimerInterval = null;
+var _tensionTimerStarted = false;
+const TENSION_TIMER_SEC = 120; // 2 minutes
+
+function startTensionTimer(){
+  // Ne démarrer que si sys1 ET dia1 sont renseignés, et pas déjà en cours
+  const s1 = document.getElementById('tensionSys1').value;
+  const d1 = document.getElementById('tensionDia1').value;
+  if(!s1 || !d1 || _tensionTimerStarted) return;
+  _tensionTimerStarted = true;
+
+  const timerEl = document.getElementById('tensionTimer');
+  const labelEl = document.getElementById('tensionTimerLabel');
+  const circleEl = document.getElementById('tensionTimerCircle');
+  const circumference = 94.2;
+  if(timerEl) timerEl.style.display = 'flex';
+
+  let remaining = TENSION_TIMER_SEC;
+  function tick(){
+    if(!labelEl || !circleEl) return;
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    labelEl.textContent = m + ':' + String(s).padStart(2,'0');
+    const offset = circumference * (1 - remaining / TENSION_TIMER_SEC);
+    circleEl.style.strokeDashoffset = offset;
+    if(remaining <= 0){
+      clearInterval(_tensionTimerInterval);
+      labelEl.textContent = '✓ Prêt';
+      labelEl.style.color = '#22c55e';
+      circleEl.style.stroke = '#22c55e';
+      document.getElementById('tensionTimer').style.borderColor = 'rgba(34,197,94,0.3)';
+      document.getElementById('tensionTimer').style.background = 'rgba(34,197,94,0.07)';
+      return;
+    }
+    remaining--;
+  }
+  tick();
+  _tensionTimerInterval = setInterval(tick, 1000);
+}
+
+function resetTensionTimer(){
+  if(_tensionTimerInterval) clearInterval(_tensionTimerInterval);
+  _tensionTimerInterval = null;
+  _tensionTimerStarted = false;
+  const timerEl = document.getElementById('tensionTimer');
+  const labelEl = document.getElementById('tensionTimerLabel');
+  const circleEl = document.getElementById('tensionTimerCircle');
+  if(timerEl){ timerEl.style.display='none'; timerEl.style.borderColor='rgba(129,140,248,0.2)'; timerEl.style.background='rgba(129,140,248,0.08)'; }
+  if(labelEl){ labelEl.textContent=''; labelEl.style.color='#818cf8'; }
+  if(circleEl){ circleEl.style.stroke='#818cf8'; circleEl.style.strokeDashoffset='0'; }
+}
+
 function updateTensionMoy(){
   const s1 = parseInt(document.getElementById('tensionSys1').value);
   const d1 = parseInt(document.getElementById('tensionDia1').value);
@@ -1594,6 +1657,7 @@ function addTension(){
     const el = document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('tensionMoyPreview').style.display = 'none';
+  resetTensionTimer();
 }
 
 function deleteTension(date){
