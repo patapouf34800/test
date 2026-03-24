@@ -145,6 +145,23 @@
   .ref-item.selected .ref-name{color:#f97316}
   .ref-item.dragging{opacity:0.4;border-color:rgba(249,115,22,0.5)!important}
   .ref-item.drag-over{border-color:#f97316!important;background:rgba(249,115,22,0.12)!important}
+  .ref-cat-section{margin-bottom:18px}
+  .ref-cat-header{display:flex;align-items:center;gap:8px;padding:6px 10px;margin-bottom:8px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);cursor:pointer;user-select:none;transition:background .15s}
+  .ref-cat-header:hover{background:rgba(255,255,255,0.05)}
+  .ref-cat-header.drop-target{background:rgba(249,115,22,0.1)!important;border-color:rgba(249,115,22,0.5)!important}
+  .ref-cat-title{font-size:12px;font-weight:600;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1px;flex:1}
+  .ref-cat-count{font-size:10px;color:rgba(255,255,255,0.25);font-family:'Space Mono',monospace}
+  .ref-cat-toggle{font-size:10px;color:rgba(255,255,255,0.2);transition:transform .2s}
+  .ref-cat-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+  .ref-cat-body.collapsed{display:none}
+  .cat-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:3px 10px;font-size:11px;color:rgba(255,255,255,0.5)}
+  .cat-pill-count{font-size:9px;color:rgba(255,255,255,0.25);font-family:'Space Mono',monospace}
+  .ref-move-btn{background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;font-size:11px;padding:0 3px;transition:color .2s;line-height:1;white-space:nowrap}
+  .ref-move-btn:hover{color:#818cf8}
+  .cat-list-row{display:flex;align-items:center;gap:8px;padding:5px 8px;background:rgba(255,255,255,0.03);border-radius:6px;border:1px solid rgba(255,255,255,0.06)}
+  .cat-list-name{flex:1;font-size:12px;color:rgba(255,255,255,0.6)}
+  .cat-rename-input{background:rgba(255,255,255,0.07);border:1px solid rgba(249,115,22,0.4);color:#fff;border-radius:5px;padding:3px 8px;font-size:12px;font-family:inherit;outline:none;flex:1}
+  .cat-rename-input:focus{border-color:#f97316}
   .ref-edit-panel{display:none;margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:8px;border-top:1px solid rgba(255,255,255,0.07)}
   .ref-edit-panel.open{display:block}
   .ref-edit-panel input{background:rgba(255,255,255,0.07);border:1px solid rgba(249,115,22,0.35);color:#fff;border-radius:6px;padding:5px 9px;font-size:12px;font-family:inherit;outline:none;width:100%}
@@ -623,7 +640,25 @@
           <button class="btn btn-secondary" onclick="clearAllRefs()" style="border-color:rgba(239,68,68,0.3);color:#ef4444;background:rgba(239,68,68,0.08);padding:6px 12px;font-size:11px">🗑 Tout supprimer</button>
         </div>
       </div>
-      <div class="ref-grid" id="refGrid"></div>
+
+      <!-- Gestionnaire de catégories -->
+      <div style="margin-bottom:16px;padding:12px 14px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);border-radius:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">
+          <div style="font-size:11px;color:rgba(255,255,255,0.35);text-transform:uppercase;letter-spacing:1px">Catégories</div>
+          <button onclick="toggleCatManager()" id="btnCatManager" style="background:none;border:none;color:rgba(249,115,22,0.6);font-size:11px;cursor:pointer;font-family:inherit;padding:0;text-decoration:underline">+ Gérer</button>
+        </div>
+        <div id="catManagerPanel" style="display:none">
+          <div class="form-row" style="margin-bottom:8px">
+            <input type="text" id="newCatNom" placeholder="Nom de la catégorie (ex: Boissons)" style="flex:1" onkeydown="if(event.key==='Enter')addRefCat()">
+            <button class="btn btn-secondary" onclick="addRefCat()" style="padding:6px 14px;font-size:12px">+ Ajouter</button>
+          </div>
+          <div id="catList" style="display:flex;flex-direction:column;gap:5px"></div>
+        </div>
+        <!-- Catégories existantes en pills -->
+        <div id="catPills" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      </div>
+
+      <div id="refGrid"></div>
     </div>
   </div>
 
@@ -1398,6 +1433,8 @@ let refs = [
   { id:9, nom:'Lentilles cuites', kcal100:116 },
 ];
 let refNextId = 20;
+let refCats = []; // [{ id, nom }]
+let refCatNextId = 1;
 let calcItems = [];
 let activePeriod = 'mois_en_cours'; // 'tout', 'mois_en_cours', 'mois_precedent'
 let veloActivePeriod = 'tout';
@@ -2050,7 +2087,7 @@ function saveData(){
     taille: tdeeTailleEl ? parseInt(tdeeTailleEl.value)||175 : 175,
     activite: tdeeActiviteEl ? parseFloat(tdeeActiviteEl.value)||1.2 : 1.2
   };
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, activePeriod, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif(), bilans, bilanUnites: window._bilanUnites||{}, tensions, tdeeParams, recettes, recetteNextId, weeklySnapshots: window._weeklySnapshots||[], usageCount, conditionsActives: _conditionsActives, objectifPoids: _objectifPoids||null };
+  const data = { days, pesees, veloSessions, refs, refNextId, refCats, refCatNextId, calcItems, activePeriod, calcDate: calcDateVal, poids: getPoids(), objectif: getObjectif(), bilans, bilanUnites: window._bilanUnites||{}, tensions, tdeeParams, recettes, recetteNextId, weeklySnapshots: window._weeklySnapshots||[], usageCount, conditionsActives: _conditionsActives, objectifPoids: _objectifPoids||null };
   try {
     if (window._masterKey) {
       // Sauvegarde chiffrée
@@ -2091,6 +2128,7 @@ async function loadData(){
     if(data.days) days = data.days;
     if(data.pesees) pesees = data.pesees;
     if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
+    if(data.refCats) { refCats = data.refCats; refCatNextId = data.refCatNextId || (refCats.length + 1); }
     if(data.calcItems && data.calcItems.length > 0) calcItems = data.calcItems;
     if(data.activePeriod) activePeriod = data.activePeriod;
     if(data.veloSessions) veloSessions = data.veloSessions;
@@ -2188,7 +2226,7 @@ async function exportDataChiffre(){
   };
   const calcDateEl2 = document.getElementById('calcDate');
   const calcDateVal2 = (calcDateEl2 && calcDateEl2.value) ? calcDateEl2.value : (window._savedCalcDate || '');
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, calcDate: calcDateVal2, activePeriod, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), tensions, tdeeParams, recettes, recetteNextId, weeklySnapshots: window._weeklySnapshots||[], usageCount, conditionsActives: _conditionsActives, objectifPoids: _objectifPoids||null, exportDate: new Date().toISOString() };
+  const data = { days, pesees, veloSessions, refs, refNextId, refCats, refCatNextId, calcItems, calcDate: calcDateVal2, activePeriod, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), tensions, tdeeParams, recettes, recetteNextId, weeklySnapshots: window._weeklySnapshots||[], usageCount, conditionsActives: _conditionsActives, objectifPoids: _objectifPoids||null, exportDate: new Date().toISOString() };
 
   try {
     const encrypted = await cryptoEncrypt(JSON.stringify(data), pwd);
@@ -2213,7 +2251,7 @@ function exportData(){
   };
   const calcDateEl2 = document.getElementById('calcDate');
   const calcDateVal2 = (calcDateEl2 && calcDateEl2.value) ? calcDateEl2.value : (window._savedCalcDate || '');
-  const data = { days, pesees, veloSessions, refs, refNextId, calcItems, calcDate: calcDateVal2, activePeriod, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), tensions, tdeeParams, recettes, recetteNextId, weeklySnapshots: window._weeklySnapshots||[], usageCount, conditionsActives: _conditionsActives, objectifPoids: _objectifPoids||null, exportDate: new Date().toISOString() };
+  const data = { days, pesees, veloSessions, refs, refNextId, refCats, refCatNextId, calcItems, calcDate: calcDateVal2, activePeriod, bilans, bilanUnites: window._bilanUnites||{}, poids: getPoids(), objectif: getObjectif(), tensions, tdeeParams, recettes, recetteNextId, weeklySnapshots: window._weeklySnapshots||[], usageCount, conditionsActives: _conditionsActives, objectifPoids: _objectifPoids||null, exportDate: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2277,6 +2315,7 @@ function importData(event){
       bilans = data.bilans || [];
       tensions = data.tensions || [];
       if(data.refs) { refs = data.refs; refNextId = data.refNextId || 100; }
+      if(data.refCats) { refCats = data.refCats; refCatNextId = data.refCatNextId || (refCats.length + 1); }
       if(data.calcItems) calcItems = data.calcItems;
       if(data.activePeriod) activePeriod = data.activePeriod;
       if(data.bilanUnites) window._bilanUnites = data.bilanUnites;
@@ -2664,55 +2703,278 @@ function renderPoidsCards(s){
 function renderRefs(){
   document.getElementById('refTitle').textContent=`Ma liste d'aliments (${refs.length})`;
   const grid=document.getElementById('refGrid');
-  if(!refs.length){grid.innerHTML='<p class="empty-msg" style="grid-column:1/-1">Aucun aliment. Ajoutez vos habituels ci-dessus.</p>';updateDeleteSelectedBtn();return;}
-  grid.innerHTML=refs.map(r=>{
-    const hasMacros = r.p!=null||r.g!=null||r.l!=null||r.f!=null;
-    const macroTags = hasMacros
-      ? '<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">'
-        +(r.p!=null?'<span style="font-size:9px;color:#f97316;background:rgba(249,115,22,0.1);padding:1px 5px;border-radius:3px">P '+r.p+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">P —</span>')
-        +(r.g!=null?'<span style="font-size:9px;color:#38bdf8;background:rgba(56,189,248,0.1);padding:1px 5px;border-radius:3px">G '+r.g+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">G —</span>')
-        +(r.l!=null?'<span style="font-size:9px;color:#a78bfa;background:rgba(167,139,250,0.1);padding:1px 5px;border-radius:3px">L '+r.l+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">L —</span>')
-        +(r.f!=null?'<span style="font-size:9px;color:#4ade80;background:rgba(74,222,128,0.1);padding:1px 5px;border-radius:3px">F '+r.f+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">F —</span>')
-        +'</div>'
-      : '<div style="margin-top:5px;font-size:9px;color:rgba(249,115,22,0.5)">⚠ macros non renseignées</div>';
-    return `<div class="ref-item" id="ref-item-${r.id}" draggable="true"
-        ondragstart="refDragStart(event,${r.id})"
-        ondragover="refDragOver(event)"
-        ondragenter="refDragEnter(event)"
-        ondragleave="refDragLeave(event)"
-        ondrop="refDrop(event,${r.id})"
-        ondragend="refDragEnd(event)"
-        style="flex-direction:column;align-items:flex-start;gap:2px">
-      <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px">
-        <span class="ref-drag-handle" title="Déplacer" onclick="event.stopPropagation()">⠿</span>
-        <span class="ref-name" onclick="toggleRefSelect(${r.id})" style="cursor:pointer;flex:1">${r.nom}</span>
-        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
-          <span class="ref-kcal">${r.kcal100} kcal</span>
-          <button class="ref-edit-btn" onclick="event.stopPropagation();toggleRefEdit(${r.id})" title="Éditer">✏️</button>
-          <button class="ref-del" onclick="event.stopPropagation();deleteRef(${r.id})">×</button>
-        </div>
+
+  // Pills résumé catégories
+  const pillsEl = document.getElementById('catPills');
+  if(pillsEl){
+    if(refCats.length === 0){
+      pillsEl.innerHTML = '<span style="font-size:11px;color:rgba(255,255,255,0.2);font-style:italic">Aucune catégorie — cliquez « + Gérer » pour en créer</span>';
+    } else {
+      pillsEl.innerHTML = refCats.map(c=>{
+        const count = refs.filter(r=>r.catId===c.id).length;
+        return `<span class="cat-pill">${c.nom} <span class="cat-pill-count">${count}</span></span>`;
+      }).join('');
+    }
+  }
+
+  if(!refs.length){
+    grid.innerHTML='<p class="empty-msg">Aucun aliment. Ajoutez vos habituels ci-dessus.</p>';
+    updateDeleteSelectedBtn();
+    return;
+  }
+
+  // Grouper par catégorie
+  const uncategorized = refs.filter(r=>!r.catId);
+  const sections = [];
+
+  // "Sans catégorie" en haut
+  if(uncategorized.length > 0 || refCats.length === 0){
+    sections.push({ id: null, nom: 'Sans catégorie', items: uncategorized });
+  }
+  refCats.forEach(c=>{
+    sections.push({ id: c.id, nom: c.nom, items: refs.filter(r=>r.catId===c.id) });
+  });
+
+  grid.innerHTML = sections.map(sec=>{
+    const collapsed = sec.id !== null && window._refCatCollapsed && window._refCatCollapsed[sec.id];
+    const bodyClass = 'ref-cat-body' + (collapsed ? ' collapsed' : '');
+    const arrow = collapsed ? '▶' : '▼';
+    const toggleAttr = sec.id !== null
+      ? `onclick="toggleRefCatCollapse(${sec.id})" id="ref-cat-header-${sec.id}"`
+      : `id="ref-cat-header-null"`;
+    const dropAttrs = `ondragover="catDragOver(event)" ondragenter="catDragEnter(event,${sec.id})" ondragleave="catDragLeave(event,${sec.id})" ondrop="catDrop(event,${sec.id})"`;
+
+    const itemsHtml = sec.items.map(r=>renderRefItem(r)).join('');
+    const emptySlot = sec.items.length === 0
+      ? `<div style="grid-column:1/-1;padding:12px;text-align:center;font-size:12px;color:rgba(255,255,255,0.2);font-style:italic;border:1px dashed rgba(255,255,255,0.08);border-radius:8px"
+           ondragover="catDragOver(event)" ondrop="catDrop(event,${sec.id})" ondragenter="this.style.borderColor='rgba(249,115,22,0.5)'" ondragleave="this.style.borderColor=''">
+           Déposez des aliments ici
+         </div>` : '';
+
+    return `<div class="ref-cat-section" id="ref-cat-section-${sec.id}">
+      <div class="ref-cat-header" ${toggleAttr} ${dropAttrs}>
+        <span class="ref-cat-toggle" id="ref-cat-arrow-${sec.id}">${sec.id !== null ? arrow : ''}</span>
+        <span class="ref-cat-title">${sec.nom}</span>
+        <span class="ref-cat-count">${sec.items.length} aliment${sec.items.length!==1?'s':''}</span>
+        ${sec.id !== null ? `<span style="font-size:10px;color:rgba(255,255,255,0.15);margin-left:4px" title="Glissez un aliment sur cet en-tête pour l'y ajouter">⤵</span>` : ''}
       </div>
-      ${macroTags}
-      <div class="ref-edit-panel" id="ref-edit-panel-${r.id}">
-        <div style="font-size:10px;color:rgba(249,115,22,0.7);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Modifier</div>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:6px;margin-bottom:6px">
-          <input type="text" id="ref-edit-nom-${r.id}" value="${r.nom.replace(/"/g,'&quot;')}" placeholder="Nom">
-          <input type="number" id="ref-edit-kcal-${r.id}" value="${r.kcal100}" placeholder="kcal/100g" style="width:90px">
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px">
-          <input type="number" id="ref-edit-p-${r.id}" value="${r.p??''}" placeholder="P (g)" step="0.1">
-          <input type="number" id="ref-edit-g-${r.id}" value="${r.g??''}" placeholder="G (g)" step="0.1">
-          <input type="number" id="ref-edit-l-${r.id}" value="${r.l??''}" placeholder="L (g)" step="0.1">
-          <input type="number" id="ref-edit-f-${r.id}" value="${r.f??''}" placeholder="F (g)" step="0.1">
-        </div>
-        <div style="display:flex;gap:6px">
-          <button onclick="saveRefEdit(${r.id})" style="background:rgba(249,115,22,0.2);border:1px solid rgba(249,115,22,0.5);color:#f97316;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit">✓ Sauver</button>
-          <button onclick="toggleRefEdit(${r.id})" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit">Annuler</button>
-        </div>
+      <div class="${bodyClass}" id="ref-cat-body-${sec.id}">
+        ${itemsHtml}${emptySlot}
       </div>
     </div>`;
   }).join('');
+
   updateDeleteSelectedBtn();
+}
+
+function renderRefItem(r){
+  const hasMacros = r.p!=null||r.g!=null||r.l!=null||r.f!=null;
+  const macroTags = hasMacros
+    ? '<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">'
+      +(r.p!=null?'<span style="font-size:9px;color:#f97316;background:rgba(249,115,22,0.1);padding:1px 5px;border-radius:3px">P '+r.p+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">P —</span>')
+      +(r.g!=null?'<span style="font-size:9px;color:#38bdf8;background:rgba(56,189,248,0.1);padding:1px 5px;border-radius:3px">G '+r.g+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">G —</span>')
+      +(r.l!=null?'<span style="font-size:9px;color:#a78bfa;background:rgba(167,139,250,0.1);padding:1px 5px;border-radius:3px">L '+r.l+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">L —</span>')
+      +(r.f!=null?'<span style="font-size:9px;color:#4ade80;background:rgba(74,222,128,0.1);padding:1px 5px;border-radius:3px">F '+r.f+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">F —</span>')
+      +'</div>'
+    : '<div style="margin-top:5px;font-size:9px;color:rgba(249,115,22,0.5)">⚠ macros non renseignées</div>';
+
+  // Menu "Déplacer vers"
+  const moveTo = [{ id: null, nom: 'Sans catégorie' }, ...refCats]
+    .filter(c => c.id !== (r.catId || null))
+    .map(c => `<div onclick="moveRefToCat(${r.id},${c.id===null?'null':c.id});event.stopPropagation()"
+        style="padding:6px 12px;font-size:12px;cursor:pointer;color:rgba(255,255,255,0.7);white-space:nowrap"
+        onmouseover="this.style.background='rgba(249,115,22,0.15)'"
+        onmouseout="this.style.background=''">${c.nom}</div>`)
+    .join('');
+  const moveMenu = refCats.length > 0 ? `
+    <div style="position:relative;display:inline-block" id="move-menu-wrap-${r.id}">
+      <button class="ref-move-btn" onclick="event.stopPropagation();toggleMoveMenu(${r.id})" title="Déplacer vers une catégorie">↗</button>
+      <div id="move-menu-${r.id}" style="display:none;position:absolute;z-index:200;right:0;top:100%;background:#13131a;border:1px solid rgba(249,115,22,0.3);border-radius:8px;min-width:150px;box-shadow:0 8px 24px rgba(0,0,0,0.6);overflow:hidden">
+        ${moveTo}
+      </div>
+    </div>` : '';
+
+  return `<div class="ref-item" id="ref-item-${r.id}" draggable="true"
+      ondragstart="refDragStart(event,${r.id})"
+      ondragover="refDragOver(event)"
+      ondragenter="refDragEnter(event)"
+      ondragleave="refDragLeave(event)"
+      ondrop="refDrop(event,${r.id})"
+      ondragend="refDragEnd(event)"
+      style="flex-direction:column;align-items:flex-start;gap:2px">
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:6px">
+      <span class="ref-drag-handle" title="Réordonner dans la catégorie" onclick="event.stopPropagation()">⠿</span>
+      <span class="ref-name" onclick="toggleRefSelect(${r.id})" style="cursor:pointer;flex:1">${r.nom}</span>
+      <div style="display:flex;align-items:center;gap:2px;flex-shrink:0">
+        <span class="ref-kcal">${r.kcal100} kcal</span>
+        ${moveMenu}
+        <button class="ref-edit-btn" onclick="event.stopPropagation();toggleRefEdit(${r.id})" title="Éditer">✏️</button>
+        <button class="ref-del" onclick="event.stopPropagation();deleteRef(${r.id})">×</button>
+      </div>
+    </div>
+    ${macroTags}
+    <div class="ref-edit-panel" id="ref-edit-panel-${r.id}">
+      <div style="font-size:10px;color:rgba(249,115,22,0.7);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Modifier</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:6px;margin-bottom:6px">
+        <input type="text" id="ref-edit-nom-${r.id}" value="${r.nom.replace(/"/g,'&quot;')}" placeholder="Nom">
+        <input type="number" id="ref-edit-kcal-${r.id}" value="${r.kcal100}" placeholder="kcal/100g" style="width:90px">
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px">
+        <input type="number" id="ref-edit-p-${r.id}" value="${r.p??''}" placeholder="P (g)" step="0.1">
+        <input type="number" id="ref-edit-g-${r.id}" value="${r.g??''}" placeholder="G (g)" step="0.1">
+        <input type="number" id="ref-edit-l-${r.id}" value="${r.l??''}" placeholder="L (g)" step="0.1">
+        <input type="number" id="ref-edit-f-${r.id}" value="${r.f??''}" placeholder="F (g)" step="0.1">
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="saveRefEdit(${r.id})" style="background:rgba(249,115,22,0.2);border:1px solid rgba(249,115,22,0.5);color:#f97316;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit">✓ Sauver</button>
+        <button onclick="toggleRefEdit(${r.id})" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit">Annuler</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── CATÉGORIES CRUD ── */
+function toggleCatManager(){
+  const panel = document.getElementById('catManagerPanel');
+  const pills = document.getElementById('catPills');
+  if(!panel) return;
+  const open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+  if(pills) pills.style.display = open ? '' : 'none';
+  if(!open) renderCatList();
+  document.getElementById('btnCatManager').textContent = open ? '+ Gérer' : '× Fermer';
+}
+
+function renderCatList(){
+  const el = document.getElementById('catList');
+  if(!el) return;
+  if(!refCats.length){
+    el.innerHTML='<div style="font-size:12px;color:rgba(255,255,255,0.2);padding:4px 0;font-style:italic">Aucune catégorie créée.</div>';
+    return;
+  }
+  el.innerHTML = refCats.map(c=>{
+    const count = refs.filter(r=>r.catId===c.id).length;
+    return `<div class="cat-list-row" id="cat-row-${c.id}">
+      <span class="cat-list-name" id="cat-name-${c.id}">${c.nom}</span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.2);font-family:'Space Mono',monospace">${count}</span>
+      <button onclick="startRenameCat(${c.id})" style="background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;font-size:12px;padding:0 4px" title="Renommer">✏️</button>
+      <button onclick="deleteRefCat(${c.id})" style="background:none;border:none;color:rgba(239,68,68,0.4);cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="Supprimer la catégorie">×</button>
+    </div>`;
+  }).join('');
+}
+
+function addRefCat(){
+  const input = document.getElementById('newCatNom');
+  const nom = input.value.trim();
+  if(!nom) return;
+  if(refCats.find(c=>c.nom.toLowerCase()===nom.toLowerCase())){ alert('Cette catégorie existe déjà.'); return; }
+  refCats.push({ id: refCatNextId++, nom });
+  input.value = '';
+  renderCatList();
+  renderRefs();
+  saveData();
+}
+
+function deleteRefCat(id){
+  const cat = refCats.find(c=>c.id===id);
+  if(!cat) return;
+  const count = refs.filter(r=>r.catId===id).length;
+  const msg = count > 0
+    ? `Supprimer la catégorie "${cat.nom}" ?\n${count} aliment(s) seront déplacés vers "Sans catégorie".`
+    : `Supprimer la catégorie "${cat.nom}" ?`;
+  if(!confirm(msg)) return;
+  refs.forEach(r=>{ if(r.catId===id) delete r.catId; });
+  refCats = refCats.filter(c=>c.id!==id);
+  renderCatList();
+  renderRefs();
+  saveData();
+}
+
+function startRenameCat(id){
+  const cat = refCats.find(c=>c.id===id);
+  if(!cat) return;
+  const nameEl = document.getElementById('cat-name-'+id);
+  if(!nameEl) return;
+  const row = document.getElementById('cat-row-'+id);
+  row.innerHTML = `
+    <input class="cat-rename-input" id="cat-rename-input-${id}" value="${cat.nom.replace(/"/g,'&quot;')}" onkeydown="if(event.key==='Enter')confirmRenameCat(${id});if(event.key==='Escape')renderCatList()">
+    <button onclick="confirmRenameCat(${id})" style="background:rgba(249,115,22,0.2);border:1px solid rgba(249,115,22,0.4);color:#f97316;border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:inherit">✓</button>
+    <button onclick="renderCatList()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:inherit">✕</button>`;
+  document.getElementById('cat-rename-input-'+id).focus();
+}
+
+function confirmRenameCat(id){
+  const input = document.getElementById('cat-rename-input-'+id);
+  if(!input) return;
+  const nom = input.value.trim();
+  if(!nom){ alert('Le nom ne peut pas être vide.'); return; }
+  const cat = refCats.find(c=>c.id===id);
+  if(cat) cat.nom = nom;
+  renderCatList();
+  renderRefs();
+  saveData();
+}
+
+function moveRefToCat(refId, catId){
+  const ref = refs.find(r=>r.id===refId);
+  if(!ref) return;
+  if(catId === null) delete ref.catId;
+  else ref.catId = catId;
+  // Fermer tous les menus
+  document.querySelectorAll('[id^="move-menu-"]').forEach(m=>m.style.display='none');
+  renderRefs();
+  saveData();
+}
+
+function toggleMoveMenu(refId){
+  const menu = document.getElementById('move-menu-'+refId);
+  if(!menu) return;
+  const isOpen = menu.style.display !== 'none';
+  // Fermer tous
+  document.querySelectorAll('[id^="move-menu-"]').forEach(m=>m.style.display='none');
+  if(!isOpen) {
+    menu.style.display = 'block';
+    // Fermer au clic dehors
+    setTimeout(()=>{
+      function close(e){
+        const wrap = document.getElementById('move-menu-wrap-'+refId);
+        if(wrap && !wrap.contains(e.target)){
+          menu.style.display='none';
+          document.removeEventListener('click', close);
+        }
+      }
+      document.addEventListener('click', close);
+    }, 0);
+  }
+}
+
+function toggleRefCatCollapse(id){
+  if(!window._refCatCollapsed) window._refCatCollapsed = {};
+  window._refCatCollapsed[id] = !window._refCatCollapsed[id];
+  const body = document.getElementById('ref-cat-body-'+id);
+  const arrow = document.getElementById('ref-cat-arrow-'+id);
+  if(body) body.classList.toggle('collapsed', !!window._refCatCollapsed[id]);
+  if(arrow) arrow.textContent = window._refCatCollapsed[id] ? '▶' : '▼';
+}
+
+/* ── DRAG VERS UN EN-TÊTE DE CATÉGORIE ── */
+function catDragOver(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; }
+function catDragEnter(e, catId){
+  const header = document.getElementById('ref-cat-header-'+catId);
+  if(header) header.classList.add('drop-target');
+}
+function catDragLeave(e, catId){
+  const header = document.getElementById('ref-cat-header-'+catId);
+  if(header && !header.contains(e.relatedTarget)) header.classList.remove('drop-target');
+}
+function catDrop(e, catId){
+  e.preventDefault();
+  e.stopPropagation();
+  const header = document.getElementById('ref-cat-header-'+catId);
+  if(header) header.classList.remove('drop-target');
+  if(_refDragId === null) return;
+  moveRefToCat(_refDragId, catId);
+  _refDragId = null;
 }
 
 /* ── ÉDITION INLINE ── */
@@ -2720,7 +2982,6 @@ function toggleRefEdit(id){
   const panel = document.getElementById('ref-edit-panel-'+id);
   if(!panel) return;
   const isOpen = panel.classList.contains('open');
-  // Fermer tous les autres
   document.querySelectorAll('.ref-edit-panel.open').forEach(p=>p.classList.remove('open'));
   if(!isOpen){
     panel.classList.add('open');
@@ -2747,7 +3008,7 @@ function saveRefEdit(id){
   renderRefs(); renderCalcSelect(); renderCalcItems(); saveData();
 }
 
-/* ── DRAG & DROP RÉORGANISATION ── */
+/* ── DRAG & DROP RÉORGANISATION (même catégorie) ── */
 let _refDragId = null;
 
 function refDragStart(e, id){
@@ -2756,9 +3017,9 @@ function refDragStart(e, id){
   setTimeout(()=>{ const el=document.getElementById('ref-item-'+id); if(el) el.classList.add('dragging'); },0);
 }
 function refDragEnd(e){
-  document.querySelectorAll('.ref-item').forEach(el=>{
-    el.classList.remove('dragging','drag-over');
-  });
+  document.querySelectorAll('.ref-item').forEach(el=>el.classList.remove('dragging','drag-over'));
+  document.querySelectorAll('.ref-cat-header').forEach(h=>h.classList.remove('drop-target'));
+  _refDragId = null;
 }
 function refDragOver(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; }
 function refDragEnter(e){
@@ -2771,7 +3032,16 @@ function refDragLeave(e){
 }
 function refDrop(e, targetId){
   e.preventDefault();
+  e.stopPropagation();
   if(_refDragId === null || _refDragId === targetId) return;
+  const dragged = refs.find(r=>r.id===_refDragId);
+  const target  = refs.find(r=>r.id===targetId);
+  if(!dragged || !target) return;
+  // Déplace dans la même catégorie uniquement
+  if((dragged.catId||null) !== (target.catId||null)){
+    // Changer de catégorie + réordonner
+    dragged.catId = target.catId;
+  }
   const fromIdx = refs.findIndex(r=>r.id===_refDragId);
   const toIdx   = refs.findIndex(r=>r.id===targetId);
   if(fromIdx<0||toIdx<0) return;
@@ -6897,8 +7167,10 @@ function resetCategorie(cat, btn){
   }
   if(cat === 'aliments'){
     refs = [];
+    refCats = [];
     recettes = [];
     refNextId = 100;
+    refCatNextId = 1;
     recetteNextId = 1;
     usageCount = {};
     calcItems = calcItems.filter(function(){ return false; });
@@ -6927,10 +7199,12 @@ function resetTotal(){
   bilans = [];
   tensions = [];
   refs = [];
+  refCats = [];
   recettes = [];
   calcItems = [];
   usageCount = {};
   refNextId = 100;
+  refCatNextId = 1;
   recetteNextId = 1;
   window._weeklySnapshots = [];
   window._bilanUnites = {};
