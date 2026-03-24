@@ -136,8 +136,19 @@
   .ref-kcal{font-family:'Space Mono',monospace;font-size:12px;color:#f97316;white-space:nowrap}
   .ref-del{background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;font-size:16px;padding:0 2px;transition:color .2s;line-height:1}
   .ref-del:hover{color:#ef4444}
+  .ref-edit-btn{background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;font-size:13px;padding:0 3px;transition:color .2s;line-height:1}
+  .ref-edit-btn:hover{color:#f97316}
+  .ref-drag-handle{color:rgba(255,255,255,0.12);cursor:grab;font-size:14px;padding:0 3px;line-height:1;user-select:none;transition:color .2s}
+  .ref-drag-handle:hover{color:rgba(255,255,255,0.4)}
+  .ref-drag-handle:active{cursor:grabbing}
   .ref-item.selected{border-color:rgba(249,115,22,0.6);background:rgba(249,115,22,0.08)}
   .ref-item.selected .ref-name{color:#f97316}
+  .ref-item.dragging{opacity:0.4;border-color:rgba(249,115,22,0.5)!important}
+  .ref-item.drag-over{border-color:#f97316!important;background:rgba(249,115,22,0.12)!important}
+  .ref-edit-panel{display:none;margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.04);border-radius:8px;border-top:1px solid rgba(255,255,255,0.07)}
+  .ref-edit-panel.open{display:block}
+  .ref-edit-panel input{background:rgba(255,255,255,0.07);border:1px solid rgba(249,115,22,0.35);color:#fff;border-radius:6px;padding:5px 9px;font-size:12px;font-family:inherit;outline:none;width:100%}
+  .ref-edit-panel input:focus{border-color:#f97316}
 
   .calc-items{display:flex;flex-direction:column;gap:8px;margin-top:14px;max-height:350px;overflow-y:auto}
   .calc-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)}
@@ -2654,7 +2665,7 @@ function renderRefs(){
   document.getElementById('refTitle').textContent=`Ma liste d'aliments (${refs.length})`;
   const grid=document.getElementById('refGrid');
   if(!refs.length){grid.innerHTML='<p class="empty-msg" style="grid-column:1/-1">Aucun aliment. Ajoutez vos habituels ci-dessus.</p>';updateDeleteSelectedBtn();return;}
-  grid.innerHTML=refs.slice().reverse().map(r=>{
+  grid.innerHTML=refs.map(r=>{
     const hasMacros = r.p!=null||r.g!=null||r.l!=null||r.f!=null;
     const macroTags = hasMacros
       ? '<div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">'
@@ -2664,18 +2675,110 @@ function renderRefs(){
         +(r.f!=null?'<span style="font-size:9px;color:#4ade80;background:rgba(74,222,128,0.1);padding:1px 5px;border-radius:3px">F '+r.f+'g</span>':'<span style="font-size:9px;color:rgba(255,255,255,0.15);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px">F —</span>')
         +'</div>'
       : '<div style="margin-top:5px;font-size:9px;color:rgba(249,115,22,0.5)">⚠ macros non renseignées</div>';
-    return `<div class="ref-item" id="ref-item-${r.id}" onclick="toggleRefSelect(${r.id})" style="cursor:pointer;flex-direction:column;align-items:flex-start;gap:2px">
+    return `<div class="ref-item" id="ref-item-${r.id}" draggable="true"
+        ondragstart="refDragStart(event,${r.id})"
+        ondragover="refDragOver(event)"
+        ondragenter="refDragEnter(event)"
+        ondragleave="refDragLeave(event)"
+        ondrop="refDrop(event,${r.id})"
+        ondragend="refDragEnd(event)"
+        style="flex-direction:column;align-items:flex-start;gap:2px">
       <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px">
-        <span class="ref-name">${r.nom}</span>
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span class="ref-drag-handle" title="Déplacer" onclick="event.stopPropagation()">⠿</span>
+        <span class="ref-name" onclick="toggleRefSelect(${r.id})" style="cursor:pointer;flex:1">${r.nom}</span>
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
           <span class="ref-kcal">${r.kcal100} kcal</span>
+          <button class="ref-edit-btn" onclick="event.stopPropagation();toggleRefEdit(${r.id})" title="Éditer">✏️</button>
           <button class="ref-del" onclick="event.stopPropagation();deleteRef(${r.id})">×</button>
         </div>
       </div>
       ${macroTags}
+      <div class="ref-edit-panel" id="ref-edit-panel-${r.id}">
+        <div style="font-size:10px;color:rgba(249,115,22,0.7);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">Modifier</div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:6px;margin-bottom:6px">
+          <input type="text" id="ref-edit-nom-${r.id}" value="${r.nom.replace(/"/g,'&quot;')}" placeholder="Nom">
+          <input type="number" id="ref-edit-kcal-${r.id}" value="${r.kcal100}" placeholder="kcal/100g" style="width:90px">
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px">
+          <input type="number" id="ref-edit-p-${r.id}" value="${r.p??''}" placeholder="P (g)" step="0.1">
+          <input type="number" id="ref-edit-g-${r.id}" value="${r.g??''}" placeholder="G (g)" step="0.1">
+          <input type="number" id="ref-edit-l-${r.id}" value="${r.l??''}" placeholder="L (g)" step="0.1">
+          <input type="number" id="ref-edit-f-${r.id}" value="${r.f??''}" placeholder="F (g)" step="0.1">
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="saveRefEdit(${r.id})" style="background:rgba(249,115,22,0.2);border:1px solid rgba(249,115,22,0.5);color:#f97316;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:inherit">✓ Sauver</button>
+          <button onclick="toggleRefEdit(${r.id})" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.4);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit">Annuler</button>
+        </div>
+      </div>
     </div>`;
   }).join('');
   updateDeleteSelectedBtn();
+}
+
+/* ── ÉDITION INLINE ── */
+function toggleRefEdit(id){
+  const panel = document.getElementById('ref-edit-panel-'+id);
+  if(!panel) return;
+  const isOpen = panel.classList.contains('open');
+  // Fermer tous les autres
+  document.querySelectorAll('.ref-edit-panel.open').forEach(p=>p.classList.remove('open'));
+  if(!isOpen){
+    panel.classList.add('open');
+    const nomInput = document.getElementById('ref-edit-nom-'+id);
+    if(nomInput) setTimeout(()=>nomInput.focus(),50);
+  }
+}
+
+function saveRefEdit(id){
+  const idx = refs.findIndex(r=>r.id===id);
+  if(idx<0) return;
+  const nom = document.getElementById('ref-edit-nom-'+id).value.trim();
+  const kcal = parseInt(document.getElementById('ref-edit-kcal-'+id).value);
+  if(!nom || !kcal || kcal<=0){ alert('Nom et calories obligatoires.'); return; }
+  const p = parseFloat(document.getElementById('ref-edit-p-'+id).value);
+  const g = parseFloat(document.getElementById('ref-edit-g-'+id).value);
+  const l = parseFloat(document.getElementById('ref-edit-l-'+id).value);
+  const f = parseFloat(document.getElementById('ref-edit-f-'+id).value);
+  refs[idx] = { ...refs[idx], nom, kcal100: kcal };
+  if(!isNaN(p) && p>=0) refs[idx].p = Math.round(p*10)/10; else delete refs[idx].p;
+  if(!isNaN(g) && g>=0) refs[idx].g = Math.round(g*10)/10; else delete refs[idx].g;
+  if(!isNaN(l) && l>=0) refs[idx].l = Math.round(l*10)/10; else delete refs[idx].l;
+  if(!isNaN(f) && f>=0) refs[idx].f = Math.round(f*10)/10; else delete refs[idx].f;
+  renderRefs(); renderCalcSelect(); renderCalcItems(); saveData();
+}
+
+/* ── DRAG & DROP RÉORGANISATION ── */
+let _refDragId = null;
+
+function refDragStart(e, id){
+  _refDragId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(()=>{ const el=document.getElementById('ref-item-'+id); if(el) el.classList.add('dragging'); },0);
+}
+function refDragEnd(e){
+  document.querySelectorAll('.ref-item').forEach(el=>{
+    el.classList.remove('dragging','drag-over');
+  });
+}
+function refDragOver(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; }
+function refDragEnter(e){
+  const item = e.currentTarget;
+  if(item.classList.contains('ref-item')) item.classList.add('drag-over');
+}
+function refDragLeave(e){
+  const item = e.currentTarget;
+  if(item && !item.contains(e.relatedTarget)) item.classList.remove('drag-over');
+}
+function refDrop(e, targetId){
+  e.preventDefault();
+  if(_refDragId === null || _refDragId === targetId) return;
+  const fromIdx = refs.findIndex(r=>r.id===_refDragId);
+  const toIdx   = refs.findIndex(r=>r.id===targetId);
+  if(fromIdx<0||toIdx<0) return;
+  const [moved] = refs.splice(fromIdx,1);
+  refs.splice(toIdx,0,moved);
+  _refDragId = null;
+  renderRefs(); renderCalcSelect(); saveData();
 }
 
 function toggleRefSelect(id){
