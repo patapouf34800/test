@@ -1502,8 +1502,8 @@ function veloKcal(session){
   return Math.round(met * poids * (session.duree / 60));
 }
 
-/* ── STATS & CALCULS CORE ── */
 function computeStats(){
+  const obj=getObjectif(), poidsInit=getPoids();
   // Ne pas écraser l'objectif des jours passés — chaque jour garde celui en vigueur au moment de la saisie
   // On l'applique uniquement aux jours qui n'en ont pas encore (migration données anciennes)
   days.forEach(d=>{ if(!d.objectif) d.objectif=getObjectifPourDate(d.date); });
@@ -1537,7 +1537,7 @@ function computeStats(){
   });
   // Dataset pour le graphique : tableau aligné sur days
   const poidsHistoryVelo=days.map(d=>poidsHistoryVeloByDate[d.date]);
-  const nbProj = Math.max(nbProjChoice, 30); // minimum 30j pour les KPI
+  const nbProj=nbProjChoice;
 
   // Modele Hall (NIH) avec adaptation metabolique
   const ADAPT_KCAL_PER_KG = 20;  // -20 kcal/j par kg perdu
@@ -2359,8 +2359,8 @@ function importData(event){
   event.target.value = '';
 }
 
-/* ── RENDER GLOBAL & CHARTS ── */
 function refresh(){
+  const s=computeStats();
   renderKPI(s); renderChartMain(s); renderChartDeficit(s); renderChartPoids(s); renderObjectifBanner();
   renderSaisieList(s); renderPoidsCards(s);
   renderRefs(); renderRefCatSelect(); renderCalcSelect(); renderCalcItems(); renderPeseeList(); renderVelo(); renderBilans(); renderAllSanteSections(); renderDocuments(); renderRecettes();
@@ -2633,8 +2633,8 @@ function setSaisieSort(key, btn){
   renderSaisieList(computeStats());
 }
 
-/* ── SAISIE — LISTE JOURNÉES ── */
 function renderSaisieList(s){
+  const el = document.getElementById('saisieList');
 
   // Mettre à jour le titre
   document.getElementById('saisieTitle').textContent = `Données enregistrées (${days.length} jour${days.length>1?'s':''})`;
@@ -2966,7 +2966,7 @@ function toggleRefCatCollapse(id){
   if(arrow) arrow.textContent = window._refCatCollapsed[id] ? '▶' : '▼';
 }
 
-/* ── RÉFÉRENCES — DRAG & DROP ── */
+/* ── DRAG VERS UN EN-TÊTE DE CATÉGORIE ── */
 function catDragOver(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; }
 function catDragEnter(e, catId){
   const header = document.getElementById('ref-cat-header-'+catId);
@@ -3032,7 +3032,7 @@ function saveRefEdit(id){
   renderRefs(); renderCalcSelect(); renderCalcItems(); saveData();
 }
 
-/* ── RÉFÉRENCES — DRAG & DROP RÉORGANISATION (même catégorie) ── */
+/* ── DRAG & DROP RÉORGANISATION (même catégorie) ── */
 let _refDragId = null;
 
 function refDragStart(e, id){
@@ -3746,8 +3746,8 @@ function clearCalc(){
   renderCalcItems(); saveData();
 }
 
-/* ── CALCULATEUR — VALIDATION JOURNÉE ── */
 function validerJournee(){
+  const total=calcItems.reduce((s,i)=>s+i.kcal,0);
   if(total===0){alert('Aucun aliment dans la journée.');return;}
   const dateVal=document.getElementById('calcDate').value;
   if(!dateVal){alert('Merci de choisir une date.');return;}
@@ -3989,8 +3989,8 @@ function getVirtualBilans(){
   });
 }
 
-/* ── CORRÉLATIONS — RENDER ── */
 function renderCorrelations(){
+  const sel = document.getElementById('corrMarqueur'); if(!sel) return;
   const metric = document.getElementById('corrMetric') ? document.getElementById('corrMetric').value : 'deficit';
   const smooth = parseInt((document.getElementById('corrSmooth') ? document.getElementById('corrSmooth').value : null) || 30);
   if(!bilans.length || !days.length) return;
@@ -4274,7 +4274,7 @@ function renderCorrGrid(){
 
   el.innerHTML = html;
 }
-/* ── CORRÉLATIONS — DONNÉES & UNITÉS ── */
+/* ── CORRÉLATIONS ── */
 const UNITES_FALLBACK = {
   hematies:'T/L', hemoglobine:'g/L', hematocrite:'%', MCV:'fL', MCH:'pg', MCHC:'g/L',
   leucocytes:'G/L', neutrophiles_pct:'%', neutrophiles_abs:'G/L', eosinophiles_pct:'%',
@@ -4341,7 +4341,6 @@ function pdfFooter(doc, c, pageNum, pageW, pageH){
   doc.text(pdfStr('Page ' + pageNum), pageW-14, pageH-6, {align:'right'});
 }
 
-/* ── PDF — HELPERS & GÉNÉRATION ── */
 function statutColor(val, refMin, refMax, c){
   if(refMax !== null && val > refMax) return c.danger;
   if(refMin !== null && val < refMin) return c.info;
@@ -4896,7 +4895,7 @@ function genPdfBilan(){
 }
 
 
-/* ── SANTÉ — SECTIONS & MARQUEURS ── */
+/* ── DOCUMENTS / PDF ── */
 const SANTE_SECTIONS = {
   sante_hemato:    { title: '🔴 Hématologie',  marqueurs: ['hematies','hemoglobine','hematocrite','MCV','MCH','MCHC','leucocytes','neutrophiles_abs','eosinophiles_abs','basophiles_abs','lymphocytes_abs','monocytes_abs','plaquettes'] },
   sante_bio:       { title: '🧪 Biochimie',    marqueurs: ['sodium','potassium','creatinine','eGFR_CKD_EPI','glucose','HbA1c','GOT_AST','GPT_ALT','gamma_GT','CK_CPK','CRP','sedimentation'] },
@@ -5003,8 +5002,8 @@ const MARQUEUR_INFO = {
   TSH:            { organe:'🦋 Thyroïde', def:'Hormone thyréostimulante — produite par l\'hypophyse pour stimuler la thyroïde. Reflète indirectement l\'activité thyroïdienne.', haut:'TSH élevée : thyroïde sous-active (hypothyroïdie) — fatigue, prise de poids, frilosité.', bas:'TSH basse : thyroïde suractive (hyperthyroïdie) — palpitations, amaigrissement, nervosité.' },
 };
 
-/* ── SANTÉ — RENDER SECTIONS ── */
 function renderSanteSection(panelId){
+  const section = SANTE_SECTIONS[panelId]; if(!section) return;
   const el = document.getElementById(panelId+'_content'); if(!el) return;
 
   if(!bilans.length){
@@ -5819,7 +5818,6 @@ function renderBilans(){
   }).join('');
 }
 
-/* ── SPORT — RENDER & CRUD ── */
 function deleteVelo(i){
   if(!confirm('Supprimer cette session ?'))return;
   veloSessions.splice(i,1); renderVelo(); saveData();
@@ -5987,8 +5985,8 @@ function renderVelo(){
   }
 }
 
-/* ── PÉRIODES & FILTRES ── */
 function setPeriod(period, btn){
+  activePeriod = period;
   document.querySelectorAll('.dash-period-btn').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
   refresh();
@@ -6967,7 +6965,6 @@ function renderNutriDetail(d){
     + itemsHtml;
 }
 
-/* ── UI — NAVIGATION & MOBILE ── */
 function toggleMobileMenu(){
   const sidebar = document.getElementById('mainSidebar');
   const overlay = document.getElementById('mobileOverlay');
@@ -7845,7 +7842,6 @@ function openAide(){
 }
 
 
-/* ── INIT APPLICATION ── */
 async function initApp() {
   try {
     const res = await fetch('ciqual.json');
