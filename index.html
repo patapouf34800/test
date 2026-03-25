@@ -1274,9 +1274,11 @@
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px">
         <div class="chart-title" style="margin-bottom:0">🥗 Macronutriments par jour</div>
         <div style="display:flex;gap:6px" id="nutriPeriodBtns">
-          <button class="period-btn" onclick="setNutriPeriod('month',this)">Mois en cours</button>
-          <button class="period-btn" onclick="setNutriPeriod('prev',this)">Mois précédent</button>
-          <button class="period-btn active" onclick="setNutriPeriod('all',this)">Tout</button>
+          <button class="period-btn nutri-period-btn" onclick="setNutriPeriod(15,this)">15j</button>
+          <button class="period-btn nutri-period-btn" onclick="setNutriPeriod(30,this)">30j</button>
+          <button class="period-btn nutri-period-btn" onclick="setNutriPeriod(60,this)">60j</button>
+          <button class="period-btn nutri-period-btn" onclick="setNutriPeriod(90,this)">90j</button>
+          <button class="period-btn nutri-period-btn active" onclick="setNutriPeriod(0,this)">Tout</button>
         </div>
       </div>
       <canvas id="chartNutri" height="90"></canvas>
@@ -1293,12 +1295,6 @@
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:16px">
         <div class="chart-title" style="margin-bottom:0">📈 Évolution des macros</div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <div style="display:flex;gap:4px" id="macroTrendPeriodBtns">
-            <button class="period-btn macro-trend-period" onclick="setMacroTrendPeriod(30,this)">30j</button>
-            <button class="period-btn macro-trend-period" onclick="setMacroTrendPeriod(60,this)">60j</button>
-            <button class="period-btn macro-trend-period" onclick="setMacroTrendPeriod(90,this)">90j</button>
-            <button class="period-btn macro-trend-period active" onclick="setMacroTrendPeriod(0,this)">Tout</button>
-          </div>
           <button class="period-btn" id="btnMoyGliss" onclick="toggleMoyGliss(this)" style="border-color:rgba(255,255,255,0.4);color:rgba(255,255,255,0.7)">Points ○</button>
         </div>
       </div>
@@ -6087,8 +6083,7 @@ var _bilanHebdoOffset = 0; // 0 = semaine courante, -1 = semaine précédente, e
 // de saisie. Pas de calendrier fixe — le premier bloc commence au premier jour
 // avec données macro, le second aux 7 suivants, etc.
 
-var _nutriPeriod = 'all';
-var _macroTrendDays = 0;     // 0 = tout (défaut)
+var _nutriPeriodDays = 0;    // 0 = tout, sinon nb de jours (15/30/60/90)
 var _macroTrendMoy  = true;  // moyennes glissantes affichées par défaut
 var _macroVisible   = { p:true, g:true, l:true, f:true }; // visibilité par macro
 
@@ -6621,21 +6616,21 @@ function renderBilanHebdo(){
 
 
 
-function setNutriPeriod(p, btn){
-  _nutriPeriod = p;
-  document.querySelectorAll('#nutriPeriodBtns .period-btn').forEach(function(b){ b.classList.remove('active'); });
+function setNutriPeriod(n, btn){
+  _nutriPeriodDays = n;
+  document.querySelectorAll('.nutri-period-btn').forEach(function(b){ b.classList.remove('active'); });
   if(btn) btn.classList.add('active');
   renderNutri();
 }
 
 function getNutriDays(){
   if(!days.length) return [];
-  const now = new Date();
-  const ym = now.getFullYear()+'-'+(String(now.getMonth()+1).padStart(2,'0'));
-  const prev = new Date(now.getFullYear(), now.getMonth()-1, 1);
-  const ymp = prev.getFullYear()+'-'+(String(prev.getMonth()+1).padStart(2,'0'));
-  if(_nutriPeriod === 'month') return days.filter(function(d){ return d.date.startsWith(ym); });
-  if(_nutriPeriod === 'prev')  return days.filter(function(d){ return d.date.startsWith(ymp); });
+  if(_nutriPeriodDays > 0){
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - _nutriPeriodDays);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    return days.filter(function(d){ return d.date >= cutoffStr; });
+  }
   return days;
 }
 
@@ -6697,13 +6692,6 @@ function renderNutri(){
   renderMacroTrend();
 }
 
-function setMacroTrendPeriod(n, btn){
-  _macroTrendDays = n;
-  document.querySelectorAll('.macro-trend-period').forEach(function(b){ b.classList.remove('active'); });
-  if(btn) btn.classList.add('active');
-  renderMacroTrend();
-}
-
 function toggleMoyGliss(btn){
   _macroTrendMoy = !_macroTrendMoy;
   // _macroTrendMoy = true → on affiche les points bruts en plus
@@ -6744,13 +6732,7 @@ function renderMacroTrend(){
   const canvas = document.getElementById('chartMacroTrend');
   if(!canvas) return;
 
-  let src = days.filter(function(d){ return d.p!=null||d.g!=null||d.l!=null||d.f!=null; });
-  if(_macroTrendDays > 0){
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - _macroTrendDays);
-    const cutoffStr = cutoff.toISOString().split('T')[0];
-    src = src.filter(function(d){ return d.date >= cutoffStr; });
-  }
+  let src = getNutriDays().filter(function(d){ return d.p!=null||d.g!=null||d.l!=null||d.f!=null; });
 
   if(charts['macroTrend']){ charts['macroTrend'].destroy(); delete charts['macroTrend']; }
   if(!src.length){ canvas.style.opacity = '0.3'; return; }
