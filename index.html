@@ -2860,15 +2860,21 @@ function renderCatList(){
     const count = refs.filter(r=>r.catId===c.id).length;
     const isFirst = idx === 0;
     const isLast  = idx === refCats.length - 1;
+    const colUp   = isFirst ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.35)';
+    const colDown = isLast  ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.35)';
+    const curUp   = isFirst ? 'default' : 'pointer';
+    const curDown = isLast  ? 'default' : 'pointer';
+    const disUp   = isFirst ? 'disabled' : '';
+    const disDown = isLast  ? 'disabled' : '';
     return `<div class="cat-list-row" id="cat-row-${c.id}">
       <div style="display:flex;flex-direction:column;gap:1px;margin-right:2px">
-        <button onclick="moveRefCat(${c.id},-1)" style="background:none;border:none;color:${isFirst?'rgba(255,255,255,0.08)':'rgba(255,255,255,0.3)'};cursor:${isFirst?'default':'pointer'};font-size:9px;padding:0;line-height:1" ${isFirst?'disabled':''} title="Monter">▲</button>
-        <button onclick="moveRefCat(${c.id},1)"  style="background:none;border:none;color:${isLast ?'rgba(255,255,255,0.08)':'rgba(255,255,255,0.3)'};cursor:${isLast ?'default':'pointer'};font-size:9px;padding:0;line-height:1" ${isLast ?'disabled':''} title="Descendre">▼</button>
+        <button onclick="moveRefCat(${c.id},-1)" ${disUp} title="Monter" style="background:none;border:none;color:${colUp};cursor:${curUp};font-size:9px;padding:0;line-height:1">▲</button>
+        <button onclick="moveRefCat(${c.id},1)"  ${disDown} title="Descendre" style="background:none;border:none;color:${colDown};cursor:${curDown};font-size:9px;padding:0;line-height:1">▼</button>
       </div>
       <span class="cat-list-name" id="cat-name-${c.id}">${c.nom}</span>
       <span style="font-size:10px;color:rgba(255,255,255,0.2);font-family:'Space Mono',monospace">${count}</span>
       <button onclick="startRenameCat(${c.id})" style="background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;font-size:12px;padding:0 4px" title="Renommer">✏️</button>
-      <button onclick="deleteRefCat(${c.id})" style="background:none;border:none;color:rgba(239,68,68,0.4);cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="Supprimer la catégorie">×</button>
+      <button onclick="deleteRefCat(${c.id})" style="background:none;border:none;color:rgba(239,68,68,0.4);cursor:pointer;font-size:14px;padding:0 2px;line-height:1" title="Supprimer">×</button>
     </div>`;
   }).join('');
 }
@@ -3166,6 +3172,9 @@ function addRef(){
 }
 
 function deleteRef(id){
+  const ref = refs.find(r=>r.id===id);
+  if(!ref) return;
+  if(!confirm(`Supprimer "${ref.nom}" ?`)) return;
   refs=refs.filter(r=>r.id!==id);
   calcItems=calcItems.filter(i=>i.refId!==id);
   renderRefs(); renderCalcSelect(); renderCalcItems();
