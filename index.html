@@ -2695,12 +2695,24 @@ function renderSaisieList(s){
 }
 
 function renderPoidsCards(s){
-  if(!s.projections.length)return;
-  const p30=s.projections[Math.min(29,s.projections.length-1)];
-  document.getElementById('kpiPoids30').textContent=p30.toFixed(1)+' kg';
-  document.getElementById('kpiPoids30Sub').textContent='Modèle Hall — soit '+(p30-getPoids()).toFixed(2)+' kg vs départ';
   document.getElementById('kpiDefMoy').textContent=Math.round(s.recentDeficit).toLocaleString('fr-FR')+' kcal/j';
   document.getElementById('kpiDefMoySub').textContent='Déficit récent (14j) — équilibre estimé : '+s.poidsEquilibre.toFixed(1)+' kg';
+  var p30;
+  if(s.projections.length>=30){
+    p30=s.projections[29];
+  } else {
+    var ADAPT=20,KFAT=9441,KLEAN=1816,pCur=s.poidsActuel,def=s.recentDeficit;
+    for(var i=1;i<=30;i++){
+      var pp=s.poidsActuel-pCur;
+      var dj=Math.max(0,def-pp*ADAPT);
+      var fr=1/(1+0.12*Math.exp(-0.015*dj));
+      var kk=fr*KFAT+(1-fr)*KLEAN;
+      pCur=parseFloat((pCur-(kk>0?dj/kk:0)).toFixed(3));
+    }
+    p30=parseFloat(pCur.toFixed(2));
+  }
+  document.getElementById('kpiPoids30').textContent=p30.toFixed(1)+' kg';
+  document.getElementById('kpiPoids30Sub').textContent='Modèle Hall — soit '+(p30-getPoids()).toFixed(2)+' kg vs départ';
 }
 
 /* ── RÉFÉRENCES ── */
@@ -3906,6 +3918,7 @@ function setProjDays(n, btn){
   if(btn) btn.classList.add('active');
   const s=computeStats();
   renderChartPoids(s);
+  renderPoidsCards(s);
 }
 
 function getFilteredVeloByPeriod(period){
