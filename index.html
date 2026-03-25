@@ -1329,8 +1329,8 @@
           <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,0.4)"><span style="width:20px;height:2px;background:rgba(255,255,255,0.25);display:inline-block;border-radius:2px;border-top:2px dashed rgba(255,255,255,0.25)"></span>Objectif</span>
         </div>
       </div>
-      <div style="display:flex;justify-content:center;align-items:center;min-height:280px" id="macroRadarWrap">
-        <canvas id="chartMacroRadar" style="max-width:360px;max-height:360px"></canvas>
+      <div style="display:flex;justify-content:center;align-items:center;padding:10px 0 20px" id="macroRadarWrap">
+        <canvas id="chartMacroRadar" style="width:100%;max-width:480px;height:480px"></canvas>
       </div>
       <p class="empty-msg" id="macroRadarEmpty" style="display:none">Aucune donnée macro sur cette période.</p>
     </div>
@@ -6921,7 +6921,8 @@ function renderMacroRadar(){
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 20, bottom: 20, left: 30, right: 30 } },
       scales: {
         r: {
           min: 0,
@@ -6929,15 +6930,17 @@ function renderMacroRadar(){
           ticks: {
             stepSize: 50,
             color: 'rgba(255,255,255,0.2)',
-            font: { size: 9 },
+            font: { size: 10 },
             backdropColor: 'transparent',
             callback: function(v){ return v === 100 ? '100%' : v+'%'; }
           },
-          grid:        { color: 'rgba(255,255,255,0.07)' },
-          angleLines:  { color: 'rgba(255,255,255,0.07)' },
+          grid:        { color: 'rgba(255,255,255,0.08)' },
+          angleLines:  { color: 'rgba(255,255,255,0.08)' },
           pointLabels: {
-            color: 'rgba(255,255,255,0.55)',
-            font: { size: 11, family: 'sans-serif' }
+            color: 'rgba(255,255,255,0.7)',
+            font: { size: 12, family: 'sans-serif' },
+            padding: 16,
+            callback: function(label){ return label.split('\n'); }
           }
         }
       },
@@ -6946,8 +6949,7 @@ function renderMacroRadar(){
         tooltip: {
           callbacks: {
             label: function(ctx){
-              const val = ctx.raw;
-              return ctx.dataset.label+' : '+val+'%';
+              return ctx.dataset.label+' : '+ctx.raw+'%';
             }
           }
         }
