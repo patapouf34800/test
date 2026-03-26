@@ -2011,14 +2011,20 @@ const STORAGE_KEY_META = 'calorietrack_v1_meta'; // sel + vérification
 
 window._masterKey = null; // clé AES-GCM en mémoire pour la session
 
-async function deriveMasterKey(password, salt) {
+// ── Paramètres crypto versionnés ─────────────────────────────────────────────
+// v1 = PBKDF2-SHA256 / 200 000 iter / AES-GCM-256 / IV 12B / sel 16B
+const CRYPTO_PARAMS_V1 = { v: 1, kdf: 'PBKDF2', hash: 'SHA-256', iterations: 200000, cipher: 'AES-GCM', keyLen: 256, ivLen: 12, saltLen: 16 };
+const CRYPTO_PARAMS_CURRENT = CRYPTO_PARAMS_V1; // pointer ici pour les futures versions
+
+async function deriveMasterKey(password, salt, params) {
+  params = params || CRYPTO_PARAMS_CURRENT;
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
-    'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
+    'raw', enc.encode(password), params.kdf, false, ['deriveKey']
   );
   return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
-    keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+    { name: params.kdf, salt, iterations: params.iterations, hash: params.hash },
+    keyMaterial, { name: params.cipher, length: params.keyLen }, false, ['encrypt', 'decrypt']
   );
 }
 
@@ -2027,16 +2033,21 @@ function fromB64(s) { return Uint8Array.from(atob(s), c => c.charCodeAt(0)); }
 
 async function encryptForStorage(jsonStr) {
   if (!window._masterKey) return null;
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const iv = crypto.getRandomValues(new Uint8Array(CRYPTO_PARAMS_CURRENT.ivLen));
   const enc = new TextEncoder();
-  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, window._masterKey, enc.encode(jsonStr));
-  return JSON.stringify({ iv: toB64(iv), data: toB64(cipher) });
+  const cipher = await crypto.subtle.encrypt({ name: CRYPTO_PARAMS_CURRENT.cipher, iv }, window._masterKey, enc.encode(jsonStr));
+  // v = version du schéma crypto — permet de migrer sans casser les anciens blobs
+  return JSON.stringify({ v: CRYPTO_PARAMS_CURRENT.v, iv: toB64(iv), data: toB64(cipher) });
 }
 
 async function decryptFromStorage(raw) {
   if (!window._masterKey) return null;
-  const { iv, data } = JSON.parse(raw);
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(iv) }, window._masterKey, fromB64(data));
+  const parsed = JSON.parse(raw);
+  // Compatibilité : les blobs sans champ v sont implicitement v1
+  const blobVersion = parsed.v || 1;
+  if (blobVersion !== 1) throw new Error('Version de chiffrement inconnue : v' + blobVersion);
+  const { iv, data } = parsed;
+  const plain = await crypto.subtle.decrypt({ name: CRYPTO_PARAMS_CURRENT.cipher, iv: fromB64(iv) }, window._masterKey, fromB64(data));
   return new TextDecoder().decode(plain);
 }
 
@@ -2047,18 +2058,27 @@ function storageIsEncrypted() {
 
 // Initialise le chiffrement avec un nouveau mot de passe (première fois)
 async function initEncryption(password) {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  window._masterKey = await deriveMasterKey(password, salt);
-  // Stocker le sel + un token de vérification
+  const params = CRYPTO_PARAMS_CURRENT;
+  const salt = crypto.getRandomValues(new Uint8Array(params.saltLen));
+  window._masterKey = await deriveMasterKey(password, salt, params);
+  // Stocker le sel + les params crypto + un token de vérification
+  // Le champ "cp" (crypto params) permet de migrer l'algo à l'avenir sans perte
   const verif = await encryptForStorage('__verify__');
-  localStorage.setItem(STORAGE_KEY_META, JSON.stringify({ salt: toB64(salt), verif }));
+  localStorage.setItem(STORAGE_KEY_META, JSON.stringify({
+    v: params.v,
+    cp: { kdf: params.kdf, hash: params.hash, iterations: params.iterations, cipher: params.cipher, keyLen: params.keyLen },
+    salt: toB64(salt),
+    verif
+  }));
 }
 
 // Déverrouille avec mot de passe existant, retourne true si correct
 async function unlockEncryption(password) {
   const meta = JSON.parse(localStorage.getItem(STORAGE_KEY_META));
   const salt = fromB64(meta.salt);
-  window._masterKey = await deriveMasterKey(password, salt);
+  // Lire les params depuis le meta si présents, sinon fallback v1
+  const params = (meta.cp && meta.v) ? Object.assign({}, CRYPTO_PARAMS_V1, meta.cp, { v: meta.v }) : CRYPTO_PARAMS_V1;
+  window._masterKey = await deriveMasterKey(password, salt, params);
   try {
     const check = await decryptFromStorage(meta.verif);
     return check === '__verify__';
@@ -2237,19 +2257,22 @@ async function loadData(){
 
 async function cryptoEncrypt(jsonStr, password) {
   const enc = new TextEncoder();
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const params = CRYPTO_PARAMS_CURRENT;
+  const salt = crypto.getRandomValues(new Uint8Array(params.saltLen));
+  const iv   = crypto.getRandomValues(new Uint8Array(params.ivLen));
   const keyMaterial = await crypto.subtle.importKey(
-    'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
+    'raw', enc.encode(password), params.kdf, false, ['deriveKey']
   );
   const key = await crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations:200000, hash:'SHA-256' },
-    keyMaterial, { name:'AES-GCM', length:256 }, false, ['encrypt']
+    { name: params.kdf, salt, iterations: params.iterations, hash: params.hash },
+    keyMaterial, { name: params.cipher, length: params.keyLen }, false, ['encrypt']
   );
-  const cipherBuf = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, enc.encode(jsonStr));
+  const cipherBuf = await crypto.subtle.encrypt({ name: params.cipher, iv }, key, enc.encode(jsonStr));
   const toB64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
   return {
     __encrypted: true,
+    v: params.v,
+    cp: { kdf: params.kdf, hash: params.hash, iterations: params.iterations, cipher: params.cipher, keyLen: params.keyLen },
     salt: toB64(salt),
     iv:   toB64(iv),
     data: toB64(cipherBuf)
@@ -2259,17 +2282,19 @@ async function cryptoEncrypt(jsonStr, password) {
 async function cryptoDecrypt(payload, password) {
   const enc = new TextEncoder();
   const fromB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  // Lire les params depuis le payload si présents, sinon fallback v1
+  const params = (payload.cp && payload.v) ? Object.assign({}, CRYPTO_PARAMS_V1, payload.cp, { v: payload.v }) : CRYPTO_PARAMS_V1;
   const salt = fromB64(payload.salt);
   const iv   = fromB64(payload.iv);
   const data = fromB64(payload.data);
   const keyMaterial = await crypto.subtle.importKey(
-    'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
+    'raw', enc.encode(password), params.kdf, false, ['deriveKey']
   );
   const key = await crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations:200000, hash:'SHA-256' },
-    keyMaterial, { name:'AES-GCM', length:256 }, false, ['decrypt']
+    { name: params.kdf, salt, iterations: params.iterations, hash: params.hash },
+    keyMaterial, { name: params.cipher, length: params.keyLen }, false, ['decrypt']
   );
-  const plainBuf = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, data);
+  const plainBuf = await crypto.subtle.decrypt({ name: params.cipher, iv }, key, data);
   return new TextDecoder().decode(plainBuf);
 }
 
@@ -8157,7 +8182,7 @@ function calcTDEE(){
 
   // Scénarios
   const scenarios = [
-    {label:'Prise de masse (+10%)', kcal:Math.round(tdee*1.1), color:'#818cf8', poids_sem:+(0.1*tdee*0.1/KCAL_PER_KG*7).toFixed(2)},
+    {label:'Prise de masse (+10%)', kcal:Math.round(tdee*1.1), color:'#818cf8', poids_sem:+(0.1*tdee/KCAL_PER_KG*7).toFixed(2)},
     {label:'Maintien (0%)', kcal:tdee, color:'#38bdf8', poids_sem:0},
     {label:'Perte légère (−10%)', kcal:Math.round(tdee*0.9), color:'#facc15', poids_sem:-(0.1*tdee/KCAL_PER_KG*7).toFixed(2)},
     {label:'Perte modérée (−20%)', kcal:Math.round(tdee*0.8), color:'#22c55e', poids_sem:-(0.2*tdee/KCAL_PER_KG*7).toFixed(2)},
