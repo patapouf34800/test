@@ -7192,9 +7192,22 @@ function renderNutriDetail(d){
     itemsHtml = '<div style="margin-top:16px">';
 
     if(hasRepasInfo){
-      // ── Affichage groupé par repas ──
+      // ── Affichage groupé par repas — table unique pour colonnes alignées ──
       itemsHtml += '<div style="font-size:11px;color:rgba(255,255,255,0.3);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">Détail des aliments <span style="color:rgba(255,255,255,0.15);font-size:9px;text-transform:none;letter-spacing:0">(cliquez Prot/Gluc/Lip/Fib pour trier)</span></div>';
+      itemsHtml += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;table-layout:fixed">'
+        // colgroup pour fixer les largeurs — harmonisées sur toutes les lignes
+        +'<colgroup>'
+        +'<col style="width:auto">'          // Aliment (flex)
+        +'<col style="width:52px">'          // Qté
+        +'<col style="width:80px">'          // Kcal
+        +'<col style="width:90px">'          // Prot
+        +'<col style="width:78px">'          // Gluc
+        +'<col style="width:90px">'          // Lip
+        +'<col style="width:78px">'          // Fib
+        +'</colgroup>'
+        +thead;
 
+      var tbodyRows = '';
       REPAS_ORDER.forEach(function(repasKey){
         var meta = REPAS_META[repasKey];
         var grpItems = d.items.filter(function(it){ return (it.repas||'dejeuner') === repasKey; });
@@ -7210,31 +7223,42 @@ function renderNutriDetail(d){
         }
 
         var grpKcal = grpItems.reduce(function(s,it){ return s+it.kcal; }, 0);
-        var grpP = grpItems.reduce(function(s,it){ return it.p!=null?s+it.p:s; }, 0);
-        var grpG = grpItems.reduce(function(s,it){ return it.g!=null?s+it.g:s; }, 0);
-        var grpL = grpItems.reduce(function(s,it){ return it.l!=null?s+it.l:s; }, 0);
-        var grpF = grpItems.reduce(function(s,it){ return it.f!=null?s+it.f:s; }, 0);
+        var grpP = Math.round(grpItems.reduce(function(s,it){ return it.p!=null?s+it.p:s; }, 0)*10)/10;
+        var grpG = Math.round(grpItems.reduce(function(s,it){ return it.g!=null?s+it.g:s; }, 0)*10)/10;
+        var grpL = Math.round(grpItems.reduce(function(s,it){ return it.l!=null?s+it.l:s; }, 0)*10)/10;
+        var grpF = Math.round(grpItems.reduce(function(s,it){ return it.f!=null?s+it.f:s; }, 0)*10)/10;
         var hasAnyMacro = grpItems.some(function(it){ return it.p!=null||it.g!=null||it.l!=null||it.f!=null; });
 
-        // En-tête repas
-        itemsHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;margin-bottom:6px;flex-wrap:wrap;gap:8px">'
+        // Ligne séparateur repas (colspan 7)
+        tbodyRows += '<tr>'
+          +'<td colspan="3" style="padding:8px 8px 5px;background:rgba(255,255,255,0.025);border-top:1px solid rgba(255,255,255,0.07);border-bottom:1px solid rgba(255,255,255,0.05)">'
           +'<span style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1.5px">'+meta.icon+' '+meta.label+'</span>'
-          +'<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
+          +'</td>'
           +(hasAnyMacro
-            ? '<span style="font-size:10px;color:rgba(255,255,255,0.25)">P <span style="color:#f97316">'+Math.round(grpP*10)/10+'g</span>'
-              +' · G <span style="color:#38bdf8">'+Math.round(grpG*10)/10+'g</span>'
-              +' · L <span style="color:#a78bfa">'+Math.round(grpL*10)/10+'g</span>'
-              +' · F <span style="color:#4ade80">'+Math.round(grpF*10)/10+'g</span></span>'
-            : '')
-          +'<span style="font-family:\'Space Mono\',monospace;font-size:12px;color:rgba(249,115,22,0.8)">'+grpKcal.toLocaleString('fr-FR')+' kcal</span>'
-          +'</div></div>';
+            ? '<td style="padding:8px 8px 5px;text-align:right;background:rgba(255,255,255,0.025);border-top:1px solid rgba(255,255,255,0.07);border-bottom:1px solid rgba(255,255,255,0.05);font-family:\'Space Mono\',monospace;font-size:11px;color:#f97316">'+grpP+'g</td>'
+              +'<td style="padding:8px 8px 5px;text-align:right;background:rgba(255,255,255,0.025);border-top:1px solid rgba(255,255,255,0.07);border-bottom:1px solid rgba(255,255,255,0.05);font-family:\'Space Mono\',monospace;font-size:11px;color:#38bdf8">'+grpG+'g</td>'
+              +'<td style="padding:8px 8px 5px;text-align:right;background:rgba(255,255,255,0.025);border-top:1px solid rgba(255,255,255,0.07);border-bottom:1px solid rgba(255,255,255,0.05);font-family:\'Space Mono\',monospace;font-size:11px;color:#a78bfa">'+grpL+'g</td>'
+              +'<td style="padding:8px 8px 5px;text-align:right;background:rgba(255,255,255,0.025);border-top:1px solid rgba(255,255,255,0.07);border-bottom:1px solid rgba(255,255,255,0.05);font-family:\'Space Mono\',monospace;font-size:11px;color:#4ade80">'+grpF+'g</td>'
+            : '<td colspan="4" style="padding:8px 8px 5px;text-align:right;background:rgba(255,255,255,0.025);border-top:1px solid rgba(255,255,255,0.07);border-bottom:1px solid rgba(255,255,255,0.05);font-family:\'Space Mono\',monospace;font-size:12px;color:rgba(249,115,22,0.7)">'+grpKcal.toLocaleString('fr-FR')+' kcal</td>'
+          );
 
-        itemsHtml += '<div style="overflow-x:auto;margin-bottom:16px">'
-          +'<table style="width:100%;border-collapse:collapse">'
-          +thead
-          +'<tbody>'+grpItems.map(makeRow).join('')+'</tbody>'
-          +'</table></div>';
+        // Kcal du groupe dans la colonne Kcal si macros affichées
+        if(hasAnyMacro){
+          // On n'a pas de colonne dédiée → on l'affiche dans le label via colspan=3 ci-dessus
+          // → on l'ajoute à droite du label
+          tbodyRows = tbodyRows.replace(
+            meta.icon+' '+meta.label+'</span></td>',
+            meta.icon+' '+meta.label+'</span>'
+            +'<span style="font-family:\'Space Mono\',monospace;font-size:11px;color:rgba(249,115,22,0.7);margin-left:12px">'+grpKcal.toLocaleString('fr-FR')+' kcal</span>'
+            +'</td>'
+          );
+        }
+        tbodyRows += '</tr>';
+
+        tbodyRows += grpItems.map(makeRow).join('');
       });
+
+      itemsHtml += '<tbody>'+tbodyRows+'</tbody></table></div>';
 
     } else {
       // ── Affichage plat (ancienne journée sans info repas) ──
