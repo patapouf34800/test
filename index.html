@@ -459,7 +459,8 @@
       </div>
       <div class="legend" style="margin-top:14px">
         <div class="legend-item"><div class="legend-line" style="background:#f97316"></div>Poids théorique</div>
-        <div class="legend-item"><div class="legend-line" style="background:#818cf8"></div>Réaliste (modèle Hall)</div>
+        <div class="legend-item"><div class="legend-line" style="background:#a78bfa;opacity:0.9"></div>Théo Hall (passé)</div>
+        <div class="legend-item"><div class="legend-line" style="background:#818cf8"></div>Réaliste (Hall futur)</div>
         <div class="legend-item"><div class="legend-line" style="background:#38bdf8"></div>Fourchette optimiste</div>
         <div class="legend-item"><div class="legend-line" style="background:#f43f5e"></div>Fourchette pessimiste</div>
         <div class="legend-item"><div class="legend-dot" style="background:#22c55e;border-radius:50%"></div>Pesées réelles</div>
@@ -1638,7 +1639,7 @@ function computeStats(){
     ? recentDaysAll.reduce((s,d)=>s+(d.objectif-d.calories),0)/recentDaysAll.length
     : avgDailyDeficit;
 
-  // Projection jour par jour
+  // Projection jour par jour (futur)
   const projections=[], projOptimiste=[], projPessimiste=[];
   let pCurrent = poidsActuel;
 
@@ -1659,13 +1660,33 @@ function computeStats(){
     projPessimiste.push(parseFloat((pCurrent + spread*0.10).toFixed(2)));
   }
 
+  // Calcul de la projection Hall pour l'historique (passé)
+  const poidsHistoryHall = [];
+  let pHall = poidsInit;
+  poidsHistoryHall.push(parseFloat(pHall.toFixed(2)));
+  
+  for(let i=0; i<days.length-1; i++){
+    const d = days[i];
+    const deficitJour = d.objectif - d.calories;
+    const poidsPerduDepuisDebut = poidsInit - pHall;
+    const adaptMetab = poidsPerduDepuisDebut * ADAPT_KCAL_PER_KG;
+    const defJourAjuste = Math.max(0, deficitJour - adaptMetab);
+    // Ratio Forbes simplifie : proportion de graisse perdue
+    const fatRatio = 1 / (1 + 0.12 * Math.exp(-0.015 * Math.abs(defJourAjuste)));
+    const leanRatio = 1 - fatRatio;
+    const kcalPerKgLost = fatRatio * KCAL_FAT + leanRatio * KCAL_LEAN;
+    const dailyLoss = kcalPerKgLost > 0 ? defJourAjuste / kcalPerKgLost : 0;
+    pHall = parseFloat((pHall - dailyLoss).toFixed(3));
+    poidsHistoryHall.push(parseFloat(pHall.toFixed(2)));
+  }
+
   // Poids d'equilibre : quand l'adaptation annule completement le deficit
   const poidsEquilibre = recentDeficit > 0
     ? parseFloat((poidsActuel - recentDeficit / ADAPT_KCAL_PER_KG).toFixed(1))
     : poidsActuel;
 
   return {deficits,totalDeficit,pertePoids,poidsActuel,moyenneCalories,joursDeficit,
-    avgDailyDeficit,recentDeficit,poidsHistory,poidsHistoryByDate,poidsHistoryVelo,poidsHistoryVeloByDate,projections,projOptimiste,projPessimiste,
+    avgDailyDeficit,recentDeficit,poidsHistory,poidsHistoryByDate,poidsHistoryVelo,poidsHistoryVeloByDate,poidsHistoryHall,projections,projOptimiste,projPessimiste,
     poidsEquilibre,filtered};
 }
 
@@ -2676,6 +2697,7 @@ function renderChartPoids(s){
   const nullHist=Array(histL.length).fill(null);
   charts['poids']=new Chart(ctx,{type:'line',data:{labels:allL,datasets:[
     {label:'Poids théorique',data:[...s.poidsHistory,...Array(s.projections.length).fill(null)],borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.1)',fill:true,tension:0.4,pointRadius:0,borderWidth:2,spanGaps:false},
+    {label:'Théorique Hall (passé)',data:[...s.poidsHistoryHall,...Array(s.projections.length).fill(null)],borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,0.08)',fill:false,tension:0.4,pointRadius:0,borderWidth:2,borderDash:[6,3],spanGaps:false},
     {label:'Optimiste',data:[...nullHist,...s.projOptimiste],borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,0.07)',fill:'+1',tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3],spanGaps:false},
     {label:'Réaliste (Hall)',data:[...nullHist,...s.projections],borderColor:'#818cf8',backgroundColor:'rgba(129,140,248,0.08)',fill:true,tension:0.4,pointRadius:0,borderWidth:2,borderDash:[6,3],spanGaps:false},
     {label:'Pessimiste',data:[...nullHist,...s.projPessimiste],borderColor:'#f43f5e',backgroundColor:'rgba(244,63,94,0.05)',fill:'-1',tension:0.4,pointRadius:0,borderWidth:1.5,borderDash:[4,3],spanGaps:false},
@@ -2702,6 +2724,7 @@ function renderChartPoids(s){
     crosshair.style.height=(area.bottom-area.top)+'px';
     const label=allL[idx];
     const theorique=idx<s.poidsHistory.length?s.poidsHistory[idx]:(idx<histL.length?null:s.projections[idx-histL.length]);
+    const theoriqueHall=idx<s.poidsHistoryHall.length?s.poidsHistoryHall[idx]:null;
     const pesee=pesees.find(p=>p.label===label);
     const isProj=idx>=histL.length;
     let label2=isProj?(label+' (prev)'):label;
@@ -2717,6 +2740,9 @@ function renderChartPoids(s){
         if(pess!=null) html+='<div style="color:#f43f5e;font-size:12px">Pessimiste : '+pess.toFixed(2)+' kg</div>';
       } else {
         html+='<div style="color:#f97316">Theorique : <strong>'+theorique.toFixed(2)+' kg</strong></div>';
+        if(theoriqueHall!=null){
+          html+='<div style="color:#a78bfa;font-size:12px">Théo Hall : '+theoriqueHall.toFixed(2)+' kg</div>';
+        }
       }
     }
     if(pesee){
