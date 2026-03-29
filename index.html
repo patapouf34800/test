@@ -4178,9 +4178,10 @@ function getFilteredDeficit(){
 function initVeloForm(){
   const sel = document.getElementById('veloType');
   if(!sel) return;
-  sel.innerHTML = ACTIVITES.map(a =>
-    '<option value="'+a.id+'">'+a.icon+' '+a.label+'</option>'
-  ).join('');
+  sel.innerHTML = '<option value="">⚡ Sport personnalisé</option>' + 
+    ACTIVITES.map(a =>
+      '<option value="'+a.id+'">'+a.icon+' '+a.label+'</option>'
+    ).join('');
   updateVeloMET();
 }
 
