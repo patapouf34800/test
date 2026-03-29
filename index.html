@@ -1454,17 +1454,18 @@
           <input type="date" id="veloDate">
         </div>
         <div class="form-group" style="max-width:180px">
-          <label>Activité</label>
+          <label>Activité prédéfinie (optionnel)</label>
           <select id="veloType" onchange="updateVeloMET()" style="width:100%">
+            <option value="">— Sport personnalisé —</option>
           </select>
         </div>
-        <div class="form-group" style="max-width:180px;display:none" id="veloCustomTextGroup">
-          <label>Texte personnalisé</label>
+        <div class="form-group" style="max-width:180px" id="veloCustomTextGroup">
+          <label>Nom du sport <span style="color:rgba(255,255,255,0.3);font-size:9px">(si personnalisé)</span></label>
           <input type="text" id="veloCustomText" placeholder="ex: Yoga, Tennis..." maxlength="30" style="width:100%">
         </div>
-        <div class="form-group" style="max-width:100px;display:none" id="veloCustomEmojiGroup">
+        <div class="form-group" style="max-width:100px" id="veloCustomEmojiGroup">
           <label>Émoticône</label>
-          <input type="text" id="veloCustomEmoji" placeholder="🎾" maxlength="2" style="width:100%;text-align:center;font-size:20px">
+          <input type="text" id="veloCustomEmoji" placeholder="🎾" maxlength="10" style="width:100%;text-align:center;font-size:20px">
         </div>
         <div class="form-group" style="max-width:100px" id="veloDistGroup">
           <label>Distance (km)</label>
@@ -1574,16 +1575,15 @@ const ACTIVITES = [
   { id:'marche',         label:'Marche rapide',    icon:'🚶', met:4.5, hasDist:true  },
   { id:'natation',       label:'Natation',         icon:'🏊', met:7,   hasDist:false },
   { id:'musculation',    label:'Musculation',      icon:'🏋️', met:5,   hasDist:false },
-  { id:'autre',          label:'Autre',            icon:'⚡', met:5,   hasDist:false },
 ];
 function getActivite(id){ return ACTIVITES.find(a=>a.id===id) || ACTIVITES[0]; }
 
 // Helper pour obtenir l'icône et le label d'une session (avec support des données personnalisées)
 function getSessionDisplay(session){
   const act = getActivite(session.type || 'velo_interieur');
-  if(session.type === 'autre' && session.customText){
+  if(session.customText){
     return {
-      icon: session.customEmoji || act.icon,
+      icon: session.customEmoji || '⚡',
       label: session.customText
     };
   }
@@ -1601,8 +1601,17 @@ function getPoidsAvantDate(dateStr){
 
 function veloKcal(session){
   const poids = getPoidsAvantDate(session.date);
-  const act = getActivite(session.type || 'velo_interieur');
-  const met = (session.type==='autre' && session.metCustom) ? session.metCustom : act.met;
+  let met = 5; // Valeur par défaut
+  
+  if(session.metCustom){
+    // Sport personnalisé avec MET défini
+    met = session.metCustom;
+  } else if(session.type && session.type !== 'custom'){
+    // Activité prédéfinie
+    const act = getActivite(session.type);
+    met = act.met;
+  }
+  
   return Math.round(met * poids * (session.duree / 60));
 }
 
@@ -2524,26 +2533,48 @@ function renderKPI(s){
   const veloFiltered=getFilteredVeloByPeriod(activePeriod);
   // KPIs sport : un par type d'activité présent sur la période
   const sportKpis = [];
-  ACTIVITES.forEach(function(act){
-    const sessions = veloFiltered.filter(function(v){ return (v.type||'velo_interieur')===act.id; });
-    if(!sessions.length) return;
+  
+  // Grouper les sessions par type
+  const sportGroups = {};
+  veloFiltered.forEach(function(v){
+    const type = v.type || 'custom';
+    if(!sportGroups[type]) sportGroups[type] = [];
+    sportGroups[type].push(v);
+  });
+  
+  // Créer les KPIs pour chaque groupe
+  Object.entries(sportGroups).forEach(function([typeId, sessions]){
+    const isCustom = typeId === 'custom' || typeId === '';
+    let displayIcon, displayLabel, hasDistForGroup;
     
-    // Pour "autre", utiliser les informations personnalisées de la première session
-    let displayIcon = act.icon;
-    let displayLabel = act.label;
-    if(act.id === 'autre' && sessions.length > 0 && sessions[0].customText){
-      displayIcon = sessions[0].customEmoji || act.icon;
-      displayLabel = sessions[0].customText;
+    if(isCustom){
+      // Pour les sports personnalisés, utiliser les infos de la première session
+      const firstSession = sessions[0];
+      displayIcon = firstSession.customEmoji || '⚡';
+      displayLabel = firstSession.customText || 'Sport personnalisé';
+      hasDistForGroup = sessions.some(v => v.distance && v.distance > 0);
+    } else {
+      // Activité prédéfinie
+      const act = getActivite(typeId);
+      displayIcon = act.icon;
+      displayLabel = act.label;
+      hasDistForGroup = act.hasDist;
     }
     
-    if(act.hasDist){
+    if(hasDistForGroup){
       const dist = sessions.reduce(function(s,v){ return s+(v.distance||0); }, 0);
-      sportKpis.push({label:displayIcon+' '+displayLabel, value:dist.toFixed(1), unit:'km', color:'blue'});
+      if(dist > 0){
+        sportKpis.push({label:displayIcon+' '+displayLabel, value:dist.toFixed(1), unit:'km', color:'blue'});
+      } else {
+        const kcal = sessions.reduce(function(s,v){ return s+veloKcal(v); }, 0);
+        sportKpis.push({label:displayIcon+' '+displayLabel, value:Math.round(kcal).toLocaleString('fr-FR'), unit:'kcal', color:'blue'});
+      }
     } else {
       const kcal = sessions.reduce(function(s,v){ return s+veloKcal(v); }, 0);
       sportKpis.push({label:displayIcon+' '+displayLabel, value:Math.round(kcal).toLocaleString('fr-FR'), unit:'kcal', color:'blue'});
     }
   });
+  
   const kpis=[
     {label:'Déficit total',value:Math.round(s.totalDeficit).toLocaleString('fr-FR'),unit:'kcal',color:s.totalDeficit>0?'green':'red'},
     {label:'Perte estimée',value:(s.pertePoids>0?'−':'+')+Math.abs(s.pertePoids).toFixed(2),unit:'kg',color:s.pertePoids>0?'green':'red'},
@@ -4156,22 +4187,33 @@ function initVeloForm(){
 function updateVeloMET(){
   const sel = document.getElementById('veloType');
   if(!sel) return;
-  const act = getActivite(sel.value);
+  const selectedValue = sel.value;
+  const isCustom = !selectedValue; // Pas d'activité prédéfinie sélectionnée
+  
   const distGroup = document.getElementById('veloDistGroup');
   const metGroup = document.getElementById('veloMetGroup');
   const customTextGroup = document.getElementById('veloCustomTextGroup');
   const customEmojiGroup = document.getElementById('veloCustomEmojiGroup');
   const metInfo = document.getElementById('veloMetInfo');
   
-  const isAutre = act.id === 'autre';
-  
-  if(distGroup) distGroup.style.display = act.hasDist ? '' : 'none';
-  if(metGroup) metGroup.style.display = isAutre ? '' : 'none';
-  if(customTextGroup) customTextGroup.style.display = isAutre ? '' : 'none';
-  if(customEmojiGroup) customEmojiGroup.style.display = isAutre ? '' : 'none';
-  
-  const poidsRef = pesees.length ? pesees[pesees.length-1].val : getPoids();
-  if(metInfo) metInfo.textContent = !isAutre ? 'MET '+act.met+' — ~'+Math.round(act.met * poidsRef)+' kcal/h pour '+poidsRef+' kg' : '';
+  if(isCustom){
+    // Sport personnalisé : afficher distance conditionnellement, MET obligatoire
+    if(distGroup) distGroup.style.display = '';
+    if(metGroup) metGroup.style.display = '';
+    if(customTextGroup) customTextGroup.style.display = '';
+    if(customEmojiGroup) customEmojiGroup.style.display = '';
+    if(metInfo) metInfo.textContent = '';
+  } else {
+    // Activité prédéfinie : utiliser ses paramètres
+    const act = getActivite(selectedValue);
+    if(distGroup) distGroup.style.display = act.hasDist ? '' : 'none';
+    if(metGroup) metGroup.style.display = 'none';
+    if(customTextGroup) customTextGroup.style.display = 'none';
+    if(customEmojiGroup) customEmojiGroup.style.display = 'none';
+    
+    const poidsRef = pesees.length ? pesees[pesees.length-1].val : getPoids();
+    if(metInfo) metInfo.textContent = 'MET '+act.met+' — ~'+Math.round(act.met * poidsRef)+' kcal/h pour '+poidsRef+' kg';
+  }
 }
 
 function addVelo(){
@@ -4180,52 +4222,79 @@ function addVelo(){
   const dist=parseFloat(distEl.value);
   const dur=parseFloat(document.getElementById('veloDuree').value);
   const typeEl = document.getElementById('veloType');
-  const typeVal = typeEl ? typeEl.value : 'velo_interieur';
-  const act = getActivite(typeVal);
+  const typeVal = typeEl ? typeEl.value : '';
   
-  // Validation selon le type d'activité
-  if(!date||isNaN(dur)||dur<=0){alert('Merci de remplir la date et la durée.');return;}
-  if(act.hasDist && (isNaN(dist)||dist<=0)){alert('Merci de remplir la distance.');return;}
+  // Validation de base
+  if(!date||isNaN(dur)||dur<=0){
+    alert('Merci de remplir la date et la durée.');
+    return;
+  }
   
-  const label=new Date(date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-  const metCustomEl = document.getElementById('veloMetCustom');
-  const metCustom = (typeVal==='autre' && metCustomEl) ? parseFloat(metCustomEl.value)||5 : null;
-  
-  // Capturer les champs personnalisés pour "Autre"
+  const isCustom = !typeVal; // Pas d'activité prédéfinie
   let customText = null;
   let customEmoji = null;
-  if(typeVal === 'autre'){
+  let metCustom = null;
+  let hasDist = false;
+  
+  if(isCustom){
+    // Sport personnalisé
     const customTextEl = document.getElementById('veloCustomText');
     const customEmojiEl = document.getElementById('veloCustomEmoji');
+    const metCustomEl = document.getElementById('veloMetCustom');
+    
     customText = customTextEl ? customTextEl.value.trim() : null;
     customEmoji = customEmojiEl ? customEmojiEl.value.trim() : null;
+    metCustom = metCustomEl ? parseFloat(metCustomEl.value) : null;
+    
     if(!customText){
-      alert('Merci de renseigner le texte personnalisé pour l\'activité "Autre".');
+      alert('Merci de renseigner le nom du sport personnalisé.');
+      return;
+    }
+    if(!metCustom || metCustom <= 0){
+      alert('Merci de renseigner le MET (intensité) du sport.');
+      return;
+    }
+    
+    // Pour les sports personnalisés, la distance est optionnelle
+    hasDist = !isNaN(dist) && dist > 0;
+  } else {
+    // Activité prédéfinie
+    const act = getActivite(typeVal);
+    hasDist = act.hasDist;
+    
+    if(hasDist && (isNaN(dist)||dist<=0)){
+      alert('Merci de remplir la distance pour cette activité.');
       return;
     }
   }
   
+  const label=new Date(date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
   const _todayV = new Date().toISOString().split('T')[0];
   if(date > _todayV){
     if(!confirm('⚠️ La date ('+label+') est dans le futur. Confirmer ?')) return;
   }
+  
   veloSessions.push({
     date,
     label,
-    distance: act.hasDist ? dist : 0,
+    distance: hasDist ? dist : 0,
     duree:dur,
-    type:typeVal,
+    type: typeVal || 'custom',
     metCustom,
     customText,
     customEmoji
   });
   veloSessions.sort((a,b)=>a.date.localeCompare(b.date));
+  
+  // Vider les champs
   document.getElementById('veloDistance').value='';
   document.getElementById('veloDuree').value='';
-  if(typeVal === 'autre'){
+  if(isCustom){
     document.getElementById('veloCustomText').value='';
     document.getElementById('veloCustomEmoji').value='';
+    document.getElementById('veloMetCustom').value='';
   }
+  
   const next=new Date(date); next.setDate(next.getDate()+1);
   document.getElementById('veloDate').value=next.toISOString().split('T')[0];
   renderVelo(); saveData();
@@ -6136,17 +6205,23 @@ function renderVelo(){
   container.innerHTML = '';
 
   Object.entries(groups).forEach(([typeId, sessions])=>{
-    const act = getActivite(typeId);
+    // Si c'est un sport personnalisé, utiliser les infos de la première session
+    const isCustom = typeId === 'custom' || typeId === '';
+    let displayIcon, displayLabel, hasDist;
     
-    // Pour les activités "autre" personnalisées, utiliser la première session pour le titre
-    let displayIcon = act.icon;
-    let displayLabel = act.label;
-    if(typeId === 'autre' && sessions.length > 0){
+    if(isCustom){
+      // Utiliser les infos de la première session pour le titre du groupe
       const firstSession = sessions[0];
-      if(firstSession.customText){
-        displayLabel = firstSession.customText;
-        displayIcon = firstSession.customEmoji || act.icon;
-      }
+      displayIcon = firstSession.customEmoji || '⚡';
+      displayLabel = firstSession.customText || 'Sport personnalisé';
+      // Pour les sports personnalisés, vérifier s'il y a des distances
+      hasDist = sessions.some(v => v.distance && v.distance > 0);
+    } else {
+      // Activité prédéfinie
+      const act = getActivite(typeId);
+      displayIcon = act.icon;
+      displayLabel = act.label;
+      hasDist = act.hasDist;
     }
     
     const totalDist = sessions.reduce((s,v)=>s+(v.distance||0),0);
@@ -6166,13 +6241,13 @@ function renderVelo(){
       {l:'Dépense totale', v:totalKcal.toLocaleString('fr-FR'), u:'kcal', c:'#4ade80'},
       {l:'Moy/session',    v:nb?Math.round(totalKcal/nb):0, u:'kcal',   c:'#4ade80'},
     ];
-    if(act.hasDist){
+    if(hasDist && totalDist > 0){
       kpis.splice(1,0,{l:'Distance totale', v:totalDist.toFixed(1), u:'km', c:'#38bdf8'});
       kpis.splice(2,0,{l:'Moy. distance',   v:nb?(totalDist/nb).toFixed(1):0, u:'km/session', c:'#38bdf8'});
     }
 
-    const hasDist = act.hasDist && sessions.some(v=>v.distance>0);
-    const hasVit  = hasDist && sessions.length > 1;
+    const hasDistData = hasDist && sessions.some(v=>v.distance>0);
+    const hasVit  = hasDistData && sessions.length > 1;
 
     const card = document.createElement('div');
     card.className = 'chart-card';
@@ -6182,7 +6257,7 @@ function renderVelo(){
       <div class="kpi-grid" style="margin-bottom:16px">
         ${kpis.map(k=>`<div class="kpi-card"><div class="kpi-label">${k.l}</div><div class="kpi-value" style="color:${k.c}">${k.v}<span class="kpi-unit"> ${k.u}</span></div></div>`).join('')}
       </div>
-      ${hasDist ? `<div class="chart-expandable-wrap" style="position:relative;height:220px;margin-bottom:12px"><canvas id="${chartDistId}"></canvas></div>` : ''}
+      ${hasDistData ? `<div class="chart-expandable-wrap" style="position:relative;height:220px;margin-bottom:12px"><canvas id="${chartDistId}"></canvas></div>` : ''}
       ${hasVit  ? `<div class="chart-expandable-wrap" style="position:relative;height:160px;margin-bottom:12px"><canvas id="${chartVitId}"></canvas></div>` : ''}
       <div class="chart-expandable-wrap" style="position:relative;height:160px"><canvas id="${chartKcalId}"></canvas></div>
     `;
@@ -6196,7 +6271,7 @@ function renderVelo(){
     };
 
     // Graphique distance + durée
-    if(hasDist){
+    if(hasDistData){
       const c1 = document.getElementById(chartDistId);
       if(c1) { charts['sport_dist_'+typeId] = new Chart(c1.getContext('2d'),{type:'bar',
         data:{labels,datasets:[
@@ -6269,10 +6344,9 @@ function renderVelo(){
       listEl.innerHTML = veloVisible.map(function(v,ri){
         const idx = veloSessions.indexOf(v);
         const kcal = veloKcal(v);
-        const act = getActivite(v.type||'velo_interieur');
         const display = getSessionDisplay(v);
         const poids = getPoidsAvantDate(v.date);
-        const distStr = act.hasDist && v.distance ? v.distance+' km' : '—';
+        const distStr = (v.distance && v.distance > 0) ? v.distance+' km' : '—';
         return '<div class="day-row">'
           +'<span class="day-date">'+v.label+'</span>'
           +'<span style="font-size:11px;color:rgba(255,255,255,0.4);min-width:130px">'+display.icon+' '+display.label+'</span>'
