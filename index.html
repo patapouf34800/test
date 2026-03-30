@@ -1381,7 +1381,7 @@
         <div class="chart-title" style="margin-bottom:0">🎯 Cibles journalières</div>
       </div>
       <div class="kpi-grid" id="nutriCiblesGrid"></div>
-      <p style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:12px">Protéines : 1.2–1.6g/kg (consensus déficit calorique) · Lipides : plancher ≥40g/jour (vitamines liposolubles) · Fibres : ≥25g/jour (OMS) · Glucides : pas de minimum physiologique établi</p>
+      <p style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:12px">Protéines : 0.83–2.2g/kg (ANSES 2024) · Lipides : 35-40% des calories (ANSES 2024) · Fibres : ≥30g/jour (ANSES, apport satisfaisant) · Glucides : 40-55% des calories, dont sucres <100g/jour max</p>
     </div>
 
     <div class="chart-card" id="nutriDayDetail">
@@ -6651,7 +6651,7 @@ function renderBilanHebdo(){
     + '<div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:10px">variable d\'ajustement</div></div>';
 
   // Tableau sam→ven
-  const macros = [{key:'p',color:'#f97316',cible:c.protMin},{key:'l',color:'#a78bfa',cible:c.lip},{key:'g',color:'#38bdf8',cible:null},{key:'f',color:'#4ade80',cible:c.fibres}];
+  const macros = [{key:'p',color:'#f97316',cible:c.protMin},{key:'l',color:'#a78bfa',cible:c.lipMin},{key:'g',color:'#38bdf8',cible:null},{key:'f',color:'#4ade80',cible:c.fibres}];
   var tableRows = week.map(function(day){
     var isToday = day.dateStr === todayStr;
     var d = day.data;
@@ -7320,7 +7320,7 @@ function renderMacroTrend(){
           annotations: {
             protCible: { type:'line', yMin:c.protMin, yMax:c.protMin, borderColor:'rgba(249,115,22,0.2)', borderWidth:1, borderDash:[3,4],
               label:{ content:'Prot min', display:true, position:'start', color:'rgba(249,115,22,0.45)', font:{size:9}, backgroundColor:'transparent', padding:0 } },
-            lipCible:  { type:'line', yMin:c.lip,     yMax:c.lip,     borderColor:'rgba(167,139,250,0.2)', borderWidth:1, borderDash:[3,4],
+            lipCible:  { type:'line', yMin:c.lipMin,     yMax:c.lipMin,     borderColor:'rgba(167,139,250,0.2)', borderWidth:1, borderDash:[3,4],
               label:{ content:'Lip min',  display:true, position:'start', color:'rgba(167,139,250,0.45)', font:{size:9}, backgroundColor:'transparent', padding:0 } },
             fibCible:  { type:'line', yMin:c.fibres,  yMax:c.fibres,  borderColor:'rgba(74,222,128,0.2)', borderWidth:1, borderDash:[3,4],
               label:{ content:'Fib min',  display:true, position:'start', color:'rgba(74,222,128,0.45)',  font:{size:9}, backgroundColor:'transparent', padding:0 } },
@@ -7353,16 +7353,47 @@ function renderMacroTrend(){
 function getNutriCibles(){
   const poids = pesees.length ? pesees[pesees.length-1].val : (parseFloat(document.getElementById('poidsInput').value) || 80);
   const kcal  = getObjectif();
-  // Protéines : fourchette 1.2–1.6g/kg (recommandation déficit calorique, consensus nutritionnel)
-  const protMin = Math.round(poids * 1.2);
-  const protMax = Math.round(poids * 1.6);
-  const prot    = protMin; // seuil bas utilisé pour la jauge
-  // Lipides : plancher absolu 40g/jour (absorption vitamines liposolubles A/D/E/K + hormones)
-  const lip = 40;
-  // Fibres : 25g/jour (OMS)
-  const fibres = 25;
-  // Glucides : pas de cible — pas de minimum physiologique établi
-  return { prot, protMin, protMax, lip, fibres, poids, kcal };
+  
+  // ═══════════════════════════════════════════════════════════════
+  // RECOMMANDATIONS ANSES 2024 (actualisées)
+  // ═══════════════════════════════════════════════════════════════
+  
+  // PROTÉINES : 0.83 à 2.2 g/kg/jour
+  // - Minimum : 0.83 g/kg (référence nutritionnelle adulte)
+  // - Objectif recommandé : 1.2 g/kg (valeur intermédiaire, adaptée déficit calorique)
+  // - Maximum acceptable : 2.2 g/kg
+  const protMin = Math.round(poids * 0.83);
+  const protMax = Math.round(poids * 2.2);
+  const prot    = Math.round(poids * 1.2); // objectif affiché (valeur intermédiaire)
+  
+  // LIPIDES : 35-40% de l'apport énergétique total (AET)
+  // - Minimum : (kcal × 0.35) / 9 grammes
+  // - Maximum : (kcal × 0.40) / 9 grammes
+  // - Objectif : 37.5% (milieu de fourchette)
+  const lipMin = Math.round((kcal * 0.35) / 9);
+  const lipMax = Math.round((kcal * 0.40) / 9);
+  const lip    = Math.round((kcal * 0.375) / 9); // objectif affiché (milieu)
+  
+  // FIBRES : 30 g/jour (apport satisfaisant ANSES)
+  // - Minimum acceptable : 25 g/jour
+  const fibres = 30;
+  const fibresMin = 25;
+  
+  // GLUCIDES : 40-55% de l'apport énergétique total (AET)
+  // - Pas de cible fixe affichée (fourchette large)
+  // - Sous-limite SUCRES : < 100 g/jour (limite haute absolue)
+  const glucMin = Math.round((kcal * 0.40) / 4);
+  const glucMax = Math.round((kcal * 0.55) / 4);
+  const glucides = null; // pas de cible affichée
+  const sucresMax = 100; // limite absolue
+  
+  return { 
+    prot, protMin, protMax, 
+    lip, lipMin, lipMax,
+    fibres, fibresMin,
+    glucides, glucMin, glucMax, sucresMax,
+    poids, kcal 
+  };
 }
 
 function renderMacroRadar(){
@@ -7516,8 +7547,8 @@ function renderNutriCibles(){
   const grid = document.getElementById('nutriCiblesGrid');
   if(!grid) return;
   grid.innerHTML = [
-    { label:'Protéines', sub: c.protMin+'–'+c.protMax+'g', detail:'1.2–1.6g/kg', color:'#f97316' },
-    { label:'Lipides',   sub: '≥ '+c.lip+'g',              detail:'plancher absolu', color:'#a78bfa' },
+    { label:'Protéines', sub: c.protMin+'–'+c.protMax+'g', detail:'0.83–2.2g/kg', color:'#f97316' },
+    { label:'Lipides',   sub: '≥ '+c.lipMin+'g',              detail:'plancher établi', color:'#a78bfa' },
     { label:'Fibres',    sub: c.fibres+'g',                 detail:'recommandation OMS', color:'#4ade80' },
     { label:'Glucides',  sub: '—',                          detail:'pas de cible établie', color:'#38bdf8' },
   ].map(function(m){
@@ -7555,8 +7586,8 @@ function renderNutriDetail(d){
   }
   function statusLip(v){
     if(v == null) return { color:'rgba(255,255,255,0.2)', label:'—' };
-    if(v >= c.lip) return { color:'#22c55e', label:'✓ ok' };
-    if(v >= c.lip * 0.75) return { color:'#facc15', label:'⚠ limite' };
+    if(v >= c.lipMin) return { color:'#22c55e', label:'✓ ok' };
+    if(v >= c.lipMin * 0.75) return { color:'#facc15', label:'⚠ limite' };
     return { color:'#f97316', label:'✗ trop bas' };
   }
   function statusFib(v){
@@ -7599,10 +7630,10 @@ function renderNutriDetail(d){
     +'<div class="card-label">Lipides</div>'
     +'<div class="card-value" style="color:#a78bfa">'+(d.l != null ? d.l : '—')+'</div>'
     +'<div class="card-unit">g · '+Math.round((d.l||0)*9)+' kcal</div>'
-    +progressBar(d.l, c.lip, ls.color)
+    +progressBar(d.l, c.lipMin, ls.color)
     +'<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px">'
     +'<span style="color:'+ls.color+'">'+ls.label+'</span>'
-    +'<span style="color:rgba(255,255,255,0.2)">plancher ≥'+c.lip+'g</span>'
+    +'<span style="color:rgba(255,255,255,0.2)">plancher ≥'+c.lipMin+'g</span>'
     +'</div></div>';
 
   // Fibres
@@ -7637,7 +7668,7 @@ function renderNutriDetail(d){
         +'<td style="padding:6px 8px;font-size:11px;color:rgba(255,255,255,0.5);text-align:right;font-family:\'Space Mono\',monospace">'+it.kcal+' kcal</td>'
         +'<td style="padding:6px 8px;font-size:11px;text-align:right">'+miniBar(it.p, c.protMax, '#f97316')+'</td>'
         +'<td style="padding:6px 8px;font-size:11px;text-align:right"><span style="color:#38bdf8;font-family:\'Space Mono\',monospace">'+(it.g != null ? it.g+'g' : '—')+'</span></td>'
-        +'<td style="padding:6px 8px;font-size:11px;text-align:right">'+miniBar(it.l, c.lip, '#a78bfa')+'</td>'
+        +'<td style="padding:6px 8px;font-size:11px;text-align:right">'+miniBar(it.l, c.lipMin, '#a78bfa')+'</td>'
         +'<td style="padding:6px 8px;font-size:11px;text-align:right">'+miniBar(it.f, c.fibres, '#4ade80')+'</td>'
         +'</tr>';
     }
