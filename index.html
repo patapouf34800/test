@@ -1381,7 +1381,7 @@
         <div class="chart-title" style="margin-bottom:0">🎯 Cibles journalières</div>
       </div>
       <div class="kpi-grid" id="nutriCiblesGrid"></div>
-      <p style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:12px">Protéines : 0.83–2.2g/kg (ANSES 2024) · Lipides : 35-40% des calories (ANSES 2024) · Fibres : ≥30g/jour (ANSES, apport satisfaisant) · Glucides : 40-55% des calories, dont sucres <100g/jour max</p>
+      <p style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:12px">Protéines : 0.83–2.2g/kg · Lipides : 35-40% AET · Glucides : 40-55% AET · Fibres : ≥30g/jour · <span style="color:#f97316">⚠️ Sucres : <100g/jour max (idéalement <10% AET)</span></p>
     </div>
 
     <div class="chart-card" id="nutriDayDetail">
@@ -7548,9 +7548,9 @@ function renderNutriCibles(){
   if(!grid) return;
   grid.innerHTML = [
     { label:'Protéines', sub: c.protMin+'–'+c.protMax+'g', detail:'0.83–2.2g/kg', color:'#f97316' },
-    { label:'Lipides',   sub: '≥ '+c.lipMin+'g',              detail:'plancher établi', color:'#a78bfa' },
-    { label:'Fibres',    sub: c.fibres+'g',                 detail:'recommandation OMS', color:'#4ade80' },
-    { label:'Glucides',  sub: '—',                          detail:'pas de cible établie', color:'#38bdf8' },
+    { label:'Lipides',   sub: c.lipMin+'–'+c.lipMax+'g',   detail:'35-40% des calories', color:'#a78bfa' },
+    { label:'Fibres',    sub: '≥ '+c.fibres+'g',           detail:'recommandation ANSES', color:'#4ade80' },
+    { label:'Glucides',  sub: c.glucMin+'–'+c.glucMax+'g', detail:'40-55% des calories', color:'#38bdf8' },
   ].map(function(m){
     return '<div class="card">'
       +'<div class="card-label">'+m.label+'</div>'
@@ -7586,15 +7586,24 @@ function renderNutriDetail(d){
   }
   function statusLip(v){
     if(v == null) return { color:'rgba(255,255,255,0.2)', label:'—' };
-    if(v >= c.lipMin) return { color:'#22c55e', label:'✓ ok' };
-    if(v >= c.lipMin * 0.75) return { color:'#facc15', label:'⚠ limite' };
-    return { color:'#f97316', label:'✗ trop bas' };
+    // Lipides : fourchette 35-40% AET
+    if(v >= c.lipMin && v <= c.lipMax) return { color:'#22c55e', label:'✓ dans la fourchette' };
+    if(v < c.lipMin && v >= c.lipMin * 0.75) return { color:'#facc15', label:'⚠ un peu bas' };
+    if(v < c.lipMin * 0.75) return { color:'#f97316', label:'✗ trop bas' };
+    return { color:'#38bdf8', label:'○ au-dessus' };
   }
   function statusFib(v){
     if(v == null) return { color:'rgba(255,255,255,0.2)', label:'—' };
     if(v >= c.fibres) return { color:'#22c55e', label:'✓ atteint' };
     if(v >= c.fibres * 0.7) return { color:'#facc15', label:'⚠ proche' };
     return { color:'#f97316', label:'✗ insuffisant' };
+  }
+  function statusGluc(v){
+    if(v == null) return { color:'rgba(255,255,255,0.2)', label:'—' };
+    // Glucides : fourchette 40-55% AET, évaluation informative
+    if(v >= c.glucMin && v <= c.glucMax) return { color:'#22c55e', label:'✓ dans la fourchette' };
+    if(v < c.glucMin) return { color:'#38bdf8', label:'○ en dessous' };
+    return { color:'#38bdf8', label:'○ au-dessus' };
   }
 
   function progressBar(v, cible, color){
@@ -7617,12 +7626,17 @@ function renderNutriDetail(d){
     +'</div></div>';
 
   // Glucides — informatif seulement, pas de cible
+  // Glucides
+  const gs = statusGluc(d.g);
   const glucCard = '<div class="card">'
     +'<div class="card-label">Glucides</div>'
     +'<div class="card-value" style="color:#38bdf8">'+(d.g != null ? d.g : '—')+'</div>'
     +'<div class="card-unit">g · '+Math.round((d.g||0)*4)+' kcal</div>'
-    +'<div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,0.2)">pas de cible établie</div>'
-    +'</div>';
+    +progressBar(d.g, c.glucMax, gs.color)
+    +'<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px">'
+    +'<span style="color:'+gs.color+'">'+gs.label+'</span>'
+    +'<span style="color:rgba(255,255,255,0.2)">fourchette '+c.glucMin+'–'+c.glucMax+'g</span>'
+    +'</div></div>';
 
   // Lipides
   const ls = statusLip(d.l);
@@ -7630,10 +7644,10 @@ function renderNutriDetail(d){
     +'<div class="card-label">Lipides</div>'
     +'<div class="card-value" style="color:#a78bfa">'+(d.l != null ? d.l : '—')+'</div>'
     +'<div class="card-unit">g · '+Math.round((d.l||0)*9)+' kcal</div>'
-    +progressBar(d.l, c.lipMin, ls.color)
+    +progressBar(d.l, c.lipMax, ls.color)
     +'<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px">'
     +'<span style="color:'+ls.color+'">'+ls.label+'</span>'
-    +'<span style="color:rgba(255,255,255,0.2)">plancher ≥'+c.lipMin+'g</span>'
+    +'<span style="color:rgba(255,255,255,0.2)">fourchette '+c.lipMin+'–'+c.lipMax+'g</span>'
     +'</div></div>';
 
   // Fibres
