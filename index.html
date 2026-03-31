@@ -2525,6 +2525,7 @@ function refresh(){
   renderKPI(s); renderChartMain(s); renderChartDeficit(s); renderChartPoids(s); renderObjectifBanner();
   renderSaisieList(s); renderPoidsCards(s);
   renderRefs(); renderRefCatSelect(); renderCalcSelect(); renderCalcItems(); renderPeseeList(); renderVelo(); renderBilans(); renderAllSanteSections(); renderDocuments(); renderRecettes();
+  renderNutri(); // AJOUT : mise à jour des cibles nutritionnelles
   initCorrMarqueur();
   // Sync dashboard period buttons
   const periodMap={'mois_en_cours':0,'mois_precedent':1,'tout':2};
@@ -8585,6 +8586,7 @@ function calcTDEE(){
 function applyObjectif(kcal, btn){
   document.getElementById('objectifInput').value = kcal;
   refresh();
+  saveData(); // AJOUT : sauvegarder l'objectif modifié
   // Flash confirmation
   const orig = btn.textContent;
   btn.textContent = '✓ Appliqué !';
