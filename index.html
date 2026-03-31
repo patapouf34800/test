@@ -8459,6 +8459,18 @@ function getTDEEMaintienPourPoids(poids){
 }
 
 function getObjectifPourDate(dateStr){
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Pour les dates futures ou aujourd'hui : utiliser l'objectif personnalisé défini par l'utilisateur
+  if(dateStr >= today){
+    const objectifInput = document.getElementById('objectifInput');
+    const currentObjectif = parseInt(objectifInput.value);
+    if(currentObjectif && currentObjectif > 0){
+      return currentObjectif;
+    }
+  }
+  
+  // Pour les dates passées : calculer le TDEE de maintien basé sur le poids historique
   // Cherche la dernière pesée réelle <= dateStr
   const peseesBefore = pesees.filter(function(p){ return p.date <= dateStr; });
   if(peseesBefore.length > 0){
@@ -8603,6 +8615,15 @@ function calcTDEE(){
 
 function applyObjectif(kcal, btn){
   document.getElementById('objectifInput').value = kcal;
+  
+  // Mettre à jour l'objectif pour tous les jours futurs et aujourd'hui
+  const today = new Date().toISOString().split('T')[0];
+  days.forEach(function(d){ 
+    if(d.date >= today) {
+      d.objectif = kcal;
+    }
+  });
+  
   refresh();
   saveData(); // AJOUT : sauvegarder l'objectif modifié
   // Flash confirmation
