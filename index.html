@@ -939,7 +939,7 @@
 
         <div class="form-group">
           <label>Sexe</label>
-          <select id="tdeeSexe" onchange="calcTDEE();refresh()">
+          <select id="tdeeSexe" onchange="calcTDEE();refresh();saveData()">
             <option value="homme">Homme</option>
             <option value="femme">Femme</option>
           </select>
@@ -8492,22 +8492,40 @@ function syncObjectifDynamique(){
 function syncObjectifAge(){
   // Âge : recalcule uniquement présent et futur (le passé garde son objectif historique)
   const today = new Date().toISOString().split('T')[0];
-  document.getElementById('objectifInput').value = getObjectifPourDate(today);
-  days.forEach(function(d){ if(d.date >= today) d.objectif = getObjectifPourDate(d.date); });
+  const objectifInput = document.getElementById('objectifInput');
+  const tdee = getTDEE();
+  const currentObjectif = parseInt(objectifInput.value) || tdee;
+  // Ne modifier l'objectif que si l'utilisateur n'a pas défini un objectif personnalisé
+  // Un objectif personnalisé = différence > 50 kcal avec le TDEE
+  if(Math.abs(currentObjectif - tdee) < 50) {
+    objectifInput.value = getObjectifPourDate(today);
+  }
+  // Note : on ne met pas à jour les days si l'objectif est personnalisé
+  // car l'utilisateur a fait un choix délibéré (déficit/surplus)
 }
 
 function syncObjectifTaille(){
   // Taille : recalcule tout (passé + présent + futur) — mesure réelle de la personne
   const today = new Date().toISOString().split('T')[0];
-  document.getElementById('objectifInput').value = getObjectifPourDate(today);
-  days.forEach(function(d){ d.objectif = getObjectifPourDate(d.date); });
+  const objectifInput = document.getElementById('objectifInput');
+  const tdee = getTDEE();
+  const currentObjectif = parseInt(objectifInput.value) || tdee;
+  // Ne modifier l'objectif que si l'utilisateur n'a pas défini un objectif personnalisé
+  if(Math.abs(currentObjectif - tdee) < 50) {
+    objectifInput.value = getObjectifPourDate(today);
+  }
 }
 
 function syncObjectifActivite(){
   // Activité : laisse le passé, recalcule présent et futur uniquement
   const today = new Date().toISOString().split('T')[0];
-  document.getElementById('objectifInput').value = getObjectifPourDate(today);
-  days.forEach(function(d){ if(d.date >= today) d.objectif = getObjectifPourDate(d.date); });
+  const objectifInput = document.getElementById('objectifInput');
+  const tdee = getTDEE();
+  const currentObjectif = parseInt(objectifInput.value) || tdee;
+  // Ne modifier l'objectif que si l'utilisateur n'a pas défini un objectif personnalisé
+  if(Math.abs(currentObjectif - tdee) < 50) {
+    objectifInput.value = getObjectifPourDate(today);
+  }
 }
 
 
@@ -8827,7 +8845,18 @@ async function initApp() {
     });
     saveData();
   }
-  syncObjectifDynamique();
+  // MODIFICATION : Ne synchroniser l'objectif dynamique que si aucun objectif personnalisé n'est défini
+  // Cela permet de préserver l'objectif défini par l'utilisateur (déficit, etc.)
+  const objectifInput = document.getElementById('objectifInput');
+  const tdee = getTDEE();
+  const currentObjectif = parseInt(objectifInput.value) || tdee;
+  // Si l'objectif actuel est différent du TDEE (donc personnalisé), on ne l'écrase pas
+  if(Math.abs(currentObjectif - tdee) < 10) {
+    // L'objectif est proche du TDEE, on peut le synchroniser
+    syncObjectifDynamique();
+  }
+  // Si l'objectif est très différent du TDEE, c'est un choix délibéré de l'utilisateur (déficit/surplus)
+  // On ne touche pas à cette valeur
   if(!hasData) days = [];
   refresh();
   window.addEventListener('beforeunload', saveData);
