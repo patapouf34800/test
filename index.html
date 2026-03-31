@@ -1381,7 +1381,7 @@
         <div class="chart-title" style="margin-bottom:0">🎯 Cibles journalières</div>
       </div>
       <div class="kpi-grid" id="nutriCiblesGrid"></div>
-      <p style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:12px">Protéines : 0.83–2.2g/kg · Lipides : 35-40% AET · Glucides : 40-55% AET · Fibres : ≥30g/jour · <span style="color:#f97316">⚠️ Sucres : <100g/jour max (idéalement <10% AET)</span></p>
+      <p id="nutriCiblesExplain" style="font-size:11px;color:rgba(255,255,255,0.2);margin-top:12px"></p>
     </div>
 
     <div class="chart-card" id="nutriDayDetail">
@@ -1563,6 +1563,23 @@ function defColor(def,alpha){
 function defClass(def){ return def===0?'yellow':def>0?'green':'red'; }
 function defSign(def){ return def===0?'±':def>0?'−':'+'; }
 function getObjectif(){ return parseInt(document.getElementById('objectifInput').value)||2200; }
+
+function getTDEE(){
+  // Récupère le TDEE de maintien calculé
+  const sexe = document.getElementById('tdeeSexe').value;
+  const age = parseInt(document.getElementById('tdeeAge').value) || 30;
+  const taille = parseInt(document.getElementById('tdeeTaille').value) || 175;
+  const poids = parseFloat(document.getElementById('tdeePoids').value) || 75;
+  const activite = parseFloat(document.getElementById('tdeeActivite').value) || 1.55;
+  
+  // Mifflin-St Jeor
+  let mb;
+  if(sexe === 'homme') mb = 10*poids + 6.25*taille - 5*age + 5;
+  else mb = 10*poids + 6.25*taille - 5*age - 161;
+  const tdee = Math.round(mb * activite);
+  
+  return tdee;
+}
 
 const ACTIVITES = [
   { id:'velo_interieur', label:'Vélo intérieur',   icon:'🚴', met:4,   hasDist:true  },
@@ -7353,47 +7370,91 @@ function renderMacroTrend(){
 function getNutriCibles(){
   const poids = pesees.length ? pesees[pesees.length-1].val : (parseFloat(document.getElementById('poidsInput').value) || 80);
   const kcal  = getObjectif();
+  const tdee  = getTDEE();
   
   // ═══════════════════════════════════════════════════════════════
-  // RECOMMANDATIONS ANSES 2024 (actualisées)
+  // DÉTECTION AUTOMATIQUE : DÉFICIT vs MAINTIEN
   // ═══════════════════════════════════════════════════════════════
+  const isDeficit = kcal < tdee * 0.95; // Si objectif < 95% du TDEE = déficit
   
-  // PROTÉINES : 0.83 à 2.2 g/kg/jour
-  // - Minimum : 0.83 g/kg (référence nutritionnelle adulte)
-  // - Objectif recommandé : 1.2 g/kg (valeur intermédiaire, adaptée déficit calorique)
-  // - Maximum acceptable : 2.2 g/kg
-  const protMin = Math.round(poids * 0.83);
-  const protMax = Math.round(poids * 2.2);
-  const prot    = Math.round(poids * 1.2); // objectif affiché (valeur intermédiaire)
-  
-  // LIPIDES : 35-40% de l'apport énergétique total (AET)
-  // - Minimum : (kcal × 0.35) / 9 grammes
-  // - Maximum : (kcal × 0.40) / 9 grammes
-  // - Objectif : 37.5% (milieu de fourchette)
-  const lipMin = Math.round((kcal * 0.35) / 9);
-  const lipMax = Math.round((kcal * 0.40) / 9);
-  const lip    = Math.round((kcal * 0.375) / 9); // objectif affiché (milieu)
-  
-  // FIBRES : 30 g/jour (apport satisfaisant ANSES)
-  // - Minimum acceptable : 25 g/jour
-  const fibres = 30;
-  const fibresMin = 25;
-  
-  // GLUCIDES : 40-55% de l'apport énergétique total (AET)
-  // - Pas de cible fixe affichée (fourchette large)
-  // - Sous-limite SUCRES : < 100 g/jour (limite haute absolue)
-  const glucMin = Math.round((kcal * 0.40) / 4);
-  const glucMax = Math.round((kcal * 0.55) / 4);
-  const glucides = null; // pas de cible affichée
-  const sucresMax = 100; // limite absolue
-  
-  return { 
-    prot, protMin, protMax, 
-    lip, lipMin, lipMax,
-    fibres, fibresMin,
-    glucides, glucMin, glucMax, sucresMax,
-    poids, kcal 
-  };
+  if(isDeficit){
+    // ═══════════════════════════════════════════════════════════════
+    // MODE DÉFICIT — PERTE DE POIDS
+    // Recommandations adaptées pour préserver la masse musculaire
+    // et optimiser la perte de masse grasse
+    // ═══════════════════════════════════════════════════════════════
+    
+    // PROTÉINES : 1.6-2.2 g/kg (consensus scientifique déficit calorique)
+    // Augmentées pour préserver la masse musculaire en déficit
+    const protMin = Math.round(poids * 1.6);
+    const protMax = Math.round(poids * 2.2);
+    const prot    = Math.round(poids * 1.8); // objectif recommandé
+    
+    // LIPIDES : 25-35% AET (minimum hormonal maintenu)
+    const lipMin = Math.round((kcal * 0.25) / 9);
+    const lipMax = Math.round((kcal * 0.35) / 9);
+    const lip    = Math.round((kcal * 0.30) / 9); // objectif recommandé
+    
+    // GLUCIDES : Variable d'ajustement (le reste après protéines + lipides)
+    // Calculé mais pas affiché comme cible fixe
+    const caloriesProtLip = (prot * 4) + (lip * 9);
+    const glucides = Math.round((kcal - caloriesProtLip) / 4);
+    const glucMin = null; // Pas de minimum en déficit
+    const glucMax = null; // Pas de maximum en déficit
+    
+    // FIBRES : ≥30g (satiété + transit, crucial en déficit)
+    const fibres = 30;
+    const fibresMin = 25;
+    
+    // SUCRES : <100g maximum (ou <10% AET si plus strict)
+    const sucresMax = 100;
+    
+    return { 
+      prot, protMin, protMax, 
+      lip, lipMin, lipMax,
+      fibres, fibresMin,
+      glucides, glucMin, glucMax, sucresMax,
+      poids, kcal, tdee,
+      mode: 'déficit'
+    };
+    
+  } else {
+    // ═══════════════════════════════════════════════════════════════
+    // MODE MAINTIEN — RECOMMANDATIONS ANSES 2024
+    // Recommandations officielles pour population générale
+    // ═══════════════════════════════════════════════════════════════
+    
+    // PROTÉINES : 0.83-2.2 g/kg (référence ANSES)
+    const protMin = Math.round(poids * 0.83);
+    const protMax = Math.round(poids * 2.2);
+    const prot    = Math.round(poids * 1.2); // objectif recommandé
+    
+    // LIPIDES : 35-40% AET (ANSES 2024)
+    const lipMin = Math.round((kcal * 0.35) / 9);
+    const lipMax = Math.round((kcal * 0.40) / 9);
+    const lip    = Math.round((kcal * 0.375) / 9); // objectif milieu de fourchette
+    
+    // GLUCIDES : 40-55% AET (ANSES 2024)
+    const glucMin = Math.round((kcal * 0.40) / 4);
+    const glucMax = Math.round((kcal * 0.55) / 4);
+    const glucides = Math.round((kcal * 0.475) / 4); // objectif milieu de fourchette
+    
+    // FIBRES : 30g/jour (apport satisfaisant ANSES)
+    const fibres = 30;
+    const fibresMin = 25;
+    
+    // SUCRES : <100g maximum (limite ANSES)
+    const sucresMax = 100;
+    
+    return { 
+      prot, protMin, protMax, 
+      lip, lipMin, lipMax,
+      fibres, fibresMin,
+      glucides, glucMin, glucMax, sucresMax,
+      poids, kcal, tdee,
+      mode: 'maintien'
+    };
+  }
 }
 
 function renderMacroRadar(){
@@ -7545,19 +7606,54 @@ function renderRepasRepartition(){
 function renderNutriCibles(){
   const c = getNutriCibles();
   const grid = document.getElementById('nutriCiblesGrid');
+  const explain = document.getElementById('nutriCiblesExplain');
   if(!grid) return;
-  grid.innerHTML = [
-    { label:'Protéines', sub: c.protMin+'–'+c.protMax+'g', detail:'0.83–2.2g/kg', color:'#f97316' },
-    { label:'Lipides',   sub: c.lipMin+'–'+c.lipMax+'g',   detail:'35-40% des calories', color:'#a78bfa' },
-    { label:'Fibres',    sub: '≥ '+c.fibres+'g',           detail:'recommandation ANSES', color:'#4ade80' },
-    { label:'Glucides',  sub: c.glucMin+'–'+c.glucMax+'g', detail:'40-55% des calories', color:'#38bdf8' },
-  ].map(function(m){
-    return '<div class="card">'
-      +'<div class="card-label">'+m.label+'</div>'
-      +'<div class="card-value" style="color:'+m.color+'">'+m.sub+'</div>'
-      +'<div class="card-unit">'+m.detail+'</div>'
-      +'</div>';
-  }).join('');
+  
+  // Badge mode
+  const modeBadge = c.mode === 'déficit' 
+    ? '<div style="display:inline-block;background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.3);border-radius:6px;padding:4px 10px;font-size:10px;color:#f97316;font-weight:600;letter-spacing:0.5px;margin-left:8px">MODE : DÉFICIT</div>'
+    : '<div style="display:inline-block;background:rgba(56,189,248,0.15);border:1px solid rgba(56,189,248,0.3);border-radius:6px;padding:4px 10px;font-size:10px;color:#38bdf8;font-weight:600;letter-spacing:0.5px;margin-left:8px">MODE : MAINTIEN</div>';
+  
+  // Mise à jour du titre avec badge
+  const titleEl = document.querySelector('#nutriCiblesCard .chart-title');
+  if(titleEl && !titleEl.innerHTML.includes('MODE :')) {
+    titleEl.innerHTML = '🎯 Cibles journalières ' + modeBadge;
+  }
+  
+  if(c.mode === 'déficit'){
+    // AFFICHAGE MODE DÉFICIT
+    grid.innerHTML = [
+      { label:'Protéines', sub: c.protMin+'–'+c.protMax+'g', detail:'1.6–2.2g/kg · priorité déficit', color:'#f97316' },
+      { label:'Lipides',   sub: c.lipMin+'–'+c.lipMax+'g',   detail:'25-35% · minimum hormonal', color:'#a78bfa' },
+      { label:'Fibres',    sub: '≥ '+c.fibres+'g',           detail:'satiété + transit', color:'#4ade80' },
+      { label:'Glucides',  sub: '~'+c.glucides+'g',          detail:'variable d\'ajustement', color:'#38bdf8' },
+    ].map(function(m){
+      return '<div class="card">'
+        +'<div class="card-label">'+m.label+'</div>'
+        +'<div class="card-value" style="color:'+m.color+'">'+m.sub+'</div>'
+        +'<div class="card-unit">'+m.detail+'</div>'
+        +'</div>';
+    }).join('');
+    
+    if(explain) explain.innerHTML = 'Objectif '+c.kcal+' kcal/j (TDEE maintien : '+c.tdee+' kcal/j, déficit : '+(c.tdee-c.kcal)+' kcal/j) · Protéines augmentées pour préserver la masse musculaire · Glucides ajustés après protéines + lipides · <span style="color:#f97316">⚠️ Sucres : <100g/jour max</span>';
+    
+  } else {
+    // AFFICHAGE MODE MAINTIEN (ANSES)
+    grid.innerHTML = [
+      { label:'Protéines', sub: c.protMin+'–'+c.protMax+'g', detail:'0.83–2.2g/kg', color:'#f97316' },
+      { label:'Lipides',   sub: c.lipMin+'–'+c.lipMax+'g',   detail:'35-40% des calories', color:'#a78bfa' },
+      { label:'Fibres',    sub: '≥ '+c.fibres+'g',           detail:'recommandation ANSES', color:'#4ade80' },
+      { label:'Glucides',  sub: c.glucMin+'–'+c.glucMax+'g', detail:'40-55% des calories', color:'#38bdf8' },
+    ].map(function(m){
+      return '<div class="card">'
+        +'<div class="card-label">'+m.label+'</div>'
+        +'<div class="card-value" style="color:'+m.color+'">'+m.sub+'</div>'
+        +'<div class="card-unit">'+m.detail+'</div>'
+        +'</div>';
+    }).join('');
+    
+    if(explain) explain.innerHTML = 'Recommandations ANSES 2024 · Protéines : 0.83–2.2g/kg · Lipides : 35-40% AET · Glucides : 40-55% AET · Fibres : ≥30g/jour · <span style="color:#f97316">⚠️ Sucres : <100g/jour max (idéalement <10% AET)</span>';
+  }
 }
 
 function nutriSort(key){
@@ -7600,7 +7696,11 @@ function renderNutriDetail(d){
   }
   function statusGluc(v){
     if(v == null) return { color:'rgba(255,255,255,0.2)', label:'—' };
-    // Glucides : fourchette 40-55% AET, évaluation informative
+    // Mode déficit : pas de fourchette stricte, juste informatif
+    if(c.mode === 'déficit'){
+      return { color:'#38bdf8', label:'○ ajusté' };
+    }
+    // Mode maintien : fourchette 40-55% AET
     if(v >= c.glucMin && v <= c.glucMax) return { color:'#22c55e', label:'✓ dans la fourchette' };
     if(v < c.glucMin) return { color:'#38bdf8', label:'○ en dessous' };
     return { color:'#38bdf8', label:'○ au-dessus' };
@@ -7632,11 +7732,14 @@ function renderNutriDetail(d){
     +'<div class="card-label">Glucides</div>'
     +'<div class="card-value" style="color:#38bdf8">'+(d.g != null ? d.g : '—')+'</div>'
     +'<div class="card-unit">g · '+Math.round((d.g||0)*4)+' kcal</div>'
-    +progressBar(d.g, c.glucMax, gs.color)
-    +'<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px">'
-    +'<span style="color:'+gs.color+'">'+gs.label+'</span>'
-    +'<span style="color:rgba(255,255,255,0.2)">fourchette '+c.glucMin+'–'+c.glucMax+'g</span>'
-    +'</div></div>';
+    +(c.mode === 'déficit' 
+      ? '<div style="margin-top:8px;font-size:10px;color:rgba(56,189,248,0.5)">variable d\'ajustement</div>'
+      : progressBar(d.g, c.glucMax, gs.color)
+        +'<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px">'
+        +'<span style="color:'+gs.color+'">'+gs.label+'</span>'
+        +'<span style="color:rgba(255,255,255,0.2)">fourchette '+c.glucMin+'–'+c.glucMax+'g</span>'
+        +'</div>')
+    +'</div>';
 
   // Lipides
   const ls = statusLip(d.l);
